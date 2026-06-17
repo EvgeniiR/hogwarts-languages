@@ -103,6 +103,7 @@ S = {
   gameDifficulty: 'easy'|'medium'|'hard',
   musicOff: false,           // persisted music on/off state
   ttsOff: false,             // persisted TTS mute state (use !==undefined check in loadS)
+  currentHints: {hermione:[], dumbledore:[], hagrid:[], snape:[]},  // persisted reply-suggestion hints per character
   version: 2                 // schema version stamp
 }
 ```
@@ -138,7 +139,7 @@ The HTML has ~50 `onclick="fnName()"` attributes. Module scope is not global, so
 | Hagrid    | Enthusiastic, warm, animal-obsessed (richer vocab) | 4 | `chars.hagrid` |
 | Snape     | Sarcastic, corrects everything, no mercy | 6 | `chars.snape` |
 
-System prompts are assembled at call time by `getSys(k)` in `characters.js`, which is **provider-aware** (branches on `R.provider`): Groq gets terse/directive framing, Gemini moderate, Anthropic the richest persona. Each character stores a `persona` (with a `{{LV}}` placeholder) and a JSON `shape`; the shared rules — `SPELL_RULE`, `SCORING_RULE` (anti-farming: `points:0` for non-effort but **no** mood punishment), `CONVO_RULE` (be proactive, end with a question), `OPTIONS_RULE`, and `VARIETY_RULE` (anti-repetition — applied in all three provider branches) — live **once** in `characters.js`. Each `shape` includes an `options` array (2-3 learner-POV reply suggestions); `getSys(k)` appends the daily-challenge line. Reply-suggestion chips are rendered via the existing `renderHints()`/`#hintsR` UI from the LLM `options` field and are **ephemeral** (never stored in `S.hist`; cleared on character switch). `genStarter` seeds the user turn with a random HP scenario (`SEEDS` array in `chat.js`) so openers vary across resets.
+System prompts are assembled at call time by `getSys(k)` in `characters.js`, which is **provider-aware** (branches on `R.provider`): Groq gets terse/directive framing, Gemini moderate, Anthropic the richest persona. Each character stores a `persona` (with a `{{LV}}` placeholder) and a JSON `shape`; the shared rules — `SPELL_RULE`, `SCORING_RULE` (anti-farming: `points:0` for non-effort but **no** mood punishment), `CONVO_RULE` (be proactive, end with a question), `OPTIONS_RULE`, and `VARIETY_RULE` (anti-repetition — applied in all three provider branches) — live **once** in `characters.js`. Each `shape` includes an `options` array (2-3 learner-POV reply suggestions); `getSys(k)` appends the daily-challenge line. Reply-suggestion chips are rendered via `renderHints()`/`#hintsR` UI from the LLM `options` field and are **persisted** in `S.currentHints` per character (saved in `sendMsg` and `genStarter`; restored on `selChar`/page reload). Static hints (`chars[k].hints`) are shown by `showHints()` as a fallback when no persisted hints exist for the character. `genStarter` seeds the user turn with a random HP scenario (`SEEDS` array in `chat.js`) so openers vary across resets.
 
 ## LLM providers
 
@@ -149,7 +150,7 @@ System prompts are assembled at call time by `getSys(k)` in `characters.js`, whi
 | Groq | `R.keys.groq` | `llama-3.3-70b-versatile` | OpenAI-compatible |
 | OpenAI | `R.keys.openai` | `gpt-4.1-mini` | OpenAI-compatible, same format as Groq |
 
-Valid effort values: `low`, `medium`, `high`, `xhigh`, `max` — passed as `output_config:{effort}` in the Anthropic request body. Conversation (`sendMsg`) uses `'medium'` effort; conversation starters and daily challenges use `'low'`. Effort is consumed only by the Anthropic path. Groq and Gemini set `temperature:0.9`; Anthropic accepts no temperature (Opus 4.8 returns 400 on it).
+Valid effort values: `low`, `medium`, `high`, `xhigh`, `max` — passed as `output_config:{effort}` in the Anthropic request body. Conversation (`sendMsg`) and error explanations use `'medium'` effort; conversation starters and daily challenges use `'low'`. Effort is consumed only by the Anthropic path. Groq and Gemini set `temperature:0.9`; Anthropic accepts no temperature (Opus 4.8 returns 400 on it).
 
 All three providers use `fetchWithTimeout` (30s) defined in `llm.js`. `AbortError` is non-retryable.
 

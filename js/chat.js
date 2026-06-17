@@ -109,7 +109,7 @@ export function selChar(tab){
   const ch=chars[R.cur];tab.style.borderBottomColor=ch.ac;
   const b=document.getElementById('hbadge');b.textContent=ch.house;b.style.background=ch.bbg;b.style.color=ch.btxt;b.style.borderColor=ch.bbd;
   document.getElementById('mainApp').style.setProperty('--char-ac',ch.ac);
-  renderMsgs();renderHints([]);renderSide();
+  renderMsgs();renderHints(S.currentHints[R.cur]&&S.currentHints[R.cur].length?S.currentHints[R.cur]:chars[R.cur].hints);renderSide();
   document.getElementById('sendB').disabled=false;document.getElementById('ui').focus();
   genDailyChallenges();
 }
@@ -132,8 +132,9 @@ export async function genStarter(k){
       if(p.vocab&&p.vocab.length)p.vocab.forEach(v=>{if(!vocabExists(v.word))S.vocab.push({...v,ts:Date.now()});});
       if(p.note)S.grammar.push({ch:k,text:p.note,ts:Date.now()});
       if(typeof p.mood==='number')updMood(k,p.mood);
+      S.currentHints[k]=sanitizeOptions(p.options);
       saveS();
-      if(k===R.cur){rmTyping();appendMsg(S.hist[k].at(-1));renderSide();renderHints(sanitizeOptions(p.options));}
+      if(k===R.cur){rmTyping();appendMsg(S.hist[k].at(-1));renderSide();renderHints(S.currentHints[k]);}
     }else{if(k===R.cur)rmTyping();}
   }catch(e){
     if(k===R.cur){rmTyping();showToast(friendlyError(e),'#5a0000','#f5e5c0');}
@@ -179,7 +180,7 @@ export async function sendMsg(){
     if(changed)renderSide();
     checkAchievements();
     playRecv();if(!S.ttsOff)setTimeout(()=>speak(p.reply),350);
-    saveS();
+    S.currentHints[R.cur]=suggestions;saveS();
   }catch(e){const msg=friendlyError(e);S.hist[R.cur].push({role:'assistant',content:msg,display:msg,note:'',hasSpell:false,error:true});}
   rmTyping();R.loading=false;document.getElementById('sendB').disabled=false;appendMsg(S.hist[R.cur].at(-1));renderHints(suggestions);document.getElementById('ui').focus();
 }

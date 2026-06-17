@@ -18,6 +18,7 @@ export let S = {
   voicePrefs:{f:'',m:''},modelPrefs:{anthropic:'',gemini:'',groq:'',openai:''},
   achievements:{streak:0,msgs:0,vocab:0,challenges:0,pts:0},
   levelWindow:[],gameDifficulty:'medium',musicOff:false,ttsOff:false,
+  currentHints:{},
   version:2
 };
 
@@ -68,6 +69,7 @@ export async function loadS(){
       if(d.voicePrefs)S.voicePrefs=d.voicePrefs;
       if(d.modelPrefs)S.modelPrefs={...S.modelPrefs,...d.modelPrefs};
       else if(d.modelPref)S.modelPrefs.anthropic=d.modelPref;
+      if(d.currentHints)S.currentHints={hermione:[],dumbledore:[],hagrid:[],snape:[],...d.currentHints};
       if(d.lifetimePts)S.lifetimePts=d.lifetimePts;
       if(d.achievements)S.achievements={streak:0,msgs:0,vocab:0,challenges:0,pts:0,...d.achievements};
       if(d.levelWindow)S.levelWindow=d.levelWindow;
