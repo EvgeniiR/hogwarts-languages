@@ -49,11 +49,15 @@ export function renderSettings(){
       el.innerHTML=`<div class="svc-row"><div class="svc-lbl">Modelo de Gemini</div>
         <select onchange="setModelPref('gemini',this.value)">${models.map(([v,l])=>`<option value="${v}" ${S.modelPrefs.gemini===v?'selected':''}>${esc(l)}</option>`).join('')}
         </select><div class="edim">Flash 2.5 cambia a Flash Lite automáticamente si se alcanza el límite de velocidad.</div></div>`;
+    }else if(R.provider==='openai'){
+      const models=[['','GPT-4.1 Mini (buena calidad)'],['gpt-4.1','GPT-4.1 (mejor calidad, más lento)']];
+      el.innerHTML=`<div class="svc-row"><div class="svc-lbl">Modelo de OpenAI</div>
+        <select onchange="setModelPref('openai',this.value)">${models.map(([v,l])=>`<option value="${v}" ${S.modelPrefs.openai===v?'selected':''}>${esc(l)}</option>`).join('')}</select></div>`;
     }
   }else if(settingsTab==='auth'){
-    const pvdKey={groq:R.keys.groq,gemini:R.keys.gemini,anthropic:R.keys.anthropic};
-    const pvdLabel={groq:'Groq ✦ free',gemini:'Gemini ✦ free',anthropic:'Anthropic'};
-    const pvdPlaceholder={groq:'gsk_...',gemini:'AIza...',anthropic:'sk-ant-api03-...'};
+    const pvdKey={groq:R.keys.groq,gemini:R.keys.gemini,anthropic:R.keys.anthropic,openai:R.keys.openai};
+    const pvdLabel={groq:'Groq ✦ free',gemini:'Gemini ✦ free',anthropic:'Anthropic',openai:'OpenAI'};
+    const pvdPlaceholder={groq:'gsk_...',gemini:'AIza...',anthropic:'sk-ant-api03-...',openai:'sk-proj-...'};
     const curKey=pvdKey[R.provider];
     const inpStyle=`width:100%;padding:5px;border-radius:4px;border:1px solid var(--bdg);background:#fffaf0;color:var(--ink);font-size:12px;font-family:monospace;margin-bottom:4px;`;
     const statusDiv=`<div id="keyValidStatus" style="font-size:10px;min-height:14px;margin-bottom:6px;"></div>`;
@@ -63,7 +67,7 @@ export function renderSettings(){
     el.innerHTML=`
       <div class="svc-row">
         <div class="svc-lbl">Proveedor</div>
-        <div style="display:flex;gap:5px;margin-bottom:10px;">${['groq','gemini','anthropic'].map(p=>{
+        <div style="display:flex;gap:5px;margin-bottom:10px;">${['groq','gemini','anthropic','openai'].map(p=>{
           const active=R.provider===p;const hasK=!!pvdKey[p];
           return `<button id="spvd_${p}" onclick="setAuthProvider('${p}')" style="flex:1;padding:4px 4px;border-radius:4px;border:1px solid var(--bdg);background:${active?'rgba(139,105,20,.15)':'none'};color:${active?'#5a3000':'#7a5520'};cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:9px;position:relative;">${esc(pvdLabel[p])}${hasK?'<span style="position:absolute;top:2px;right:3px;font-size:7px;color:#4a9020;">●</span>':''}</button>`;
         }).join('')}</div>
@@ -114,6 +118,8 @@ export async function validateProviderKey(provider,key){
       res=await fetch('https://api.groq.com/openai/v1/models',{headers:{'Authorization':`Bearer ${key}`}});
     }else if(provider==='gemini'){
       res=await fetch('https://generativelanguage.googleapis.com/v1beta/models',{headers:{'x-goog-api-key':key}});
+    }else if(provider==='openai'){
+      res=await fetch('https://api.openai.com/v1/models',{headers:{'Authorization':`Bearer ${key}`}});
     }else{
       res=await fetch('https://api.anthropic.com/v1/models',{headers:{'x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}});
     }
@@ -142,6 +148,7 @@ export async function saveAuthFromSettings(){
   if(!keyVal)return;
   if(R.provider==='groq')R.keys.groq=keyVal;
   else if(R.provider==='gemini')R.keys.gemini=keyVal;
+  else if(R.provider==='openai')R.keys.openai=keyVal;
   else R.keys.anthropic=keyVal;
   await saveCreds(R.provider,keyVal);
   showToast('✓ Guardado','#2a5018','#7acc40');

@@ -101,6 +101,7 @@
       <button onclick="setProvider('groq')" id="pvd_groq" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">Groq ✦ free</button>
       <button onclick="setProvider('gemini')" id="pvd_gemini" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">Google Gemini ✦ free</button>
       <button onclick="setProvider('anthropic')" id="pvd_anthropic" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">Anthropic</button>
+      <button onclick="setProvider('openai')" id="pvd_openai" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">OpenAI</button>
     </div>
     <div id="keyInputGroq">
       <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">Groq API Key · <a href="https://console.groq.com/keys" target="_blank" style="color:var(--gold);">get free key →</a></div>
@@ -113,6 +114,10 @@
     <div id="keyInputAnthropic" style="display:none;">
       <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">Anthropic API Key</div>
       <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;width:260px;font-family:monospace;">
+    </div>
+    <div id="keyInputOpenai" style="display:none;">
+      <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">OpenAI API Key · <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--gold);">manage keys →</a></div>
+      <input type="password" id="openaiKeyInput" placeholder="sk-proj-..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;width:260px;font-family:monospace;">
     </div>
     <label style="display:flex;align-items:center;gap:6px;justify-content:center;margin-top:10px;font-size:11px;color:#6878a8;cursor:pointer;"><input type="checkbox" id="rememberKey" style="cursor:pointer;width:13px;height:13px;margin:0;flex-shrink:0;">Recordar API key en este dispositivo</label>
   </div>

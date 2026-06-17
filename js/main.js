@@ -41,11 +41,13 @@ async function enterApp(skipValidation=false){
   }
   if(R.provider==='anthropic')R.keys.anthropic=keyVal;
   else if(R.provider==='gemini')R.keys.gemini=keyVal;
+  else if(R.provider==='openai')R.keys.openai=keyVal;
   else R.keys.groq=keyVal;
   // Restore all other providers' saved keys so settings tab stays correct.
   if(R.cachedCreds.anthropic&&!R.keys.anthropic)R.keys.anthropic=R.cachedCreds.anthropic;
   if(R.cachedCreds.gemini&&!R.keys.gemini)R.keys.gemini=R.cachedCreds.gemini;
   if(R.cachedCreds.groq&&!R.keys.groq)R.keys.groq=R.cachedCreds.groq;
+  if(R.cachedCreds.openai&&!R.keys.openai)R.keys.openai=R.cachedCreds.openai;
   const remember=document.getElementById('rememberKey').checked;
   if(remember&&keyVal)await saveCreds(R.provider,keyVal);
   else if(!remember)await clearCreds(R.provider);

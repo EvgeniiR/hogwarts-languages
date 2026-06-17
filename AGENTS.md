@@ -97,7 +97,7 @@ S = {
   challengeDone: {'charKey_YYYY-MM-DD': true},  // pruned to 14 days
   challengesCompleted: number,  // PERSISTENT lifetime counter (not pruned)
   voicePrefs: {f:'', m:''},
-  modelPrefs: {anthropic:'', gemini:'', groq:''},
+  modelPrefs: {anthropic:'', gemini:'', groq:'', openai:''},
   achievements: {streak, msgs, vocab, challenges, pts, hp_firstYear, hp_quidditch, hp_merlin, hp_champion},
   levelWindow: bool[],       // last 30 correct/incorrect outcomes
   gameDifficulty: 'easy'|'medium'|'hard',
@@ -116,8 +116,8 @@ S = {
 ```js
 R = {
   cur: 'hermione',             // active character key
-  provider: 'groq',            // 'anthropic'|'gemini'|'groq'
-  keys: {anthropic, gemini, groq},  // in-memory API keys
+  provider: 'groq',            // 'anthropic'|'gemini'|'groq'|'openai'
+  keys: {anthropic, gemini, groq, openai},  // in-memory API keys
   cachedCreds: {},             // saved creds from hp_creds storage
   loading: false               // true while an LLM call is in flight
 }
@@ -147,6 +147,7 @@ System prompts are assembled at call time by `getSys(k)` in `characters.js`, whi
 | Anthropic | `R.keys.anthropic` | `claude-opus-4-8` | Effort via `output_config:{effort}` (NOT `thinking`). Haiku skips effort param. Opus 4.8 uses adaptive thinking — `thinking:{type:'enabled'}` returns 400. |
 | Gemini | `R.keys.gemini` | `gemini-2.5-flash` | Falls back to `gemini-2.5-flash-lite` on 429 |
 | Groq | `R.keys.groq` | `llama-3.3-70b-versatile` | OpenAI-compatible |
+| OpenAI | `R.keys.openai` | `gpt-4.1-mini` | OpenAI-compatible, same format as Groq |
 
 Valid effort values: `low`, `medium`, `high`, `xhigh`, `max` — passed as `output_config:{effort}` in the Anthropic request body. Conversation (`sendMsg`) uses `'medium'` effort; conversation starters and daily challenges use `'low'`. Effort is consumed only by the Anthropic path. Groq and Gemini set `temperature:0.9`; Anthropic accepts no temperature (Opus 4.8 returns 400 on it).
 

@@ -27,6 +27,7 @@ export async function callLLM(systemPrompt, messages, maxTokens, effort){
   const fn=()=>{
     if(R.provider==='gemini')return callGemini(systemPrompt,messages,maxTokens);
     if(R.provider==='groq')return callGroq(systemPrompt,messages,maxTokens);
+    if(R.provider==='openai')return callOpenAI(systemPrompt,messages,maxTokens);
     return callAnthropic(systemPrompt,messages,maxTokens,effort);
   };
   const delays=[1000,2000];
@@ -103,6 +104,20 @@ async function callGroq(systemPrompt, messages, maxTokens){
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':`Bearer ${R.keys.groq}`},
     body:JSON.stringify({model:S.modelPrefs.groq||'llama-3.3-70b-versatile',messages:msgs,max_tokens:maxTokens,temperature:0.9})
+  });
+  const data=await res.json();
+  throwIfBad(res,data);
+  return data.choices?.[0]?.message?.content||'';
+}
+
+async function callOpenAI(systemPrompt, messages, maxTokens){
+  const msgs=[];
+  if(systemPrompt)msgs.push({role:'system',content:systemPrompt});
+  msgs.push(...messages);
+  const res=await fetchWithTimeout('https://api.openai.com/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${R.keys.openai}`},
+    body:JSON.stringify({model:S.modelPrefs.openai||'gpt-4.1-mini',messages:msgs,max_tokens:maxTokens,temperature:0.9})
   });
   const data=await res.json();
   throwIfBad(res,data);
