@@ -49,7 +49,7 @@ function boardComplete() {
   const {diff,bonus}=award('correct');
   pushLevelOutcome(true);
   document.getElementById('memResult').innerHTML = `<div style="margin-top:10px;text-align:center;">
-    <div style="color:#5ab030;font-size:13px;font-weight:500;">✓ ¡Pensieve completado!</div>
+    <div class="tier-correct" style="font-size:13px;font-weight:500;">✓ ¡Pensieve completado!</div>
     <div style="font-size:11px;color:var(--mt);margin-top:4px;">⏱ ${seconds}s${timeBonus > 0 ? ' · +' + timeBonus + ' pts (tiempo)' : ''}</div>
     <div style="font-size:11px;color:var(--mt);">+${diff.pts} pts${bonus ? ` · 🔥 Combo +${bonus}` : ''} · ${totalPairs} parejas</div>
     <button class="fc-btn" style="margin-top:8px;width:100%;" onclick="renderMemoryLobby()">Siguiente →</button>
@@ -133,8 +133,8 @@ export function renderMemoryLobby() {
   el.innerHTML = diffSelectorHtml() + `
     <div class="svc-lbl" style="margin-top:2px;">Vocabulario</div>
     <div class="vadd-row" style="margin-bottom:12px;">
-      <button onclick="setRandomMode(false);renderMemoryLobby()" style="${!randomMode?'background:rgba(139,105,20,.15);':''}">📖 Mis palabras</button>
-      <button onclick="setRandomMode(true);renderMemoryLobby()" style="${randomMode?'background:rgba(139,105,20,.15);':''}">🎲 Aleatorio</button>
+      <button onclick="setRandomMode(false);renderMemoryLobby()"${!randomMode?' class="diff-btn-active"':''}>📖 Mis palabras</button>
+      <button onclick="setRandomMode(true);renderMemoryLobby()"${randomMode?' class="diff-btn-active"':''}>🎲 Aleatorio</button>
     </div>
     <button class="fc-btn" style="width:100%;padding:10px 0;" onclick="genMemory()">▶ Empezar</button>`;
 }
@@ -146,7 +146,7 @@ function renderMemory() {
     <div class="pensieve-stats"><span id="memTimer">⏱ 0s</span><span id="memPairs">${matchedPairs}/${totalPairs}</span></div>
     <div class="pensieve-grid" id="memGrid">
       ${cards.map((c, i) => `
-        <div class="memory-card${c.matched ? ' matched' : ''}${c.flipped ? ' flipped' : ''}" data-idx="${i}" data-type="${c.type}" onclick="flipMemCard(this)">
+        <div class="memory-card${c.matched ? ' matched' : ''}${c.flipped ? ' flipped' : ''}" data-idx="${i}" data-type="${c.type}" onclick="flipMemCard(this)" role="button" aria-label="${esc(c.text)}">
           <div class="memory-card-inner">
             <div class="memory-card-front"></div>
             <div class="memory-card-back">${esc(c.text)}</div>
@@ -169,7 +169,7 @@ export async function genMemory() {
   const pairs = S.gameDifficulty === 'easy' ? 4 : S.gameDifficulty === 'medium' ? 6 : 8;
   let picked;
   if (randomMode) {
-    document.getElementById('gamesContent').innerHTML = diffSelectorHtml() + '<div class="edim">Generando vocabulario aleatorio…</div>';
+    document.getElementById('gamesContent').innerHTML = diffSelectorHtml() + '<div class="mem-loading">Generando vocabulario aleatorio</div>';
     const llm = await llmVocabAll(pairs);
     if (reqId !== memReqId) return;
     if (llm && llm.length >= 2) {
@@ -182,7 +182,7 @@ export async function genMemory() {
     picked = smartWeightedPick(pairs);
     if (picked.length < pairs) {
       const needed = pairs - picked.length;
-      document.getElementById('gamesContent').innerHTML = diffSelectorHtml() + '<div class="edim">Generando vocabulario nuevo…</div>';
+      document.getElementById('gamesContent').innerHTML = diffSelectorHtml() + '<div class="mem-loading">Generando vocabulario nuevo</div>';
       const extra = await llmVocab(needed);
       if (reqId !== memReqId) return;
       if (extra && extra.length) {
@@ -193,7 +193,7 @@ export async function genMemory() {
     }
   }
   if (!picked || picked.length < 2) {
-    document.getElementById('gamesContent').innerHTML = diffSelectorHtml() + '<div class="edim">Agrega más vocabulario primero (al menos 2 palabras).</div>';
+    document.getElementById('gamesContent').innerHTML = diffSelectorHtml() + '<div class="edim">Agrega más vocabulario primero (al menos 2 palabras).</div><button class="fc-btn" style="margin-top:8px;width:100%;" onclick="closeGames()">Ir al chat →</button>';
     return;
   }
   totalPairs = Math.min(picked.length, pairs);

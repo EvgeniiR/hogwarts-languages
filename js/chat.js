@@ -102,6 +102,7 @@ export function selChar(tab){
   tab.classList.add('active');R.cur=tab.dataset.ch;
   const ch=chars[R.cur];tab.style.borderBottomColor=ch.ac;
   const b=document.getElementById('hbadge');b.textContent=ch.house;b.style.background=ch.bbg;b.style.color=ch.btxt;b.style.borderColor=ch.bbd;
+  document.getElementById('mainApp').style.setProperty('--char-ac',ch.ac);
   renderMsgs();renderHints([]);renderSide();
   document.getElementById('sendB').disabled=false;document.getElementById('ui').focus();
   genDailyChallenges();

@@ -144,15 +144,17 @@ export function closeFc(){document.getElementById('fcOv').style.display='none';}
 function renderFc(){
   if(!fcCards.length){closeFc();return;}
   fcFlipped=false;const card=fcCards[fcIdx];
+  const cardEl=document.querySelector('.fc-card');
+  if(cardEl)cardEl.classList.remove('flipped');
   document.getElementById('fcProg').textContent=(fcIdx+1)+' / '+fcCards.length;
   document.getElementById('fcWord').textContent=card.word;
-  document.getElementById('fcDef').style.display='none';document.getElementById('fcDef').textContent=card.def;
-  document.getElementById('fcHint').style.display='block';document.getElementById('fcHint').textContent='Toca para revelar →';
+  document.getElementById('fcDef').textContent=card.def;
+  document.getElementById('fcHint').textContent='Toca para revelar →';
 }
 export function flipFc(){
   fcFlipped=!fcFlipped;
-  document.getElementById('fcDef').style.display=fcFlipped?'block':'none';
-  document.getElementById('fcHint').textContent=fcFlipped?'✓ Siguiente →':'Toca para revelar →';
+  const cardEl=document.querySelector('.fc-card');
+  if(cardEl)cardEl.classList.toggle('flipped',fcFlipped);
   if(fcFlipped&&window.speechSynthesis){const u=new SpeechSynthesisUtterance(fcCards[fcIdx].word);u.lang='es-ES';u.rate=.82;window.speechSynthesis.cancel();window.speechSynthesis.speak(u);}
 }
 export function navFc(dir){fcIdx=(fcIdx+dir+fcCards.length)%fcCards.length;renderFc();}
@@ -162,7 +164,7 @@ export function renderSide(){
   const el=document.getElementById('scon');
   const wk=weekNavHtml();
   if(sTab==='vocab'){
-    const actions=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span class="chal-act" onclick="toggleVAdd()">➕ Añadir palabra</span><span class="chal-act" onclick="openFc()">🃏 Flashcards →</span></div>`;
+    const actions=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span class="side-act" onclick="toggleVAdd()">➕ Añadir palabra</span><span class="side-act" onclick="openFc()">🃏 Flashcards →</span></div>`;
     const form=vAddOpen?`<div class="vadd"><input id="vAddWord" placeholder="Palabra en español" autocomplete="off"><input id="vAddDef" placeholder="Significado (vacío = traducir)" autocomplete="off"><div class="vadd-row"><button onclick="submitVAdd(this)">Añadir</button><button onclick="toggleVAdd(false)">Cancelar</button></div></div>`:'';
     const items=S.vocab.filter(v=>inViewWeek(v.ts));
     if(!items.length){el.innerHTML=wk+actions+form+'<div class="edim">Las palabras aparecen mientras hablas…</div>';return;}

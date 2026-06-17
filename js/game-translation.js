@@ -11,7 +11,7 @@ let translReqId=0;
 export async function genTranslation(){
   const el=document.getElementById('gamesContent');
   round.sentence='';round.ref='';round.phrase='';round.checked=false;round.review=false;
-  el.innerHTML=diffSelectorHtml()+'<div class="edim">✨ Generando frase…</div>';
+  el.innerHTML=diffSelectorHtml()+'<div class="mem-loading">Generando frase</div>';
   const review=Math.random()<0.3?pickReviewItem(m=>m.source==='traduccion'&&m.phrase):null;
   if(review){round.phrase=review.phrase;round.ref=review.right;round.review=true;renderTranslationRound();return;}
   const topic=randomTopic();
@@ -24,7 +24,7 @@ export async function genTranslation(){
     round.phrase=parsed.phrase;round.ref=parsed.refTranslation||'';
     rememberRecent(recentTranslPhrases,round.phrase);
   }catch(e){
-    el.innerHTML=diffSelectorHtml()+`<div style="font-size:12px;color:#d04040;margin-bottom:8px;">${esc(friendlyError(e))}</div><button class="fc-btn" style="width:100%;" onclick="genTranslation()">Reintentar</button>`;
+    el.innerHTML=diffSelectorHtml()+`<div class="game-error">${esc(friendlyError(e))}</div><button class="fc-btn" style="width:100%;" onclick="genTranslation()">Reintentar</button>`;
     return;
   }
   renderTranslationRound();
@@ -35,12 +35,12 @@ export function renderTranslationRound(){
     <div class="svc-row">
       ${round.review?'<div class="edim">🔁 Repaso de un error anterior</div>':''}
       <div class="svc-lbl">Traduce al español:</div>
-      <div style="font-size:13px;color:var(--ink);margin-bottom:8px;font-style:italic;">"${esc(round.phrase)}"</div>
+      <div class="game-phrase">"${esc(round.phrase)}"</div>
       <input id="translInput" placeholder="Tu traducción…" autocomplete="off">
       <div class="vadd-row">
-        <button onclick="hintTranslation()">💡 Pista</button>
-        <button onclick="checkTranslation(this)">✅ Comprobar</button>
-        <button onclick="skipTranslation()">⏭ Saltar (-1)</button>
+        <button aria-label="Pista" onclick="hintTranslation()">💡 Pista</button>
+        <button aria-label="Comprobar traducción" onclick="checkTranslation(this)">✅ Comprobar</button>
+        <button aria-label="Saltar, -1 punto" onclick="skipTranslation()">⏭ Saltar (-1)</button>
       </div>
     </div>
     <div id="translResult"></div>`;
@@ -59,7 +59,7 @@ export async function checkTranslation(btn){
   if(!input)return;
   // Disable all action buttons to prevent skip/hint races during the async LLM call.
   document.querySelectorAll('#gamesContent .vadd-row button').forEach(b=>{b.disabled=true;});
-  btn.textContent='Comprobando…';
+  btn.textContent='⏳ Comprobando…';
   let verdict;
   try{
     const raw=await callLLM(null,[{role:'user',content:`Frase en inglés: "${round.phrase}". El estudiante tradujo: "${input}". El estudiante no tiene teclado español, así que IGNORA tildes/acentos faltantes y "n" en vez de "ñ" — no los marques como error. Clasifica la traducción como "correct" (completamente correcta, acepta variantes válidas), "minor" (un error pequeño pero se entiende el significado, ej. una palabra equivocada o un pequeño fallo de concordancia), o "incorrect" (el significado está mal o falta algo importante). RESPONDE SOLO con este JSON: {"status":"correct","correction":"traducción correcta","note":"breve explicación en español"}`}],100,'low');
@@ -67,7 +67,7 @@ export async function checkTranslation(btn){
   }catch(e){
     document.querySelectorAll('#gamesContent .vadd-row button').forEach(b=>{b.disabled=false;});
     btn.textContent='✅ Comprobar';
-    document.getElementById('translResult').innerHTML=`<div style="font-size:12px;color:#d04040;">${esc(friendlyError(e))}</div>`;
+    document.getElementById('translResult').innerHTML=`<div class="game-error">${esc(friendlyError(e))}</div>`;
     return;
   }
   round.checked=true;
@@ -81,7 +81,6 @@ export async function checkTranslation(btn){
   }
   saveS();
   const transDiffHtml=tier!=='correct'?wordDiffHtml(normWords(input),normWords(verdict.correction)):'';
-  const tierColor={correct:'#5ab030',minor:'#c08020',incorrect:'#d04040'}[tier];
   const tierMsg={correct:'✓ ¡Correcto! +'+diff.pts+' pts',minor:'〜 Casi correcto. +'+diff.minorPts+' pts',incorrect:'✗ Incorrecto. -'+diff.penalty+' pts'}[tier];
-  document.getElementById('translResult').innerHTML=`<div style="margin-top:8px;font-size:12px;color:${tierColor};">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div>${transDiffHtml?`<div style="margin-top:6px;font-size:12px;">${transDiffHtml}</div>`:''}${verdict.note?`<div style="font-size:11px;color:var(--mt);margin-top:4px;">${esc(verdict.note)}</div>`:''}<button class="fc-btn" style="margin-top:8px;width:100%;" onclick="genTranslation()">Siguiente →</button>`;
+  document.getElementById('translResult').innerHTML=`<div class="game-result-msg tier-${tier}">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div>${transDiffHtml?`<div class="game-result-msg">${transDiffHtml}</div>`:''}${verdict.note?`<div style="font-size:11px;color:var(--mt);margin-top:4px;">${esc(verdict.note)}</div>`:''}<button class="fc-btn" style="margin-top:8px;width:100%;" onclick="genTranslation()">Siguiente →</button>`;
 }

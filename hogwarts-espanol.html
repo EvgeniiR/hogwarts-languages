@@ -17,9 +17,15 @@
   <div style="font-family:'Cinzel',Georgia,serif;font-size:11px;color:var(--gold);letter-spacing:.1em;">VOCABULARIO · FLASHCARDS</div>
   <div style="font-size:12px;color:var(--mt);" id="fcProg">0 / 0</div>
   <div class="fc-card" onclick="flipFc()">
-    <div class="fc-word" id="fcWord"></div>
-    <div class="fc-def" id="fcDef"></div>
-    <div class="fc-hint" id="fcHint">Toca para revelar →</div>
+    <div class="fc-card-inner">
+      <div class="fc-face fc-face-front">
+        <div class="fc-word" id="fcWord"></div>
+        <div class="fc-hint" id="fcHint">Toca para revelar →</div>
+      </div>
+      <div class="fc-face fc-face-back">
+        <div class="fc-def" id="fcDef"></div>
+      </div>
+    </div>
   </div>
   <div class="fc-nav">
     <button class="fc-btn" onclick="navFc(-1)">← Anterior</button>
@@ -50,13 +56,13 @@
 </div>
 
 <div class="settings-ov" id="gamesOv">
-  <div class="settings-card" style="width:300px;">
+  <div class="settings-card settings-card--games">
     <div style="font-family:'Cinzel',Georgia,serif;font-size:11px;color:var(--gold);letter-spacing:.1em;margin-bottom:12px;text-align:center;">MINIJUEGOS</div>
     <div class="settings-tabs">
       <button class="settings-tab active" data-tab="dictation" onclick="setGameTab('dictation')">🎧 Dictado</button>
       <button class="settings-tab" data-tab="translation" onclick="setGameTab('translation')">✍️ Traducción</button>
       <button class="settings-tab" data-tab="order" onclick="setGameTab('order')">📰 Orden</button>
-      <button class="settings-tab" data-tab="memory" onclick="setGameTab('memory')">🧠 Pensieve</button>
+      <button class="settings-tab" data-tab="memory" onclick="setGameTab('memory')">🔮 Pensieve</button>
     </div>
     <div id="gamesContent"></div>
   </div>
@@ -90,11 +96,11 @@
     </div>
     <div id="keyInputAnthropic" style="display:none;">
       <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">Anthropic API Key</div>
-      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-...">
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;width:260px;font-family:monospace;">
     </div>
     <label style="display:flex;align-items:center;gap:6px;justify-content:center;margin-top:10px;font-size:11px;color:#6878a8;cursor:pointer;"><input type="checkbox" id="rememberKey" style="cursor:pointer;width:13px;height:13px;margin:0;flex-shrink:0;">Recordar API key en este dispositivo</label>
   </div>
-  <button id="splashBtn" onclick="enterApp()" style="display:inline-block;margin-top:8px;padding:12px 36px;background-color:#740001;color:#f5e5c0;border:1.5px solid #c9a84c;border-radius:4px;font-family:Cinzel,Georgia,serif;font-size:15px;cursor:pointer;letter-spacing:.06em;">Accio Español →</button>
+  <button id="splashBtn" class="sp-btn" onclick="enterApp()">Accio Español →</button>
 </div>
 
 <div id="mainApp" style="display:none;flex-direction:column;height:100%;">
@@ -106,9 +112,9 @@
     </div>
     <div class="hdr-r">
       <div class="streak-d"><span style="font-size:15px;">🔥</span><span class="streak-n" id="streakN">0</span><span class="streak-lbl">días</span></div>
-      <div class="daily-goal"><i class="ti ti-star" id="dailyGoalStar" style="font-size:15px;color:#c9a84c;"></i><span class="pts-n" id="dailyGoalNum">0/50</span></div>
+      <div class="daily-goal"><i class="ti ti-star" id="dailyGoalStar" style="font-size:15px;"></i><span class="pts-n" id="dailyGoalNum">0/50</span></div>
       <button class="abtn" id="aBtn" onclick="toggleAudio()" aria-label="Toggle sound"><i class="ti ti-volume"></i></button>
-      <button class="skip-btn" id="skipBtn" onclick="skipSong()" aria-label="Next song" title="Next song"><i class="ti ti-player-skip-forward"></i></button>
+      <button class="abtn" id="skipBtn" onclick="skipSong()" aria-label="Next song" title="Next song"><i class="ti ti-player-skip-forward"></i></button>
       <button class="abtn" onclick="openGames()" aria-label="Minijuegos" title="Minijuegos"><i class="ti ti-target-arrow"></i></button>
       <button class="abtn" onclick="openAchievements()" aria-label="Logros" title="Logros"><i class="ti ti-trophy"></i></button>
       <button class="abtn" onclick="openSettings()" aria-label="Ajustes" title="Ajustes"><i class="ti ti-settings"></i></button>
@@ -138,8 +144,8 @@
           <div class="chal-lbl">⭐ Desafío del día</div>
         </div>
         <div class="chal-txt" id="chalTxt">Cargando tu desafío…</div>
-        <div id="chalFocus" style="font-size:10px;color:#7a5010;margin-top:3px;font-style:italic;"></div>
-        <div id="chalOpener" style="font-size:10px;color:#9aa8d0;margin-top:2px;font-style:italic;cursor:pointer;"></div>
+        <div id="chalFocus"></div>
+        <div id="chalOpener"></div>
       </div>
       <div class="msgs" id="msgs"></div>
       <button class="sel-vocab-btn" id="selVocabBtn" onclick="addSelectionToVocab()">➕ Vocab</button>

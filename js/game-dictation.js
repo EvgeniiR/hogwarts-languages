@@ -11,7 +11,7 @@ let dictReqId=0;
 export async function genDictation(){
   const el=document.getElementById('gamesContent');
   round.sentence='';round.ref='';round.phrase='';round.checked=false;round.review=false;
-  el.innerHTML=diffSelectorHtml()+'<div class="edim">✨ Generando oración…</div>';
+  el.innerHTML=diffSelectorHtml()+'<div class="mem-loading">Generando oración</div>';
   const review=Math.random()<0.3?pickReviewItem(m=>m.source==='dictado'):null;
   if(review){round.sentence=review.right;round.review=true;renderDictationRound();return;}
   const topic=randomTopic();
@@ -22,7 +22,7 @@ export async function genDictation(){
     if(reqId!==dictReqId)return;
     round.sentence=txt.trim();rememberRecent(recentDictSentences,round.sentence);
   }catch(e){
-    el.innerHTML=diffSelectorHtml()+`<div style="font-size:12px;color:#d04040;margin-bottom:8px;">${esc(friendlyError(e))}</div><button class="fc-btn" style="width:100%;" onclick="genDictation()">Reintentar</button>`;
+    el.innerHTML=diffSelectorHtml()+`<div class="game-error">${esc(friendlyError(e))}</div><button class="fc-btn" style="width:100%;" onclick="genDictation()">Reintentar</button>`;
     return;
   }
   renderDictationRound();
@@ -32,13 +32,13 @@ export function renderDictationRound(){
   document.getElementById('gamesContent').innerHTML=diffSelectorHtml()+`
     <div class="svc-row" style="text-align:center;">
       ${round.review?'<div class="edim">🔁 Repaso de un error anterior</div>':''}
-      <button data-txt="${esc(round.sentence)}" onclick="speakFromBtn(this)" style="margin-bottom:6px;">🔊 Escuchar</button>
-      <button data-txt="${esc(round.sentence)}" data-rate="0.55" onclick="speakFromBtn(this)" style="margin-bottom:8px;">🐢 Más despacio</button>
+      <button aria-label="Escuchar la oración" data-txt="${esc(round.sentence)}" onclick="speakFromBtn(this)" style="margin-bottom:6px;">🔊 Escuchar</button>
+      <button aria-label="Escuchar más despacio" data-txt="${esc(round.sentence)}" data-rate="0.55" onclick="speakFromBtn(this)" style="margin-bottom:8px;">🐢 Más despacio</button>
       <input id="dictInput" placeholder="Escribe lo que escuchaste…" autocomplete="off">
       <div class="vadd-row">
-        <button onclick="hintDictation()">💡 Pista</button>
-        <button onclick="checkDictation()">✅ Comprobar</button>
-        <button onclick="skipDictation()">⏭ Saltar (-1)</button>
+        <button aria-label="Pista" onclick="hintDictation()">💡 Pista</button>
+        <button aria-label="Comprobar respuesta" onclick="checkDictation()">✅ Comprobar</button>
+        <button aria-label="Saltar, -1 punto" onclick="skipDictation()">⏭ Saltar (-1)</button>
       </div>
     </div>
     <div id="dictResult"></div>`;
@@ -64,7 +64,6 @@ export function checkDictation(){
     renderSide();
   }
   saveS();
-  const tierColor={correct:'#5ab030',minor:'#c08020',incorrect:'#d04040'}[tier];
   const tierMsg={correct:'✓ ¡Correcto! +'+diff.pts+' pts',minor:'〜 Casi correcto. +'+diff.minorPts+' pts',incorrect:'✗ Incorrecto. -'+diff.penalty+' pts'}[tier];
-  document.getElementById('dictResult').innerHTML=`<div style="margin-top:8px;font-size:12px;">${wordDiffHtml(a,b)}</div><div style="margin-top:6px;font-size:11px;color:${tierColor};">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div><button class="fc-btn" style="margin-top:8px;width:100%;" onclick="genDictation()">Siguiente →</button>`;
+  document.getElementById('dictResult').innerHTML=`<div class="game-result-msg">${wordDiffHtml(a,b)}</div><div class="game-result-msg tier-${tier}">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div><button class="fc-btn" style="margin-top:8px;width:100%;" onclick="genDictation()">Siguiente →</button>`;
 }

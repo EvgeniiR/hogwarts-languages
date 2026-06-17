@@ -28,7 +28,7 @@ function scrambleWords(words){
 export async function genOrderGame(){
   const el=document.getElementById('gamesContent');
   round.sentence='';round.checked=false;round.orderWords=[];
-  el.innerHTML=diffSelectorHtml()+'<div class="edim">✨ La lechuza está preparando tu carta…</div>';
+  el.innerHTML=diffSelectorHtml()+'<div class="mem-loading">La lechuza está preparando tu carta</div>';
   const reqId=++orderReqId;
   try{
     const txt=await callLLM(null,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].orderPrompt} Tema: una noticia del mundo mágico relacionada contigo. Genera UNA frase corta en español que sea un titular. Sin signos de puntuación. Solo la frase, sin comillas ni explicaciones.`}],60,'low');
@@ -37,7 +37,7 @@ export async function genOrderGame(){
     if(words.length<3)throw new Error('too short');
     round.orderWords=words;
   }catch(e){
-    el.innerHTML=diffSelectorHtml()+`<div style="font-size:12px;color:#d04040;margin-bottom:8px;">${esc(friendlyError(e))}</div><button class="fc-btn" style="width:100%;" onclick="genOrderGame()">Reintentar</button>`;
+    el.innerHTML=diffSelectorHtml()+`<div class="game-error">${esc(friendlyError(e))}</div><button class="fc-btn" style="width:100%;" onclick="genOrderGame()">Reintentar</button>`;
     return;
   }
   renderOrderRound();
@@ -53,13 +53,13 @@ export function renderOrderRound(){
       <div class="order-scrambled" id="orderScrambled">
         ${shuffled.map(w=>`<div class="word-chip" data-word="${esc(w)}">${esc(w)}</div>`).join('')}
       </div>
-      <div style="font-size:10px;color:#7a5010;margin-bottom:4px;">⬇ Ordena aquí las palabras</div>
+      <div class="game-order-label">⬇ Ordena aquí las palabras</div>
       <div class="order-target" id="orderTarget"></div>
     </div>
     <div class="order-actions">
-      <button onclick="hintOrder()">💡 Pista (-1)</button>
-      <button onclick="checkOrder()">✅ Comprobar</button>
-      <button onclick="skipOrder()">⏭ Saltar (-1)</button>
+      <button aria-label="Pista, -1 punto" onclick="hintOrder()">💡 Pista (-1)</button>
+      <button aria-label="Comprobar orden" onclick="checkOrder()">✅ Comprobar</button>
+      <button aria-label="Saltar, -1 punto" onclick="skipOrder()">⏭ Saltar (-1)</button>
     </div>
     <div id="orderResult"></div>`;
   setTimeout(initSortable,50);
@@ -106,7 +106,7 @@ export function hintOrder(){
   const chip=[...scEl.querySelectorAll('.word-chip')].find(el=>el.dataset.word===nextWord);
   if(chip){chip.classList.add('hint-glow');setTimeout(()=>chip.classList.remove('hint-glow'),2000);}
   awardPoints(-1);
-  document.getElementById('orderResult').innerHTML=`<div style="font-size:11px;color:#9a6520;">💡 Pista usada. Busca la palabra "${esc(nextWord)}"</div>`;
+  document.getElementById('orderResult').innerHTML=`<div class="game-hint-msg">💡 Pista usada. Busca la palabra "${esc(nextWord)}"</div>`;
 }
 
 export function checkOrder(){
@@ -116,7 +116,7 @@ export function checkOrder(){
   const userWords=[...tgEl.querySelectorAll('.word-chip')].map(el=>el.dataset.word);
   const correct=round.orderWords;
   if(userWords.length!==correct.length){
-    document.getElementById('orderResult').innerHTML=`<div style="font-size:11px;color:#d04040;">Coloca todas las palabras en la zona de orden antes de comprobar.</div>`;
+    document.getElementById('orderResult').innerHTML=`<div class="game-error">Coloca todas las palabras en la zona de orden antes de comprobar.</div>`;
     return;
   }
   round.checked=true;
@@ -134,10 +134,9 @@ export function checkOrder(){
   saveS();
   destroySortable();
   const restored=correct.join(' ');
-  const tierColor={correct:'#5ab030',minor:'#c08020',incorrect:'#d04040'}[tier];
   const tierMsg={correct:'✓ ¡Orden correcto! +'+diff.pts+' pts',minor:'〜 Casi correcto. +'+diff.minorPts+' pts',incorrect:'✗ Orden incorrecto. -'+diff.penalty+' pts'}[tier];
   const userLine=tier!=='correct'?`<div class="incorrect-line">Tu orden: ${userWords.join(' ')}</div>`:'';
-  document.getElementById('orderResult').innerHTML=`<div class="order-result"><div class="correct-line">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div><div class="restored-sentence">${esc(restored)}</div>${userLine}</div><button class="fc-btn" style="margin-top:8px;width:100%;" onclick="genOrderGame()">Siguiente →</button>`;
+  document.getElementById('orderResult').innerHTML=`<div class="order-result"><div class="tier-${tier}">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div><div class="restored-sentence">${esc(restored)}</div>${userLine}</div><button class="fc-btn" style="margin-top:8px;width:100%;" onclick="genOrderGame()">Siguiente →</button>`;
 }
 
 export function skipOrder(){destroySortable();game.combo=0;awardPoints(-1);genOrderGame();}

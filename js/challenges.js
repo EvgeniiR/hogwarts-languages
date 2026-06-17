@@ -52,7 +52,9 @@ export function updateChalTxt(k){
     if(focusEl)focusEl.textContent=c.focus?'📌 '+c.focus:'';
     if(opEl){
       opEl.textContent=c.exampleOpener?'💬 '+c.exampleOpener:'';
-      opEl.onclick=c.exampleOpener?()=>{const ta=document.getElementById('ui');ta.value=c.exampleOpener;aResize(ta);ta.focus();}:null;
+      opEl.title=c.exampleOpener?'Clic para insertar en el cuadro de texto':'';
+      opEl.style.textDecoration=c.exampleOpener?'underline dotted':'none';
+      opEl.onclick=c.exampleOpener?()=>{const ta=document.getElementById('ui');ta.value=c.exampleOpener;aResize(ta);ta.focus();opEl.classList.add('opener-flash');setTimeout(()=>opEl.classList.remove('opener-flash'),400);}:null;
     }
   }else{
     document.getElementById('chalTxt').textContent=chars[k].hints[0];
@@ -70,7 +72,7 @@ export async function genDailyChallenges(){
   }
   if(challengesLoading)return;
   challengesLoading=true;
-  document.getElementById('chalTxt').textContent='✨ Generando desafíos de hoy…';
+  document.getElementById('chalTxt').innerHTML='<span class="mem-loading">Generando desafíos de hoy</span>';
   try{
     const raw=await callLLM(null,[{role:'user',content:CHALLENGE_PROMPT.replace(/\{\{LEVEL\}\}/g,LEVELS[S.level]).replace(/\{\{DATE\}\}/g,today)}],800,'low');
     const arr=extractJSON(raw);

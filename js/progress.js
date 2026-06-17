@@ -7,12 +7,16 @@ import { showToast } from './helpers.js';
 
 // ── Points ───────────────────────────────────────────────────────────────
 function showPtsFloat(n){
-  const bar=document.getElementById('hgF');if(!bar)return;
-  const ss=bar.parentElement.parentElement;
-  const el=document.createElement('div');
-  el.className='pts-float';el.textContent='+'+n;
-  ss.appendChild(el);
-  setTimeout(()=>el.remove(),1200);
+  const bar=document.getElementById('hgF');
+  if(bar&&window.innerWidth>600){
+    const el=document.createElement('div');
+    el.className='pts-float';el.textContent='+'+n;
+    bar.parentElement.parentElement.appendChild(el);
+    setTimeout(()=>el.remove(),1200);
+  }else{
+    const dn=document.getElementById('dailyGoalNum');
+    if(dn){dn.classList.remove('pts-flash');void dn.offsetWidth;dn.classList.add('pts-flash');setTimeout(()=>dn.classList.remove('pts-flash'),700);}
+  }
 }
 export function awardPoints(n){
   S.weeklyPts=Math.max(0,Math.min(200,S.weeklyPts+n));
@@ -26,9 +30,9 @@ export function updPtsUI(){
   const dn=document.getElementById('dailyGoalNum');
   if(ds&&dn){
     const done=S.dailyEarned>=50;
-    ds.style.color=done?'#4aa020':'#c9a84c';
+    ds.classList.toggle('goal-done',done);
     dn.textContent=done?'✓':S.dailyEarned+'/50';
-    dn.style.color=done?'#4aa020':'var(--gold2)';
+    dn.classList.toggle('goal-done',done);
   }
 }
 export function updStreakUI(){document.getElementById('streakN').textContent=S.streak.count||0;}
