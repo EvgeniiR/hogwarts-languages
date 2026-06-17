@@ -38,6 +38,7 @@ class AudioManager {
     // Playback state
     this._audio = null;              // HTMLAudioElement or null
     this._playGeneration = 0;        // cancels stale async operations
+    this._nextTrackQueued = false;   // prevents duplicate onended handling
 
     // Autoplay workaround
     this._userInteracted = false;
@@ -116,48 +117,61 @@ class AudioManager {
     el.load();
 
     this._audio = null;
+    this._nextTrackQueued = false;
   }
 
-  _createAudio(src, generation) {
-    if (generation !== this._playGeneration) return null;
+  _createAudioElement() {
+    // Create audio element if it doesn't exist (first time)
+    if (!this._audio) {
+      const el = new Audio();
+      el.volume = 0.25;
 
-    this._destroyAudio();
-
-    const el = new Audio(src);
-    el.volume = 0.25;
-    el.dataset.track = String(this._currentIndex);
-
-    // Track ended naturally
-    el.onended = () => {
-      // Only handle if this is still the current audio and no new generation
-      if (this._audio !== el || this._playGeneration !== generation) return;
-      this._advanceToNextTrack();
-    };
-
-    // Track failed to play
-    el.onerror = () => {
-      // Only handle if this is still the current audio
-      if (this._audio !== el) return;
-      this._destroyAudio();
-      // Advance to next track if not muted
-      if (!this.isMuted) {
+      // Track ended naturally
+      el.onended = () => {
+        if (this._nextTrackQueued) return; // Prevent duplicate handling
+        this._nextTrackQueued = true;
         this._advanceToNextTrack();
-      }
-    };
+      };
 
-    this._audio = el;
-    return el;
+      // Track failed to play
+      el.onerror = () => {
+        console.warn('Audio playback error, advancing to next track');
+        this._destroyAudio();
+        if (!this.isMuted) {
+          this._advanceToNextTrack();
+        }
+      };
+
+      this._audio = el;
+    }
+
+    return this._audio;
+  }
+
+  _loadAndPlayTrack(src) {
+    const el = this._createAudioElement();
+    el.dataset.track = String(this._currentIndex);
+    this._nextTrackQueued = false;
+
+    // Set new source and play (reuses same audio element to preserve autoplay permission)
+    el.src = src;
+    el.load();
+    el.play().catch(err => {
+      console.warn('Autoplay prevented:', err);
+    });
   }
 
   _advanceToNextTrack() {
     if (this._playlist.length === 0) return;
 
-    this._destroyAudio();
     this._currentIndex = (this._currentIndex + 1) % this._playlist.length;
     this._playGeneration++;
 
     if (!this.isMuted) {
-      this._playTrack(this._playGeneration);
+      const src = this._playlist[this._currentIndex];
+      this._loadAndPlayTrack(src);
+    } else {
+      this._destroyAudio();
     }
   }
 
@@ -168,29 +182,19 @@ class AudioManager {
     if (generation !== this._playGeneration) return;
     if (this._playlist.length === 0) return;
 
-    // If we have an audio element that's paused, resume it
-    const el = this._audio;
-    if (el && el.dataset.track === String(this._currentIndex) && el.paused) {
-      el.play().catch(() => {
-        // Resume failed - recreate from scratch
-        if (this._audio === el) {
-          this._destroyAudio();
-          this._playTrack(this._playGeneration);
-        }
+    const src = this._playlist[this._currentIndex];
+
+    // If same track is paused, just resume
+    if (this._audio && this._audio.dataset.track === String(this._currentIndex) && this._audio.paused) {
+      this._audio.play().catch(() => {
+        // Resume failed - reload from scratch
+        this._loadAndPlayTrack(src);
       });
       return;
     }
 
-    // Clean up any stale element
-    this._destroyAudio();
-
-    const src = this._playlist[this._currentIndex];
-    const newEl = this._createAudio(src, generation);
-    if (!newEl) return;
-
-    newEl.play().catch(() => {
-      // Autoplay blocked - element stays ready but paused
-    });
+    // Load and play the track (reuses existing audio element if any)
+    this._loadAndPlayTrack(src);
   }
 
   _pauseAudio() {
@@ -293,12 +297,12 @@ class AudioManager {
   skipSong() {
     if (!this._playlistLoaded || this._playlist.length <= 1) return;
 
-    this._destroyAudio();
     this._currentIndex = (this._currentIndex + 1) % this._playlist.length;
     this._playGeneration++;
 
     if (!this.isMuted) {
-      this._playTrack(this._playGeneration);
+      const src = this._playlist[this._currentIndex];
+      this._loadAndPlayTrack(src);
     } else {
       this._updateUI();
     }
