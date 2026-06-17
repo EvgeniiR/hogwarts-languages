@@ -1,15 +1,12 @@
 // ── AUDIO ──────────────────────────────────────────────────────────────────
-// Ambient music with reliable mute/unmute and autoplay.
-// - Loads playlist from manifest.json (fallback hardcoded)
-// - Shuffles on first load
-// - Respects S.musicOff (persisted)
-// - Starts on first user interaction (pointer/key)
-// - Mute/Unmute toggle pauses/resumes the current track without reloading.
+// Ambient music manager with lazy loading, seamless resume, and race-free
+// async operations.
 
 import { S, saveS } from './state.js';
 import { shuffleArray } from './helpers.js';
 
-// ── Fallback list ──────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────
+
 const FALLBACK_FILES = [
   "audio/A Fool's Theme - Brian Bolger.mp3",
   "audio/Aaron Kenny - English Country Garden (Happy).mp3",
@@ -28,199 +25,372 @@ const FALLBACK_FILES = [
   "audio/The Two Seasons - Dan Bodan.mp3",
 ];
 
-let actx = null;
-let _playlist = [];
-let _index = -1;
-let _audio = null;
-let _playing = false;
-let _ready = false;
-let _listenerAttached = false;
-let _starting = false;
-let _stopRequested = false;
+// ── Audio Manager ─────────────────────────────────────────────────────────
 
-function updateButtonUI(off) {
-  const btn = document.getElementById('aBtn');
-  if (btn) btn.innerHTML = off ? '<i class="ti ti-volume-off"></i>' : '<i class="ti ti-volume"></i>';
-}
+class AudioManager {
+  constructor() {
+    // Playlist state
+    this._playlist = [];
+    this._currentIndex = 0;
+    this._playlistLoaded = false;
+    this._playlistLoading = false;
 
-function resumeContext() {
-  if (!actx) return Promise.resolve();
-  if (actx.state === 'suspended') return actx.resume();
-  return Promise.resolve();
-}
+    // Playback state
+    this._audio = null;              // HTMLAudioElement or null
+    this._playGeneration = 0;        // cancels stale async operations
 
-async function loadPlaylist() {
-  if (_playlist.length) return;
-  let files = [];
-  try {
-    const res = await fetch('audio/manifest.json');
-    if (res.ok) {
-      const names = await res.json();
-      if (Array.isArray(names) && names.length) {
-        files = names.map(n => 'audio/' + n);
-      }
-    }
-  } catch (_) { /* ignore */ }
-  if (!files.length) files = FALLBACK_FILES;
-  _playlist = shuffleArray(files);
-  _index = 0;
-  _ready = true;
-}
+    // Autoplay workaround
+    this._userInteracted = false;
+    this._interactionListenerAttached = false;
 
-function playTrack() {
-  if (S.musicOff) {
-    stopPlayback();
-    return;
+    // UI beeps context
+    this._audioContext = null;
   }
-  if (!_ready || _playlist.length === 0) return;
-  if (_starting) return;
 
-  if (_audio) {
-    _audio.pause();
-    _audio = null;
+  // ── Getters ─────────────────────────────────────────────────────────────
+
+  get isMuted() {
+    return S.musicOff === true;
   }
-  _playing = false;
-  _starting = true;
-  _stopRequested = false;
 
-  const src = _playlist[_index];
-  const audio = new Audio(src);
-  audio.volume = 0.25;
+  get isPlaying() {
+    const el = this._audio;
+    return !!el && !el.paused && !el.ended;
+  }
 
-  audio.onended = () => {
-    if (_playing && !_stopRequested) {
-      _index = (_index + 1) % _playlist.length;
-      _starting = false;
-      playTrack();
-    }
-  };
+  get currentTrack() {
+    if (!this._playlistLoaded || this._playlist.length === 0) return null;
+    return this._playlist[this._currentIndex];
+  }
 
-  audio.play()
-      .then(() => {
-        _starting = false;
-        if (_stopRequested) {
-          audio.pause();
-          _audio = null;
-          _playing = false;
-          updateButtonUI(true);
-          return;
-        }
-        _audio = audio;
-        _playing = true;
-        updateButtonUI(false);
-      })
-      .catch(() => {
-        _starting = false;
-        _playing = false;
+  // ── Playlist Management ────────────────────────────────────────────────
+
+  async _ensurePlaylistLoaded() {
+    if (this._playlistLoaded) return;
+    if (this._playlistLoading) {
+      // Wait for the ongoing load to finish
+      await new Promise(resolve => {
+        const check = () => {
+          if (!this._playlistLoading) resolve();
+          else setTimeout(check, 50);
+        };
+        check();
       });
-}
+      return;
+    }
 
-function stopPlayback() {
-  _stopRequested = true;
-  _starting = false;
-  if (_audio) {
-    _audio.pause();
-    _audio = null;
-  }
-  _playing = false;
-  updateButtonUI(true);
-}
+    this._playlistLoading = true;
+    try {
+      const response = await fetch('audio/manifest.json');
+      let files = [];
 
-async function ensurePlayback() {
-  if (S.musicOff) {
-    if (_playing) stopPlayback();
-    return;
-  }
-  if (_playing) return;
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          files = data.map(name => `audio/${name}`);
+        }
+      }
 
-  if (!_ready) {
-    await loadPlaylist();
-    if (_playlist.length === 0) return;
-  }
-
-  await resumeContext();
-
-  if (!_playing && !_starting) {
-    playTrack();
-  }
-}
-
-function attachGlobalListener() {
-  if (_listenerAttached) return;
-  _listenerAttached = true;
-  const handler = () => { ensurePlayback().catch(() => {}); };
-  document.addEventListener('pointerdown', handler);
-  document.addEventListener('keydown', handler);
-}
-
-export function tryPlayNow() {
-  if (!actx) {
-    try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) {}
-  }
-  attachGlobalListener();
-  ensurePlayback().catch(() => {});
-}
-
-export async function tryAudio() {
-  if (!_ready) await loadPlaylist();
-  attachGlobalListener();
-  await ensurePlayback();
-}
-
-export function toggleAudio() {
-  if (_playing || _audio) {
-    stopPlayback();
-    S.musicOff = true;
-  } else {
-    S.musicOff = false;
-    ensurePlayback().catch(() => {});
-  }
-  saveS();
-}
-
-export function skipSong() {
-  if (!_ready || _playlist.length <= 1) return;
-  _index = (_index + 1) % _playlist.length;
-  if (_playing) {
-    stopPlayback();
-    _stopRequested = false;
-    _starting = false;
-    playTrack();
-  } else {
-    if (!S.musicOff) {
-      ensurePlayback().catch(() => {});
+      this._playlist = files.length > 0 ? shuffleArray(files) : shuffleArray(FALLBACK_FILES);
+      this._currentIndex = 0;
+      this._playlistLoaded = true;
+    } catch (_) {
+      this._playlist = shuffleArray(FALLBACK_FILES);
+      this._currentIndex = 0;
+      this._playlistLoaded = true;
+    } finally {
+      this._playlistLoading = false;
     }
   }
+
+  // ── Audio Element Management ───────────────────────────────────────────
+
+  _destroyAudio() {
+    if (!this._audio) return;
+
+    const el = this._audio;
+    el.onended = null;
+    el.onerror = null;
+    el.pause();
+    el.src = '';
+    el.load();
+
+    this._audio = null;
+  }
+
+  _createAudio(src, generation) {
+    if (generation !== this._playGeneration) return null;
+
+    this._destroyAudio();
+
+    const el = new Audio(src);
+    el.volume = 0.25;
+    el.dataset.track = String(this._currentIndex);
+
+    // Track ended naturally
+    el.onended = () => {
+      // Only handle if this is still the current audio and no new generation
+      if (this._audio !== el || this._playGeneration !== generation) return;
+      this._advanceToNextTrack();
+    };
+
+    // Track failed to play
+    el.onerror = () => {
+      // Only handle if this is still the current audio
+      if (this._audio !== el) return;
+      this._destroyAudio();
+      // Advance to next track if not muted
+      if (!this.isMuted) {
+        this._advanceToNextTrack();
+      }
+    };
+
+    this._audio = el;
+    return el;
+  }
+
+  _advanceToNextTrack() {
+    if (this._playlist.length === 0) return;
+
+    this._destroyAudio();
+    this._currentIndex = (this._currentIndex + 1) % this._playlist.length;
+    this._playGeneration++;
+
+    if (!this.isMuted) {
+      this._playTrack(this._playGeneration);
+    }
+  }
+
+  // ── Playback Control ────────────────────────────────────────────────────
+
+  _playTrack(generation) {
+    if (this.isMuted) return;
+    if (generation !== this._playGeneration) return;
+    if (this._playlist.length === 0) return;
+
+    // If we have an audio element that's paused, resume it
+    const el = this._audio;
+    if (el && el.dataset.track === String(this._currentIndex) && el.paused) {
+      el.play().catch(() => {
+        // Resume failed - recreate from scratch
+        if (this._audio === el) {
+          this._destroyAudio();
+          this._playTrack(this._playGeneration);
+        }
+      });
+      return;
+    }
+
+    // Clean up any stale element
+    this._destroyAudio();
+
+    const src = this._playlist[this._currentIndex];
+    const newEl = this._createAudio(src, generation);
+    if (!newEl) return;
+
+    newEl.play().catch(() => {
+      // Autoplay blocked - element stays ready but paused
+    });
+  }
+
+  _pauseAudio() {
+    if (this._audio) {
+      this._audio.pause();
+    }
+  }
+
+  // ── User Interaction Workaround ────────────────────────────────────────
+
+  _attachInteractionListener() {
+    if (this._interactionListenerAttached) return;
+    this._interactionListenerAttached = true;
+
+    const handler = () => {
+      if (!this._userInteracted) {
+        this._userInteracted = true;
+        this._ensurePlayback();
+      }
+    };
+
+    document.addEventListener('pointerdown', handler);
+    document.addEventListener('keydown', handler);
+  }
+
+  async _ensurePlayback() {
+    // Resume audio context for beeps if needed
+    this._ensureAudioContext();
+
+    if (this.isMuted) {
+      this._pauseAudio();
+      this._updateUI();
+      return;
+    }
+
+    if (this.isPlaying) return;
+
+    if (!this._playlistLoaded) {
+      await this._ensurePlaylistLoaded();
+      if (this._playlist.length === 0) return;
+    }
+
+    if (!this.isPlaying) {
+      // Increment generation to cancel any stale operations
+      this._playGeneration++;
+      this._playTrack(this._playGeneration);
+    }
+  }
+
+  _ensureAudioContext() {
+    if (this._audioContext) return;
+    try {
+      this._audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (_) {}
+  }
+
+  // ── UI Updates ──────────────────────────────────────────────────────────
+
+  _updateUI() {
+    const btn = document.getElementById('aBtn');
+    if (!btn) return;
+
+    btn.innerHTML = this.isMuted
+        ? '<i class="ti ti-volume-off"></i>'
+        : '<i class="ti ti-volume"></i>';
+  }
+
+  // ── Public API ──────────────────────────────────────────────────────────
+
+  tryPlayNow() {
+    this._ensureAudioContext();
+    this._attachInteractionListener();
+    this._ensurePlayback().catch(() => {});
+  }
+
+  async tryAudio() {
+    if (!this._playlistLoaded) {
+      await this._ensurePlaylistLoaded();
+    }
+    this._attachInteractionListener();
+    await this._ensurePlayback();
+  }
+
+  toggleAudio() {
+    if (this.isMuted) {
+      // Unmute
+      S.musicOff = false;
+      this._playGeneration++;
+      this._playTrack(this._playGeneration);
+    } else {
+      // Mute
+      S.musicOff = true;
+      this._pauseAudio();
+    }
+
+    this._updateUI();
+    saveS();
+  }
+
+  skipSong() {
+    if (!this._playlistLoaded || this._playlist.length <= 1) return;
+
+    this._destroyAudio();
+    this._currentIndex = (this._currentIndex + 1) % this._playlist.length;
+    this._playGeneration++;
+
+    if (!this.isMuted) {
+      this._playTrack(this._playGeneration);
+    } else {
+      this._updateUI();
+    }
+  }
+
+  stopMusic() {
+    this._pauseAudio();
+    S.musicOff = true;
+    this._updateUI();
+    saveS();
+  }
+
+  syncAudioBtn() {
+    this._updateUI();
+  }
+
+  // ── UI Beeps ────────────────────────────────────────────────────────────
+
+  _beep(freq, type, vol, dur, delay = 0) {
+    if (!this._audioContext) return;
+
+    const ctx = this._audioContext;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.value = vol;
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    const startTime = ctx.currentTime + delay;
+    osc.start(startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+    osc.stop(startTime + dur);
+  }
+
+  playSend() {
+    this._beep(600, 'triangle', 0.1, 0.15);
+  }
+
+  playRecv() {
+    [500, 660, 820].forEach((f, i) =>
+        this._beep(f, 'sine', 0.08, 0.22, i * 0.075)
+    );
+  }
+
+  playVocab() {
+    this._beep(880, 'sine', 0.07, 0.28);
+  }
+
+  playSpell() {
+    [400, 600, 900, 1200, 1600].forEach((f, i) =>
+        this._beep(f, 'triangle', 0.06, 0.25, i * 0.06)
+    );
+  }
+
+  playCorrect() {
+    [523, 659, 784].forEach((f, i) =>
+        this._beep(f, 'sine', 0.08, 0.25, i * 0.08)
+    );
+  }
+
+  playMinor() {
+    this._beep(440, 'triangle', 0.08, 0.2);
+  }
+
+  playIncorrect() {
+    [400, 350, 300].forEach((f, i) =>
+        this._beep(f, 'sawtooth', 0.04, 0.3, i * 0.12)
+    );
+  }
 }
 
-export function stopMusic() {
-  stopPlayback();
-}
+// ── Singleton Instance ────────────────────────────────────────────────────
 
-export function syncAudioBtn() {
-  updateButtonUI(S.musicOff);
-}
+const audioManager = new AudioManager();
 
-// ── UI Beeps ──────────────────────────────────────────────────────────────
-function beep(freq, type, vol, dur, delay = 0) {
-  if (!actx) return;
-  const osc = actx.createOscillator();
-  const gain = actx.createGain();
-  osc.type = type;
-  osc.frequency.value = freq;
-  gain.gain.value = vol;
-  osc.connect(gain);
-  gain.connect(actx.destination);
-  const startTime = actx.currentTime + delay;
-  osc.start(startTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
-  osc.stop(startTime + dur);
-}
+// ── Public API Bindings ──────────────────────────────────────────────────
 
-export function playSend()     { beep(600, 'triangle', 0.1, 0.15); }
-export function playRecv()     { [500,660,820].forEach((f,i) => beep(f, 'sine', 0.08, 0.22, i*0.075)); }
-export function playVocab()    { beep(880, 'sine', 0.07, 0.28); }
-export function playSpell()    { [400,600,900,1200,1600].forEach((f,i) => beep(f, 'triangle', 0.06, 0.25, i*0.06)); }
-export function playCorrect()  { [523,659,784].forEach((f,i) => beep(f, 'sine', 0.08, 0.25, i*0.08)); }
-export function playMinor()    { beep(440, 'triangle', 0.08, 0.2); }
-export function playIncorrect(){ [400,350,300].forEach((f,i) => beep(f, 'sawtooth', 0.04, 0.3, i*0.12)); }
+export function tryPlayNow() { audioManager.tryPlayNow(); }
+export function tryAudio() { return audioManager.tryAudio(); }
+export function toggleAudio() { audioManager.toggleAudio(); }
+export function skipSong() { audioManager.skipSong(); }
+export function stopMusic() { audioManager.stopMusic(); }
+export function syncAudioBtn() { audioManager.syncAudioBtn(); }
+
+export function playSend() { audioManager.playSend(); }
+export function playRecv() { audioManager.playRecv(); }
+export function playVocab() { audioManager.playVocab(); }
+export function playSpell() { audioManager.playSpell(); }
+export function playCorrect() { audioManager.playCorrect(); }
+export function playMinor() { audioManager.playMinor(); }
+export function playIncorrect() { audioManager.playIncorrect(); }
