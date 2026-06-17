@@ -96,6 +96,12 @@ export function useHint(el){
   renderHints([]);ta.focus();
 }
 
+// Sanitize LLM reply suggestions → array of ≤3 trimmed non-empty strings (≤80 chars).
+function sanitizeOptions(o){
+  if(!Array.isArray(o))return [];
+  return o.filter(s=>typeof s==='string'&&s.trim()).map(s=>s.trim().slice(0,80)).slice(0,3);
+}
+
 // ── Character selection ───────────────────────────────────────────────────────
 export function selChar(tab){
   document.querySelectorAll('.ctab').forEach(t=>{t.classList.remove('active');t.style.borderBottomColor='transparent';});
@@ -116,16 +122,18 @@ export async function genStarter(k){
   starterLoading.add(k);
   if(k===R.cur){document.getElementById('msgs').innerHTML='';showTyping();}
   try{
-    const raw=await callLLM(getSys(k),[{role:'user',content:'Inicia la conversación. Abre con una situación imaginativa o pregunta creativa en español, en personaje. Sé original.'}],400,'low');
+    const SEEDS=['una clase de Hogwarts','el Gran Comedor','una criatura mágica','un hechizo nuevo','la biblioteca','el bosque prohibido','una poción difícil','un partido de Quidditch','una carta inesperada','un misterio en el castillo','un objeto encantado','una visita a Hogsmeade'];
+    const seed=SEEDS[Math.floor(Math.random()*SEEDS.length)];
+    const raw=await callLLM(getSys(k),[{role:'user',content:`Inicia la conversación. Abre con una situación imaginativa o pregunta creativa en español, en personaje, inspirada en: ${seed}. Sé original y evita aperturas genéricas.`}],400,'low');
     if(S.hist[k].length===0){
-      let p;try{p=extractJSON(raw);}catch(e){p={reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2};}
+      let p;try{p=extractJSON(raw);}catch(e){p={reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2,options:[]};}
       const hasSpell=p.spells&&p.spells.length>0;
       S.hist[k].push({role:'assistant',content:p.reply,display:p.reply,note:p.note,hasSpell});
       if(p.vocab&&p.vocab.length)p.vocab.forEach(v=>{if(!vocabExists(v.word))S.vocab.push({...v,ts:Date.now()});});
       if(p.note)S.grammar.push({ch:k,text:p.note,ts:Date.now()});
       if(typeof p.mood==='number')updMood(k,p.mood);
       saveS();
-      if(k===R.cur){rmTyping();appendMsg(S.hist[k].at(-1));renderSide();}
+      if(k===R.cur){rmTyping();appendMsg(S.hist[k].at(-1));renderSide();renderHints(sanitizeOptions(p.options));}
     }else{if(k===R.cur)rmTyping();}
   }catch(e){
     if(k===R.cur){rmTyping();showToast(friendlyError(e),'#5a0000','#f5e5c0');}
@@ -139,14 +147,15 @@ export async function sendMsg(){
   const ta=document.getElementById('ui');const txt=ta.value.trim();if(!txt)return;
   S.hist[R.cur].push({role:'user',content:txt});ta.value='';ta.style.height='auto';
   document.getElementById('sendB').disabled=true;R.loading=true;appendMsg(S.hist[R.cur].at(-1));showTyping();playSend();
-  const effort=txt.trim().split(/\s+/).length>=8?'max':'high';
+  const effort='medium';
+  let suggestions=[];
   try{
     let hist=S.hist[R.cur].filter(m=>!m.error);
     let msgs=hist.slice(-25).map(m=>({role:m.role,content:m.content}));
     msgs=msgs.filter((m,i)=>i===msgs.length-1||m.role!==msgs[i+1].role);
     const firstUser=msgs.findIndex(m=>m.role==='user');if(firstUser>0)msgs=msgs.slice(firstUser);
     const raw=await callLLM(getSys(R.cur),msgs,1000,effort);
-    let p;try{p=extractJSON(raw);}catch(e){p={reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2};}
+    let p;try{p=extractJSON(raw);}catch(e){p={reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2,options:[]};} suggestions=sanitizeOptions(p.options);
     const hasSpell=p.spells&&p.spells.length>0;
     S.hist[R.cur].push({role:'assistant',content:p.reply,display:p.reply,note:p.note,hasSpell});
     S.totalMsgs++;
@@ -164,8 +173,7 @@ export async function sendMsg(){
     if(p.mistakes&&p.mistakes.length){p.mistakes.forEach(m=>S.mistakes.push({...m,ts:Date.now()}));changed=true;}
     pushLevelOutcome(!(p.mistakes&&p.mistakes.length));
     if(p.note){S.grammar.push({ch:R.cur,text:p.note,ts:Date.now()});changed=true;}
-    const msgWords=txt.trim().split(/\s+/).filter(Boolean).length;
-    if(p.points&&msgWords>=4)awardPoints(p.points);
+    if(p.points)awardPoints(p.points);
     if(typeof p.mood==='number')updMood(R.cur,p.mood);
     if(checkLevelUp())saveS();
     if(changed)renderSide();
@@ -173,6 +181,6 @@ export async function sendMsg(){
     playRecv();if(!S.ttsOff)setTimeout(()=>speak(p.reply),350);
     saveS();
   }catch(e){const msg=friendlyError(e);S.hist[R.cur].push({role:'assistant',content:msg,display:msg,note:'',hasSpell:false,error:true});}
-  rmTyping();R.loading=false;document.getElementById('sendB').disabled=false;appendMsg(S.hist[R.cur].at(-1));document.getElementById('ui').focus();
+  rmTyping();R.loading=false;document.getElementById('sendB').disabled=false;appendMsg(S.hist[R.cur].at(-1));renderHints(suggestions);document.getElementById('ui').focus();
 }
 

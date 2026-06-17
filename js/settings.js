@@ -73,14 +73,6 @@ export function renderSettings(){
           <button onclick="saveAuthFromSettings()" style="flex:1;font-size:11px;padding:5px;border-radius:3px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;">Guardar</button>
           <button onclick="clearAuthFromSettings()" style="font-size:11px;padding:5px 8px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:Cinzel,Georgia,serif;">Cerrar sesión</button>
         </div>
-      </div>
-      <div class="svc-row" style="border-top:1px solid var(--bdg);padding-top:10px;margin-top:4px;">
-        <div class="svc-lbl">DeepL Traductor</div>
-        <div style="font-size:10px;color:var(--mt);margin-bottom:6px;">Gratis hasta 500k caracteres/mes · Clave con sufijo <code>:fx</code></div>
-        ${R.keys.deepl
-          ?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="color:#2a8018;font-size:11px;">✓ Clave guardada</span><button onclick="clearDeepLKey()" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:Cinzel,Georgia,serif;">Borrar</button></div>`
-          :`<input id="deeplKeyInput" type="password" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx" style="${inpStyle}"><button onclick="saveDeepLKey()" style="width:100%;font-size:11px;padding:5px;border-radius:3px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;">Guardar clave DeepL</button>`
-        }
       </div>`;
   }
 }
@@ -160,17 +152,3 @@ export async function clearAuthFromSettings(){
   location.reload();
 }
 
-export async function saveDeepLKey(){
-  const val=(document.getElementById('deeplKeyInput')?.value||'').trim();
-  if(!val)return;
-  R.keys.deepl=val;
-  await saveCreds('deepl',val);
-  showToast('✓ Clave DeepL guardada','#2a5018','#7acc40');
-  renderSettings();
-}
-export async function clearDeepLKey(){
-  R.keys.deepl='';
-  await clearCreds('deepl');
-  showToast('Clave DeepL eliminada','#9aa8d0','#1e0c04');
-  renderSettings();
-}

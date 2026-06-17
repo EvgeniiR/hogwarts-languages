@@ -44,6 +44,5 @@ export async function prefillCreds(){
   ['anthropic','gemini','groq'].forEach(p=>{
     if(R.cachedCreds[p])document.getElementById(KEY_INPUT_ID[p]).value=R.cachedCreds[p];
   });
-  if(R.cachedCreds.deepl)R.keys.deepl=R.cachedCreds.deepl;
   return !!(R.cachedCreds.last&&R.cachedCreds[R.cachedCreds.last]);
 }

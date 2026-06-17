@@ -39,7 +39,7 @@ When editing a feature, load **only this file** — not the whole project.
 | Points, streak, level, achievements, HP milestones | `js/progress.js` |
 | Daily challenges (gen + render) | `js/challenges.js` |
 | sendMsg, message render, character select, hints, owl | `js/chat.js` |
-| Side panel: vocab/grammar/mistakes/translate tabs, flashcards, vocab CRUD, DeepL translator widget | `js/sidepanel.js` |
+| Side panel: vocab/grammar/mistakes tabs, flashcards, vocab CRUD | `js/sidepanel.js` |
 | Minigame engine primitives (round, game, GAME_DIFF, award, wordDiffHtml, etc.) — leaf module | `js/game-core.js` |
 | Minigame overlay routing only (imports from game-core.js) | `js/games.js` |
 | Dictation game | `js/game-dictation.js` |
@@ -117,7 +117,7 @@ S = {
 R = {
   cur: 'hermione',             // active character key
   provider: 'groq',            // 'anthropic'|'gemini'|'groq'
-  keys: {anthropic, gemini, groq, deepl},  // in-memory API keys
+  keys: {anthropic, gemini, groq},  // in-memory API keys
   cachedCreds: {},             // saved creds from hp_creds storage
   loading: false               // true while an LLM call is in flight
 }
@@ -135,10 +135,10 @@ The HTML has ~50 `onclick="fnName()"` attributes. Module scope is not global, so
 |-----------|-------|-----------------|------------------------|
 | Hermione  | Precise, bookish, friendly but exacting | 5 | see `characters.js` `chars.hermione` |
 | Dumbledore| Poetic, wise, philosophical | 7 | `chars.dumbledore` |
-| Hagrid    | Enthusiastic, simple vocab, animal-obsessed | 4 | `chars.hagrid` |
+| Hagrid    | Enthusiastic, warm, animal-obsessed (richer vocab) | 4 | `chars.hagrid` |
 | Snape     | Sarcastic, corrects everything, no mercy | 6 | `chars.snape` |
 
-System prompts are assembled by `buildSys(persona, jsonShape)` in `characters.js`. The shared spell rule and `PUNTUACIÓN OBLIGATORIA` anti-farming rule live **once** in `buildSys` — edit there, not 4× in each character. `getSys(k)` appends the daily challenge line at call time.
+System prompts are assembled at call time by `getSys(k)` in `characters.js`, which is **provider-aware** (branches on `R.provider`): Groq gets terse/directive framing, Gemini moderate, Anthropic the richest persona. Each character stores a `persona` (with a `{{LV}}` placeholder) and a JSON `shape`; the shared rules — `SPELL_RULE`, `SCORING_RULE` (anti-farming: `points:0` for non-effort but **no** mood punishment), `CONVO_RULE` (be proactive, end with a question), `OPTIONS_RULE`, and `VARIETY_RULE` (anti-repetition — applied in all three provider branches) — live **once** in `characters.js`. Each `shape` includes an `options` array (2-3 learner-POV reply suggestions); `getSys(k)` appends the daily-challenge line. Reply-suggestion chips are rendered via the existing `renderHints()`/`#hintsR` UI from the LLM `options` field and are **ephemeral** (never stored in `S.hist`; cleared on character switch). `genStarter` seeds the user turn with a random HP scenario (`SEEDS` array in `chat.js`) so openers vary across resets.
 
 ## LLM providers
 
@@ -148,7 +148,7 @@ System prompts are assembled by `buildSys(persona, jsonShape)` in `characters.js
 | Gemini | `R.keys.gemini` | `gemini-2.5-flash` | Falls back to `gemini-2.5-flash-lite` on 429 |
 | Groq | `R.keys.groq` | `llama-3.3-70b-versatile` | OpenAI-compatible |
 
-Valid effort values: `low`, `medium`, `high`, `xhigh`, `max` — passed as `output_config:{effort}` in the Anthropic request body.
+Valid effort values: `low`, `medium`, `high`, `xhigh`, `max` — passed as `output_config:{effort}` in the Anthropic request body. Conversation (`sendMsg`) uses `'medium'` effort; conversation starters and daily challenges use `'low'`. Effort is consumed only by the Anthropic path. Groq and Gemini set `temperature:0.9`; Anthropic accepts no temperature (Opus 4.8 returns 400 on it).
 
 All three providers use `fetchWithTimeout` (30s) defined in `llm.js`. `AbortError` is non-retryable.
 

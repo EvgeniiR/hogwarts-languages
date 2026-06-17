@@ -66,7 +66,7 @@ async function callGeminiModel(systemPrompt, messages, maxTokens, model){
     role:m.role==='assistant'?'model':'user',
     parts:[{text:m.content}]
   }));
-  const body={contents,generationConfig:{maxOutputTokens:maxTokens}};
+  const body={contents,generationConfig:{maxOutputTokens:maxTokens,temperature:0.9}};
   if(systemPrompt)body.systemInstruction={parts:[{text:systemPrompt}]};
   const res=await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
     method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':R.keys.gemini},body:JSON.stringify(body)
@@ -102,7 +102,7 @@ async function callGroq(systemPrompt, messages, maxTokens){
   const res=await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':`Bearer ${R.keys.groq}`},
-    body:JSON.stringify({model:S.modelPrefs.groq||'llama-3.3-70b-versatile',messages:msgs,max_tokens:maxTokens})
+    body:JSON.stringify({model:S.modelPrefs.groq||'llama-3.3-70b-versatile',messages:msgs,max_tokens:maxTokens,temperature:0.9})
   });
   const data=await res.json();
   throwIfBad(res,data);

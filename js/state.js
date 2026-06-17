@@ -24,7 +24,7 @@ export let S = {
 export const R = {
   cur:'hermione',
   provider:'groq',            // 'anthropic' | 'gemini' | 'groq'
-  keys:{anthropic:'',gemini:'',groq:'',deepl:''},
+  keys:{anthropic:'',gemini:'',groq:''},
   cachedCreds:{}
 };
 

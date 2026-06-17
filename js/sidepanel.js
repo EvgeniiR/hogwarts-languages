@@ -76,46 +76,13 @@ export async function addSelectionToVocab(){
   showToast(`✨ "${word}" añadida al vocabulario`,'#2a5018','#7acc40');
 }
 
-// ── Translator (DeepL or LLM fallback) ────────────────────────────────────────
-let transText='',transResult='';
-async function callDeepL(text){
-  const key=R.keys.deepl;
-  const endpoint=key.endsWith(':fx')
-    ?'https://api-free.deepl.com/v2/translate'
-    :'https://api.deepl.com/v2/translate';
-  const resp=await fetch(endpoint,{
-    method:'POST',
-    headers:{'Authorization':`DeepL-Auth-Key ${key}`,'Content-Type':'application/json'},
-    body:JSON.stringify({text:[text],source_lang:'ES',target_lang:'EN'})
-  });
-  if(!resp.ok)throw new Error('DeepL '+resp.status);
-  return(await resp.json()).translations?.[0]?.text||'';
-}
-export async function translateInput(btn){
-  const inp=document.getElementById('transInput');
-  const text=(inp?.value||'').trim();
-  if(!text)return;
-  transText=text;transResult='';
-  btn.textContent='Traduciendo…';btn.disabled=true;
-  try{
-    transResult=R.keys.deepl?await callDeepL(text):await lookupDefinition(text);
-  }catch(e){transResult='';showToast('Error al traducir','#740001','#f5e5c0');}
-  renderSide();
-}
-export function addTranslationToVocab(){
-  if(!transText||!transResult)return;
-  addVocabWord(transText,transResult);
-  transText='';transResult='';
-  renderSide();
-}
-
 // ── Week navigation ────────────────────────────────────────────────────────────
 let viewWeek=weekStart(Date.now());
 let sTab='vocab',editingVocab=null,editingMistake=null;
 
 export function setSTab(t){
   sTab=t;editingVocab=null;editingMistake=null;
-  ['vocab','grammar','mistakes','translate'].forEach(x=>{const el=document.getElementById('stb_'+x);if(el)el.classList.toggle('active',x===t);});
+  ['vocab','grammar','mistakes'].forEach(x=>document.getElementById('stb_'+x).classList.toggle('active',x===t));
   renderSide();
 }
 function inViewWeek(ts){return weekStart(ts||Date.now())===viewWeek;}
@@ -214,13 +181,6 @@ export function renderSide(){
       const col=chars[g.ch]?.ac||'#c9a84c';
       return `<div class="gi"><div style="display:flex;gap:6px;align-items:flex-start;"><div style="width:2px;min-height:16px;border-radius:2px;background:${col};flex-shrink:0;margin-top:2px;"></div><div style="font-size:11px;color:var(--lt);line-height:1.5;">${esc(g.text)}</div></div></div>`;
     }).join('');
-  }else if(sTab==='translate'){
-    const hasDeepL=!!R.keys.deepl;
-    const note=hasDeepL?'':`<div class="edim" style="margin-top:6px;">Usando LLM · Añade tu clave DeepL en <b>Ajustes → Cuenta</b> para traducción directa</div>`;
-    const resultHtml=transResult
-      ?`<div class="gi" style="margin:8px 0;"><div style="font-size:13px;color:var(--lt);line-height:1.5;">${esc(transResult)}</div></div><button class="side-act" style="width:100%;margin-top:2px;" onclick="addTranslationToVocab()">➕ Añadir al vocabulario</button>`
-      :'';
-    el.innerHTML=`<div style="padding:4px 0 8px;"><textarea id="transInput" rows="3" placeholder="Escribe texto en español…" style="width:100%;padding:6px;border-radius:4px;border:1px solid var(--bdg);background:#fffaf0;color:var(--ink);font-size:12px;font-family:inherit;resize:vertical;box-sizing:border-box;">${esc(transText)}</textarea><button onclick="translateInput(this)" style="width:100%;margin-top:4px;padding:5px;border-radius:4px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">🔤 Traducir ES → EN</button>${resultHtml}${note}</div>`;
   }else{
     const items=S.mistakes.filter(m=>inViewWeek(m.ts));
     if(!items.length){el.innerHTML=wk+'<div class="edim">Los errores aparecen aquí…</div>';return;}
