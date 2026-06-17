@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hogwarts Español</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="wrap" id="app">
+<div class="owl-wrap" id="owlW"></div>
+
+<div class="fc-ov" id="fcOv">
+  <div style="font-family:'Cinzel',Georgia,serif;font-size:11px;color:var(--gold);letter-spacing:.1em;">VOCABULARIO · FLASHCARDS</div>
+  <div style="font-size:12px;color:var(--mt);" id="fcProg">0 / 0</div>
+  <div class="fc-card" onclick="flipFc()">
+    <div class="fc-word" id="fcWord"></div>
+    <div class="fc-def" id="fcDef"></div>
+    <div class="fc-hint" id="fcHint">Toca para revelar →</div>
+  </div>
+  <div class="fc-nav">
+    <button class="fc-btn" onclick="navFc(-1)">← Anterior</button>
+    <button class="fc-btn" onclick="navFc(1)">Siguiente →</button>
+  </div>
+  <button class="fc-close" onclick="closeFc()" aria-label="Cerrar">✕</button>
+</div>
+
+<div class="settings-ov" id="settingsOv">
+  <div class="settings-card">
+    <div style="font-family:'Cinzel',Georgia,serif;font-size:11px;color:var(--gold);letter-spacing:.1em;margin-bottom:12px;text-align:center;">AJUSTES</div>
+    <div class="settings-tabs">
+      <button class="settings-tab active" data-tab="voice" onclick="setSettingsTab('voice')">🔊 Voz</button>
+      <button class="settings-tab" data-tab="model" onclick="setSettingsTab('model')">🧠 Modelo</button>
+      <button class="settings-tab" data-tab="auth" onclick="setSettingsTab('auth')">🔑 Cuenta</button>
+    </div>
+    <div id="settingsContent"></div>
+  </div>
+  <button class="fc-close" onclick="closeSettings()" aria-label="Cerrar">✕</button>
+</div>
+
+<div class="settings-ov" id="achievementsOv">
+  <div class="settings-card" style="width:300px;">
+    <div style="font-family:'Cinzel',Georgia,serif;font-size:11px;color:var(--gold);letter-spacing:.1em;margin-bottom:12px;text-align:center;">🏆 LOGROS</div>
+    <div id="achievementsContent"></div>
+  </div>
+  <button class="fc-close" onclick="closeAchievements()" aria-label="Cerrar">✕</button>
+</div>
+
+<div class="settings-ov" id="gamesOv">
+  <div class="settings-card" style="width:300px;">
+    <div style="font-family:'Cinzel',Georgia,serif;font-size:11px;color:var(--gold);letter-spacing:.1em;margin-bottom:12px;text-align:center;">MINIJUEGOS</div>
+    <div class="settings-tabs">
+      <button class="settings-tab active" data-tab="dictation" onclick="setGameTab('dictation')">🎧 Dictado</button>
+      <button class="settings-tab" data-tab="translation" onclick="setGameTab('translation')">✍️ Traducción</button>
+    </div>
+    <div id="gamesContent"></div>
+  </div>
+  <button class="fc-close" onclick="closeGames()" aria-label="Cerrar">✕</button>
+</div>
+
+<div class="splash" id="splash">
+  <svg width="76" height="76" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="40" cy="40" r="36" fill="none" stroke="#c9a84c" stroke-width="1.5"/>
+    <circle cx="40" cy="40" r="28" fill="none" stroke="#5a3e14" stroke-width=".5"/>
+    <text x="40" y="30" text-anchor="middle" font-size="10" fill="#c9a84c" font-family="Cinzel,Georgia,serif">HOGWARTS</text>
+    <text x="40" y="52" text-anchor="middle" font-size="22" fill="#c9a84c">⚡</text>
+    <text x="40" y="66" text-anchor="middle" font-size="10" fill="#5a3e14" font-family="Cinzel,Georgia,serif">ESPAÑOL</text>
+  </svg>
+  <div class="sp-title">Hogwarts Español</div>
+  <div class="sp-sub">Practica español con tus personajes favoritos.<br>Tu progreso se guarda automáticamente.</div>
+  <div class="sp-key">
+    <div style="margin-bottom:8px;color:#6878a8;">Elige tu proveedor de AI</div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px;">
+      <button onclick="setProvider('groq')" id="pvd_groq" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">Groq ✦ free</button>
+      <button onclick="setProvider('gemini')" id="pvd_gemini" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">Google Gemini ✦ free</button>
+      <button onclick="setProvider('anthropic')" id="pvd_anthropic" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">Anthropic</button>
+    </div>
+    <div id="keyInputGroq">
+      <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">Groq API Key · <a href="https://console.groq.com/keys" target="_blank" style="color:var(--gold);">get free key →</a></div>
+      <input type="password" id="groqKeyInput" placeholder="gsk_..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;width:260px;font-family:monospace;">
+    </div>
+    <div id="keyInputGemini" style="display:none;">
+      <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">Google Gemini API Key · <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--gold);">get free key →</a></div>
+      <input type="password" id="geminiKeyInput" placeholder="AIza..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;width:260px;font-family:monospace;">
+    </div>
+    <div id="keyInputAnthropic" style="display:none;">
+      <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">Anthropic API Key</div>
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-...">
+    </div>
+    <label style="display:flex;align-items:center;gap:6px;justify-content:center;margin-top:10px;font-size:11px;color:#6878a8;cursor:pointer;"><input type="checkbox" id="rememberKey" style="cursor:pointer;width:13px;height:13px;margin:0;flex-shrink:0;">Recordar API key en este dispositivo</label>
+  </div>
+  <button id="splashBtn" onclick="enterApp()" style="display:inline-block;margin-top:8px;padding:12px 36px;background-color:#740001;color:#f5e5c0;border:1.5px solid #c9a84c;border-radius:4px;font-family:Cinzel,Georgia,serif;font-size:15px;cursor:pointer;letter-spacing:.06em;">Accio Español →</button>
+</div>
+
+<div id="mainApp" style="display:none;flex-direction:column;height:100%;">
+  <div class="hdr">
+    <div class="hdr-l">
+      <span class="hdr-title">Hogwarts Español</span>
+      <span class="hbadge" id="hbadge" style="background:#1a0400;color:#c9a84c;border-color:#8b6914;">Gryffindor</span>
+      <span class="lvlbadge" id="lvlBadge">A2</span>
+    </div>
+    <div class="hdr-r">
+      <div class="streak-d"><span style="font-size:15px;">🔥</span><span class="streak-n" id="streakN">0</span><span class="streak-lbl">días</span></div>
+      <div class="daily-goal"><i class="ti ti-star" id="dailyGoalStar" style="font-size:15px;color:#c9a84c;"></i><span class="pts-n" id="dailyGoalNum">0/50</span></div>
+      <button class="abtn" id="aBtn" onclick="toggleAudio()" aria-label="Toggle sound"><i class="ti ti-volume"></i></button>
+      <button class="skip-btn" id="skipBtn" onclick="skipSong()" aria-label="Next song" title="Next song"><i class="ti ti-player-skip-forward"></i></button>
+      <button class="abtn" onclick="openGames()" aria-label="Minijuegos" title="Minijuegos"><i class="ti ti-target-arrow"></i></button>
+      <button class="abtn" onclick="openAchievements()" aria-label="Logros" title="Logros"><i class="ti ti-trophy"></i></button>
+      <button class="abtn" onclick="openSettings()" aria-label="Ajustes" title="Ajustes"><i class="ti ti-settings"></i></button>
+    </div>
+  </div>
+
+  <div class="ctabs">
+    <div class="ctab active" data-ch="hermione" onclick="selChar(this)">
+      <div class="cport" id="p_hermione"></div><span class="cname">Hermione</span><div class="mdot" id="m_hermione"></div>
+    </div>
+    <div class="ctab" data-ch="dumbledore" onclick="selChar(this)">
+      <div class="cport" id="p_dumbledore"></div><span class="cname">Dumbledore</span><div class="mdot" id="m_dumbledore"></div>
+    </div>
+    <div class="ctab" data-ch="hagrid" onclick="selChar(this)">
+      <div class="cport" id="p_hagrid"></div><span class="cname">Hagrid</span><div class="mdot" id="m_hagrid"></div>
+    </div>
+    <div class="ctab" data-ch="snape" onclick="selChar(this)">
+      <div class="cport" id="p_snape"></div><span class="cname">Snape</span><div class="mdot" id="m_snape"></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="ccol">
+      <div class="chal">
+        <div class="chal-hdr">
+          <div class="chal-lbl">⭐ Desafío del día</div>
+        </div>
+        <div class="chal-txt" id="chalTxt">Cargando tu desafío…</div>
+        <div id="chalFocus" style="font-size:10px;color:#7a5010;margin-top:3px;font-style:italic;"></div>
+        <div id="chalOpener" style="font-size:10px;color:#9aa8d0;margin-top:2px;font-style:italic;cursor:pointer;"></div>
+      </div>
+      <div class="msgs" id="msgs"></div>
+      <button class="sel-vocab-btn" id="selVocabBtn" onclick="addSelectionToVocab()">➕ Vocab</button>
+      <div class="inp-area">
+        <div class="inp-row">
+          <button class="ibtn mic" id="micB" onclick="toggleMic()" aria-label="Voz"><i class="ti ti-microphone"></i></button>
+          <textarea id="ui" placeholder="Escribe o habla en español…" rows="1" onkeydown="hKey(event)" oninput="aResize(this)"></textarea>
+          <button class="ibtn" onclick="showHints()" aria-label="Frases sugeridas"><i class="ti ti-bulb"></i></button>
+          <button class="ibtn send" id="sendB" onclick="sendMsg()" disabled aria-label="Enviar"><i class="ti ti-send"></i></button>
+        </div>
+        <div class="hints" id="hintsR"></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="ss">
+        <div class="stitle">⚗ Puntos semanales</div>
+        <div class="hg"><div class="hg-f" id="hgF" style="width:0%"></div></div>
+        <div id="weeklyPtsLabel" style="font-size:11px;color:var(--mt);text-align:center;margin-top:4px;">0 / 200</div>
+      </div>
+      <div class="stabs">
+        <button class="stab active" id="stb_vocab" onclick="setSTab('vocab')">📖 Vocab</button>
+        <button class="stab" id="stb_grammar" onclick="setSTab('grammar')">📝 Gram.</button>
+        <button class="stab" id="stb_mistakes" onclick="setSTab('mistakes')">⚠ Err.</button>
+      </div>
+      <div class="scon" id="scon"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+// ── CHAT ───────────────────────────────────────────────────────────────────
+// sendMsg, conversation starters, message rendering, character selection,
+// mood updates, owl animation, hints, typing indicator.
+import { S, R, saveS } from './state.js';
+import { chars, getSys, LEVELS } from './characters.js';
+import { SVG } from './portraits.js';
+import { callLLM } from './llm.js';
+import { awardPoints, updPtsUI, updStreakUI, checkAchievements, checkLevelUp, pushLevelOutcome } from './progress.js';
+import { playRecv, playSend, playVocab, playSpell } from './audio.js';
+import { speak } from './tts.js';
+import { esc, showToast, friendlyError, extractJSON } from './helpers.js';
+import { renderChallengeUI, genDailyChallenges } from './challenges.js';
+import { renderSide, vocabExists } from './sidepanel.js';
+
+export function updMood(k,v){
+  v=Math.max(0,Math.min(4,v));S.moods[k]=v;
+  const dot=document.getElementById('m_'+k);
+  if(dot)dot.style.background=['#d04040','#c08020','#c9a84c','#4aa020','#20d060'][v];
+}
+
+export function updHeaderAll(){
+  updPtsUI();updStreakUI();
+  document.getElementById('lvlBadge').textContent=LEVELS[S.level];
+  Object.keys(S.moods).forEach(k=>updMood(k,S.moods[k]));
+}
+
+export function flyOwl(){
+  const w=document.getElementById('owlW');const o=document.createElement('div');
+  o.className='owl';o.textContent='🦉';o.style.top=(12+Math.random()*18)+'%';
+  w.appendChild(o);setTimeout(()=>o.remove(),2400);
+}
+
+// ── Typing indicator ─────────────────────────────────────────────────────────
+export function showTyping(){
+  const ch=chars[R.cur];const c=document.getElementById('msgs');
+  const d=document.createElement('div');d.className='msg a';d.id='typi';
+  d.innerHTML=`<div class="mav" style="border-color:${ch.ac};">${SVG[R.cur]}</div><div class="bbl"><div class="typing-bb"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  c.appendChild(d);c.scrollTop=c.scrollHeight;
+}
+export function rmTyping(){const t=document.getElementById('typi');if(t)t.remove();}
+
+// ── Message render ────────────────────────────────────────────────────────────
+export function renderMsgs(){
+  const msgs=S.hist[R.cur];const c=document.getElementById('msgs');
+  if(!msgs.length){
+    const ch=chars[R.cur];
+    c.innerHTML=`<div class="empty-ch"><div style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid var(--dim);">${SVG[R.cur]}</div><div style="color:var(--gold);font-style:italic;">${ch.name}</div><div>Di "Hola" para empezar</div></div>`;
+    return;
+  }
+  c.innerHTML='';
+  msgs.forEach((m,i)=>{
+    const div=document.createElement('div');
+    if(m.role==='user'){
+      div.className='msg u';
+      div.innerHTML=`<div class="mav" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--mt);">Tú</div><div class="bbl">${esc(m.content)}</div>`;
+    }else{
+      const ch=chars[R.cur];div.className='msg a';
+      const note=m.note?`<span class="note">${esc(m.note)}</span>`:'';
+      const safe=(m.display||'').replace(/"/g,'&quot;');
+      div.innerHTML=`<div class="mav" style="border-color:${ch.ac};">${SVG[R.cur]}</div><div class="bbl" id="b${i}">${esc(m.display)}<button class="spk-btn" data-txt="${safe}" onclick="speakFromBtn(this)" aria-label="Escuchar"><i class="ti ti-volume" aria-hidden="true"></i></button>${note}</div>`;
+      if(m.hasSpell){
+        m.hasSpell=false;
+        setTimeout(()=>{const b=document.getElementById('b'+i);if(b){b.classList.add('spell-flash');playSpell();}},120);
+      }
+    }
+    c.appendChild(div);
+  });
+  c.scrollTop=c.scrollHeight;
+}
+
+// ── Hints ─────────────────────────────────────────────────────────────────────
+export function showHints(){renderHints(chars[R.cur].hints);}
+export function renderHints(hints){
+  document.getElementById('hintsR').innerHTML=hints.length?hints.map(h=>`<span class="hchip" onclick="useHint(this)">${esc(h)}</span>`).join(''):'';}
+export function useHint(el){
+  const ta=document.getElementById('ui');ta.value=el.textContent;
+  const {aResize}=window;if(aResize)aResize(ta);
+  renderHints([]);ta.focus();
+}
+
+// ── Character selection ───────────────────────────────────────────────────────
+export function selChar(tab){
+  document.querySelectorAll('.ctab').forEach(t=>{t.classList.remove('active');t.style.borderBottomColor='transparent';});
+  tab.classList.add('active');R.cur=tab.dataset.ch;
+  const ch=chars[R.cur];tab.style.borderBottomColor=ch.ac;
+  const b=document.getElementById('hbadge');b.textContent=ch.house;b.style.background=ch.bbg;b.style.color=ch.btxt;b.style.borderColor=ch.bbd;
+  renderMsgs();renderHints([]);renderSide();
+  document.getElementById('sendB').disabled=false;document.getElementById('ui').focus();
+  genDailyChallenges();
+  genStarter(R.cur);
+}
+export function selCharByName(n){const t=document.querySelector(`[data-ch="${n}"]`);if(t)selChar(t);}
+
+// ── Conversation starters ────────────────────────────────────────────────────
+const starterLoading=new Set();
+export async function genStarter(k){
+  if(starterLoading.has(k)||S.hist[k].length>0)return;
+  starterLoading.add(k);
+  if(k===R.cur){document.getElementById('msgs').innerHTML='';showTyping();}
+  try{
+    const raw=await callLLM(getSys(k),[{role:'user',content:'Inicia la conversación. Abre con una situación imaginativa o pregunta creativa en español, en personaje. Sé original.'}],400,'low');
+    if(S.hist[k].length===0){
+      let p;try{p=extractJSON(raw);}catch(e){p={reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2};}
+      const hasSpell=p.spells&&p.spells.length>0;
+      S.hist[k].push({role:'assistant',content:p.reply,display:p.reply,note:p.note,hasSpell});
+      if(p.vocab&&p.vocab.length)p.vocab.forEach(v=>{if(!vocabExists(v.word))S.vocab.push({...v,ts:Date.now()});});
+      if(p.note)S.grammar.push({ch:k,text:p.note,ts:Date.now()});
+      if(typeof p.mood==='number')updMood(k,p.mood);
+      saveS();
+      if(k===R.cur){rmTyping();renderMsgs();renderSide();}
+    }else{if(k===R.cur)rmTyping();}
+  }catch(e){if(k===R.cur)rmTyping();}
+  starterLoading.delete(k);
+}
+
+// ── Send message ──────────────────────────────────────────────────────────────
+export async function sendMsg(){
+  if(R.loading)return;
+  const ta=document.getElementById('ui');const txt=ta.value.trim();if(!txt)return;
+  S.hist[R.cur].push({role:'user',content:txt});ta.value='';ta.style.height='auto';
+  document.getElementById('sendB').disabled=true;R.loading=true;renderMsgs();showTyping();playSend();
+  const effort=txt.trim().split(/\s+/).length>=8?'max':'high';
+  try{
+    let msgs=S.hist[R.cur].slice(-25).map(m=>({role:m.role,content:m.content}));
+    const firstUser=msgs.findIndex(m=>m.role==='user');if(firstUser>0)msgs=msgs.slice(firstUser);
+    const raw=await callLLM(getSys(R.cur),msgs,1000,effort);
+    let p;try{p=extractJSON(raw);}catch(e){p={reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2};}
+    const hasSpell=p.spells&&p.spells.length>0;
+    S.hist[R.cur].push({role:'assistant',content:p.reply,display:p.reply,note:p.note,hasSpell});
+    S.totalMsgs++;
+    flyOwl();
+    const today=new Date().toISOString().slice(0,10);
+    const ck=R.cur+'_'+today;
+    if(p.challengeDone&&!S.challengeDone[ck]){
+      S.challengeDone[ck]=true;
+      S.challengesCompleted=(S.challengesCompleted||0)+1;
+      awardPoints(10);renderChallengeUI(R.cur);
+      showToast('🎉 ¡Desafío completado! +10 pts','#2a5018','#7acc40');
+    }
+    let changed=false;
+    if(p.vocab&&p.vocab.length){p.vocab.forEach(v=>{if(!vocabExists(v.word)){S.vocab.push({...v,ts:Date.now()});playVocab();changed=true;}});}
+    if(p.mistakes&&p.mistakes.length){p.mistakes.forEach(m=>S.mistakes.push({...m,ts:Date.now()}));changed=true;}
+    pushLevelOutcome(!(p.mistakes&&p.mistakes.length));
+    if(p.note){S.grammar.push({ch:R.cur,text:p.note,ts:Date.now()});changed=true;}
+    const msgWords=txt.trim().split(/\s+/).filter(Boolean).length;
+    if(p.points&&msgWords>=4)awardPoints(p.points);
+    if(typeof p.mood==='number')updMood(R.cur,p.mood);
+    if(checkLevelUp())saveS();
+    if(changed)renderSide();
+    checkAchievements();
+    playRecv();setTimeout(()=>speak(p.reply),350);
+    saveS();
+  }catch(e){const msg=friendlyError(e);S.hist[R.cur].push({role:'assistant',content:msg,display:msg,note:'',hasSpell:false});}
+  rmTyping();R.loading=false;document.getElementById('sendB').disabled=false;renderMsgs();document.getElementById('ui').focus();
+}
+
