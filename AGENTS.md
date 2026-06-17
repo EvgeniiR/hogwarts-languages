@@ -13,7 +13,7 @@ Built for a specific user (~A2/B1 Spanish, ~1.5 years Duolingo). Deployed on Clo
 ```
 hogwarts-espanol.html   ← HTML shell only. No JS, no CSS.
 css/styles.css          ← All styles (~178 lines, static)
-js/                     ← ES modules (20 files)
+js/                     ← ES modules (22 files)
 audio/                  ← Ambient MP3s + manifest.json
 index.html              ← Redirects to hogwarts-espanol.html
 DEPLOY.md               ← Deploy instructions
@@ -34,7 +34,7 @@ When editing a feature, load **only this file** — not the whole project.
 | SVG portraits (static, rarely changes) | `js/portraits.js` |
 | LLM router: Anthropic / Gemini / Groq | `js/llm.js` |
 | API key persistence, provider selection | `js/credentials.js` |
-| Ambient music, drone synth, UI beeps | `js/audio.js` |
+| Ambient music (gapless two-element preload), instant mute/unmute, UI beeps | `js/audio.js` |
 | Text-to-speech (speak, speakFromBtn with rate, voice picker) | `js/tts.js` |
 | Points, streak, level, achievements, HP milestones | `js/progress.js` |
 | Daily challenges (gen + render) | `js/challenges.js` |
@@ -45,8 +45,21 @@ When editing a feature, load **only this file** — not the whole project.
 | Dictation game | `js/game-dictation.js` |
 | Translation game | `js/game-translation.js` |
 | Word-order game (drag-and-drop, requires SortableJS CDN) | `js/game-order.js` |
+| Pensieve Memory Match (card-flip, Canvas particle engine) | `js/game-memory.js` |
+| Canvas particle engine (ambient float + burst on match) | `js/particles.js` |
 | Settings overlay: voice, model, auth | `js/settings.js` |
 | All CSS | `css/styles.css` |
+
+**Memory Match (game-memory.js) specifics:**
+- **Vocab selection** (`smartWeightedPick`): weights by `ageDays×2 + mistakes×5 + random×10`, sorts descending, takes top `count×3`, shuffles those, picks `count` — prevents always selecting the same words
+- **Random mode** (`setRandomMode` / "🎲 Aleatorio" checkbox): when enabled, `llmVocabAll(count)` generates all vocab fresh each game instead of drawing from `S.vocab`; `recentVocab` Set (RECENT_MAX=50) excludes recently used words across rounds
+- **Difficulty**: easy=4 pairs, medium=6, hard=8
+- **LLM fallback**: `llmVocab(count)` generates missing vocab when `S.vocab` has fewer entries than needed; dedup by lowercase `word`; silent on error/no key
+- **Lobby flow**: `renderMemoryLobby()` is the tab entry point — shows difficulty selector, random-mode checkbox, and "▶ Empezar" button. `genMemory()` is only called when the button is pressed (no LLM on tab open). After board complete or skip, "Siguiente →" returns to the lobby. `renderMemoryLobby` must be on `window` (bound in `main.js`) because it is referenced from `onclick` in dynamically rendered HTML.
+- **`genMemory()` is async** — may `await llmVocabAll()` or `await llmVocab()` depending on mode; request-id guard (`memReqId`) prevents stale responses from racing with rapid difficulty changes
+- **Scoring**: 1 pt per matched pair (feedback only); `award('correct')` fires **once** at board completion (main pts + combo milestone); `pushLevelOutcome(true)` fires once at board completion; skip deducts 1 pt and counts as incorrect outcome
+- **Card colors**: driven by `data-type="es"` / `data-type="en"` attribute on `.memory-card`; CSS attribute selectors `[data-type="es"] .memory-card-front` (gold gradient) / `[data-type="en"] .memory-card-front` (blue gradient); same for `.memory-card-back` (parchment gold vs blue-grey)
+- **Imports**: `callLLM` from `llm.js`, `extractJSON`/`showToast` from `helpers.js`, `R`/`saveS` from `state.js`
 
 **For cross-cutting changes** (e.g. a new state field), you'll need `state.js` + the module(s) that read/write it.
 
@@ -152,25 +165,26 @@ The app has **four separate overlays**, each with its own `<div class="settings-
   - **🧠 Modelo** — per-provider model selector (reads `R.provider`)
   - **🔑 Cuenta** — API key management; green-dot indicator; instant validation (`validateProviderKey`); hidden-input "Cambiar" pattern
 - **`achievementsOv`** — HP milestones (top) + stat achievement bars (bottom); opened via header trophy icon
-- **`gamesOv`** — 3-tab minigames card: Dictado / Traducción / Orden
+- **`gamesOv`** — 4-tab minigames card: Dictado / Traducción / Orden / Pensieve
 - **`fcOv`** — flashcard overlay
 
 ## Minigames
 
-Three games, each in its own file. All share engine state from `games.js`:
+Four games, each in its own file. All share engine state from `game-core.js`:
 
 | Game | File | How checked |
 |------|------|-------------|
 | Dictation | `game-dictation.js` | Sync word-diff (`normWords`) |
 | Translation | `game-translation.js` | Async LLM verdict |
 | Word order | `game-order.js` | Sync word-position compare; requires SortableJS CDN |
+| Pensieve Memory | `game-memory.js` | Sync pair-id compare (no LLM); Canvas particle engine from `particles.js` |
 
-`round` and `game` objects are exported from `games.js` and mutated in place by all three game files. Each game imports `pushLevelOutcome` directly from `progress.js` — **do not route through `window`**.
+`round` and `game` objects are exported from `game-core.js` and mutated in place by all four game files. Each game imports `pushLevelOutcome` directly from `progress.js` — **do not route through `window`**. All four games call `saveS()` explicitly after scoring (board complete or skip).
 
 ## Auth / credentials
 
 - `hp_creds` stores `{groq, gemini, anthropic, last}` in storage
-- `prefillCreds()` runs at page load; returns `true` if autologin; `main.js` calls `enterApp()` on that
+- `prefillCreds()` runs at page load; returns `true` if autologin; `main.js` hides `.sp-key` and changes the button to "Continuar →" (calls `enterApp(true)` on click)
 - All providers' keys are loaded into `R.keys` on autologin
 - Provider default: if saved last-provider has no key, falls back to Groq
 
@@ -193,8 +207,9 @@ Three games, each in its own file. All share engine state from `games.js`:
 - **Anthropic `thinking` param wrong shape** — `{type:'enabled',effort}` returns 400 on Opus 4.8. Correct: use `output_config:{effort}` at request top level.
 - **`extractJSON` array branch dead** — object branch (`{`) ran first for array-of-objects responses (daily challenges), slicing from `{` to `}` and dropping the `[]` wrapper. Fixed: check which delimiter appears first; array wins if `[` comes before `{`. Also strips trailing commas before parsing.
 - **No fetch timeout** — hung TCP connection kept `R.loading=true` forever, locking the send button. Fixed: `fetchWithTimeout` (30s `AbortController`) in `llm.js`; `AbortError` is non-retryable.
-- **Autologin audio silent** — `tryAudio()` called with no user gesture → `AudioContext` suspended → `play()` rejected silently. Fixed: `playCurrent()` registers a one-time `pointerdown`/`keydown` retry on rejection; `startDroneSynth` defers via same pattern.
-+ **Autologin audio** — music starts on the first user interaction (any click or keypress) via a persistent global listener. `tryPlayNow()` attaches the listener; `ensurePlayback()` resumes context and plays if not muted. The mute button pauses/resumes the current track without reloading (no extra network requests).
+- **Autologin audio** — music starts on the first user interaction (any click or keypress) via a persistent global listener. `tryPlayNow()` attaches the listener; `_ensurePlayback()` resumes the `AudioContext` and plays if not muted.
+- **Suspended `AudioContext` → silent beeps** — the context was created at page load (before any gesture) and never resumed, so UI beeps could stay muted forever. Fixed: `_resumeAudioContext()` (called from the interaction handler, `_ensurePlayback`, and unmute) resumes when `state==='suspended'`. Beeps never check `isMuted` — mute affects music only.
+- **`onerror` infinite advance loop** — a failing track advanced to the next, which also failed, cycling forever (offline / bad paths). Fixed: `_failCount` gives up after one full playlist cycle; reset on `oncanplay`.
 - **Silent `saveS` failures** — `kvSet` swallowed all errors; quota exceeded caused silent data loss. Fixed: `kvSet` propagates errors; `saveS` catches and calls `onSaveError` callback (wired to a toast in `main.js`).
 - **`esc()` didn't escape quotes** — `"` in vocab words could break `value="..."` attributes (self-XSS path to API key theft). Fixed: `esc()` now escapes `"` → `&quot;`.
 - **`window.pushLevelOutcome` global** — game files read `pushLevelOutcome` via `window` (set by a dynamic import in `main.js`). Fixed: each game file imports `pushLevelOutcome` directly from `progress.js`.
@@ -209,7 +224,7 @@ Three games, each in its own file. All share engine state from `games.js`:
 
 - **Boolean state in loadS()** — use `!==undefined` check, not truthiness
 - **New `onclick` in HTML** — must add matching `window.X = fn` in `js/main.js`'s `Object.assign` block
-- **Circular imports** — `state.js`, `helpers.js`, and `storage.js` are leaf modules; keep them dependency-free. `games.js` ↔ `game-*.js` is a live-binding mutual import that works but is fragile — never use `games.js` exports at the top level of a `game-*.js` file.
+- **Circular imports** — `state.js`, `helpers.js`, and `storage.js` are leaf modules; keep them dependency-free. `game-core.js` is also a leaf; `game-*.js` files import engine primitives from it, never vice versa. `games.js` is a pure router that re-exports game functions — `game-*.js` files must not import from `games.js`.
 - **API history cap** — `sendMsg()` slices to `.slice(-25)` before every call; don't add extra slicing
 - **Gemini message format** — role is `'model'` not `'assistant'`; handled in `callGeminiModel` in `llm.js`
 - **`window.storage` in artifacts** — must be checked first in all storage reads/writes; already handled by `storage.js` `kvGet`/`kvSet`

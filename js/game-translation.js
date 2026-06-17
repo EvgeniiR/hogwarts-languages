@@ -7,6 +7,7 @@ import { renderSide } from './sidepanel.js';
 import { playCorrect, playMinor, playIncorrect } from './audio.js';
 import { round, game, GAME_DIFF, randomTopic, rememberRecent, pickReviewItem, diffSelectorHtml, award, wordDiffHtml, wordMaskHint, recentTranslPhrases } from './game-core.js';
 
+let translReqId=0;
 export async function genTranslation(){
   const el=document.getElementById('gamesContent');
   round.sentence='';round.ref='';round.phrase='';round.checked=false;round.review=false;
@@ -15,8 +16,10 @@ export async function genTranslation(){
   if(review){round.phrase=review.phrase;round.ref=review.right;round.review=true;renderTranslationRound();return;}
   const topic=randomTopic();
   const avoid=recentTranslPhrases.length?` No repitas ni te parezcas a estas frases recientes: ${recentTranslPhrases.map(s=>`"${s}"`).join('; ')}.`:'';
+  const reqId=++translReqId;
   try{
     const raw=await callLLM(null,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].prompt} Tema: ${topic}. Genera UNA frase corta en INGLÉS sobre ese tema para que el estudiante la traduzca al español.${avoid} Refleja tu personalidad. RESPONDE SOLO con este JSON: {"phrase":"frase en inglés","refTranslation":"una traducción correcta al español"}`}],100,'low');
+    if(reqId!==translReqId)return;
     const parsed=extractJSON(raw);
     round.phrase=parsed.phrase;round.ref=parsed.refTranslation||'';
     rememberRecent(recentTranslPhrases,round.phrase);

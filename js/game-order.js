@@ -11,6 +11,7 @@ import { playCorrect, playMinor, playIncorrect } from './audio.js';
 import { round, game, GAME_DIFF, diffSelectorHtml, award } from './game-core.js';
 
 let sortableScrambled=null, sortableTarget=null;
+let orderReqId=0;
 
 function scrambleWords(words){
   let shuffled;
@@ -28,8 +29,10 @@ export async function genOrderGame(){
   const el=document.getElementById('gamesContent');
   round.sentence='';round.checked=false;round.orderWords=[];
   el.innerHTML=diffSelectorHtml()+'<div class="edim">✨ La lechuza está preparando tu carta…</div>';
+  const reqId=++orderReqId;
   try{
     const txt=await callLLM(null,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].orderPrompt} Tema: una noticia del mundo mágico relacionada contigo. Genera UNA frase corta en español que sea un titular. Sin signos de puntuación. Solo la frase, sin comillas ni explicaciones.`}],60,'low');
+    if(reqId!==orderReqId)return;
     const words=txt.trim().split(/\s+/).map(w=>w.replace(/^[¿¡"'(]+|[.,!?;:"')]+$/g,'')).filter(Boolean);
     if(words.length<3)throw new Error('too short');
     round.orderWords=words;

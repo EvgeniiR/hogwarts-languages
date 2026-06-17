@@ -3,11 +3,11 @@ import { chars } from './characters.js';
 import { callLLM } from './llm.js';
 import { esc, friendlyError, normWords } from './helpers.js';
 import { awardPoints, pushLevelOutcome } from './progress.js';
-import { speak } from './tts.js';
 import { playCorrect, playMinor, playIncorrect } from './audio.js';
 import { renderSide } from './sidepanel.js';
 import { round, game, GAME_DIFF, randomTopic, rememberRecent, pickReviewItem, diffSelectorHtml, award, wordDiffHtml, wordMaskHint, recentDictSentences } from './game-core.js';
 
+let dictReqId=0;
 export async function genDictation(){
   const el=document.getElementById('gamesContent');
   round.sentence='';round.ref='';round.phrase='';round.checked=false;round.review=false;
@@ -16,8 +16,10 @@ export async function genDictation(){
   if(review){round.sentence=review.right;round.review=true;renderDictationRound();return;}
   const topic=randomTopic();
   const avoid=recentDictSentences.length?` No repitas ni te parezcas a estas oraciones recientes: ${recentDictSentences.map(s=>`"${s}"`).join('; ')}.`:'';
+  const reqId=++dictReqId;
   try{
     const txt=await callLLM(null,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].prompt} Tema: ${topic}. Genera UNA oración en español sobre ese tema que dirías tú, para un ejercicio de dictado.${avoid} Refleja tu personalidad. Solo la oración, sin comillas ni explicaciones.`}],60,'low');
+    if(reqId!==dictReqId)return;
     round.sentence=txt.trim();rememberRecent(recentDictSentences,round.sentence);
   }catch(e){
     el.innerHTML=diffSelectorHtml()+`<div style="font-size:12px;color:#d04040;margin-bottom:8px;">${esc(friendlyError(e))}</div><button class="fc-btn" style="width:100%;" onclick="genDictation()">Reintentar</button>`;

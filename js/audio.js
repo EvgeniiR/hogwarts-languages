@@ -1,11 +1,13 @@
 // ── AUDIO ──────────────────────────────────────────────────────────────────
-// Ambient music manager with lazy loading, seamless resume, and race-free
-// async operations.
+// Ambient music manager with lazy loading, gapless preloading of the next
+// track, and instant mute/unmute (pause/resume — never re-downloads).
 
 import { S, saveS } from './state.js';
 import { shuffleArray } from './helpers.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────
+
+const VOLUME = 0.25;
 
 const FALLBACK_FILES = [
   "audio/A Fool's Theme - Brian Bolger.mp3",
@@ -33,18 +35,19 @@ class AudioManager {
     this._playlist = [];
     this._currentIndex = 0;
     this._playlistLoaded = false;
-    this._playlistLoading = false;
+    this._playlistPromise = null;    // shared in-flight load promise
 
-    // Playback state
-    this._audio = null;              // HTMLAudioElement or null
-    this._playGeneration = 0;        // cancels stale async operations
-    this._nextTrackQueued = false;   // prevents duplicate onended handling
+    // Playback state: two elements — one playing, one preloaded.
+    this._current = null;            // HTMLAudioElement currently playing/paused
+    this._next = null;               // preloaded HTMLAudioElement for next track
+    this._nextIdx = -1;              // playlist index held by _next (-1 = none)
+    this._failCount = 0;             // consecutive track failures (loop guard)
 
     // Autoplay workaround
     this._userInteracted = false;
     this._interactionListenerAttached = false;
 
-    // UI beeps context
+    // UI beeps context (independent of music mute)
     this._audioContext = null;
   }
 
@@ -55,152 +58,141 @@ class AudioManager {
   }
 
   get isPlaying() {
-    const el = this._audio;
+    const el = this._current;
     return !!el && !el.paused && !el.ended;
-  }
-
-  get currentTrack() {
-    if (!this._playlistLoaded || this._playlist.length === 0) return null;
-    return this._playlist[this._currentIndex];
   }
 
   // ── Playlist Management ────────────────────────────────────────────────
 
-  async _ensurePlaylistLoaded() {
-    if (this._playlistLoaded) return;
-    if (this._playlistLoading) {
-      // Wait for the ongoing load to finish
-      await new Promise(resolve => {
-        const check = () => {
-          if (!this._playlistLoading) resolve();
-          else setTimeout(check, 50);
-        };
-        check();
-      });
-      return;
-    }
+  _ensurePlaylistLoaded() {
+    if (this._playlistLoaded) return Promise.resolve();
+    if (this._playlistPromise) return this._playlistPromise;
 
-    this._playlistLoading = true;
-    try {
-      const response = await fetch('audio/manifest.json');
+    this._playlistPromise = (async () => {
       let files = [];
-
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-          files = data.map(name => `audio/${name}`);
+      try {
+        const response = await fetch('audio/manifest.json');
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data) && data.length > 0) {
+            files = data.map(name => `audio/${name}`);
+          }
         }
-      }
+      } catch (_) { /* fall back below */ }
 
-      this._playlist = files.length > 0 ? shuffleArray(files) : shuffleArray(FALLBACK_FILES);
+      this._playlist = shuffleArray(files.length > 0 ? files : FALLBACK_FILES);
       this._currentIndex = 0;
       this._playlistLoaded = true;
-    } catch (_) {
-      this._playlist = shuffleArray(FALLBACK_FILES);
-      this._currentIndex = 0;
-      this._playlistLoaded = true;
-    } finally {
-      this._playlistLoading = false;
-    }
+    })();
+
+    return this._playlistPromise;
   }
 
   // ── Audio Element Management ───────────────────────────────────────────
 
-  _destroyAudio() {
-    if (!this._audio) return;
+  // Create an element for a given source. `play=true` wires the playback
+  // handlers (onended/onerror/oncanplay); preload elements just download.
+  _makeElement(src, play) {
+    const el = new Audio();
+    el.volume = VOLUME;
+    el.preload = 'auto';
+    el.src = src;
 
-    const el = this._audio;
+    if (play) {
+      el.oncanplay = () => { this._failCount = 0; };
+      el.onended = () => this._advance();
+      el.onerror = () => this._onTrackError();
+    }
+
+    el.load();
+    return el;
+  }
+
+  _destroy(el) {
+    if (!el) return;
     el.onended = null;
     el.onerror = null;
+    el.oncanplay = null;
     el.pause();
     el.src = '';
     el.load();
-
-    this._audio = null;
-    this._nextTrackQueued = false;
   }
 
-  _createAudioElement() {
-    // Create audio element if it doesn't exist (first time)
-    if (!this._audio) {
-      const el = new Audio();
-      el.volume = 0.25;
-
-      // Track ended naturally
-      el.onended = () => {
-        if (this._nextTrackQueued) return; // Prevent duplicate handling
-        this._nextTrackQueued = true;
-        this._advanceToNextTrack();
-      };
-
-      // Track failed to play
-      el.onerror = () => {
-        console.warn('Audio playback error, advancing to next track');
-        this._destroyAudio();
-        if (!this.isMuted) {
-          this._advanceToNextTrack();
-        }
-      };
-
-      this._audio = el;
-    }
-
-    return this._audio;
+  _nextIndex() {
+    return this._playlist.length === 0
+      ? 0
+      : (this._currentIndex + 1) % this._playlist.length;
   }
 
-  _loadAndPlayTrack(src) {
-    const el = this._createAudioElement();
-    el.dataset.track = String(this._currentIndex);
-    this._nextTrackQueued = false;
+  // Warm the upcoming track so it's buffered before the current one ends.
+  _preloadNext() {
+    if (this._playlist.length <= 1) return;       // nothing distinct to preload
+    const idx = this._nextIndex();
+    if (this._next && this._nextIdx === idx) return;
+    this._destroy(this._next);
+    this._next = this._makeElement(this._playlist[idx], false);
+    this._nextIdx = idx;
+  }
 
-    // Set new source and play (reuses same audio element to preserve autoplay permission)
-    el.src = src;
-    el.load();
+  _play(el) {
     el.play().catch(err => {
-      console.warn('Autoplay prevented:', err);
+      // Blocked (no engagement yet) — resume on the next user gesture.
+      console.warn('Audio play prevented:', err);
+      this._attachInteractionListener();
     });
   }
 
-  _advanceToNextTrack() {
+  // Start the track at `_currentIndex` from scratch (used for the very first
+  // play and as an error fallback). Preloads the following track.
+  _startCurrent() {
+    if (this.isMuted || this._playlist.length === 0) return;
+    this._destroy(this._current);
+    const src = this._playlist[this._currentIndex];
+    this._current = this._makeElement(src, true);
+    if (this._playlist.length <= 1) this._current.loop = true;
+    this._play(this._current);
+    this._preloadNext();
+  }
+
+  // Move to the next track. Promotes the preloaded element if present so the
+  // switch is instant; otherwise loads from scratch.
+  _advance() {
     if (this._playlist.length === 0) return;
+    this._currentIndex = this._nextIndex();
 
-    this._currentIndex = (this._currentIndex + 1) % this._playlist.length;
-    this._playGeneration++;
+    const promoted = this._nextIdx === this._currentIndex ? this._next : null;
+    if (!promoted) this._destroy(this._next);
+    this._next = null;
+    this._nextIdx = -1;
+    this._destroy(this._current);
 
-    if (!this.isMuted) {
-      const src = this._playlist[this._currentIndex];
-      this._loadAndPlayTrack(src);
+    if (this.isMuted) { this._current = null; return; }
+
+    if (promoted) {
+      // Re-wire as the active (playing) element.
+      promoted.oncanplay = () => { this._failCount = 0; };
+      promoted.onended = () => this._advance();
+      promoted.onerror = () => this._onTrackError();
+      this._current = promoted;
+      this._play(this._current);
+      this._preloadNext();
     } else {
-      this._destroyAudio();
+      this._startCurrent();
     }
   }
 
-  // ── Playback Control ────────────────────────────────────────────────────
-
-  _playTrack(generation) {
+  _onTrackError() {
+    console.warn('Audio playback error on track', this._currentIndex);
+    this._destroy(this._current);
+    this._current = null;
+    this._failCount++;
     if (this.isMuted) return;
-    if (generation !== this._playGeneration) return;
-    if (this._playlist.length === 0) return;
-
-    const src = this._playlist[this._currentIndex];
-
-    // If same track is paused, just resume
-    if (this._audio && this._audio.dataset.track === String(this._currentIndex) && this._audio.paused) {
-      this._audio.play().catch(() => {
-        // Resume failed - reload from scratch
-        this._loadAndPlayTrack(src);
-      });
+    if (this._failCount >= this._playlist.length) {
+      console.warn('All tracks failed to play — giving up.');
+      this._failCount = 0;
       return;
     }
-
-    // Load and play the track (reuses existing audio element if any)
-    this._loadAndPlayTrack(src);
-  }
-
-  _pauseAudio() {
-    if (this._audio) {
-      this._audio.pause();
-    }
+    this._advance();
   }
 
   // ── User Interaction Workaround ────────────────────────────────────────
@@ -210,6 +202,7 @@ class AudioManager {
     this._interactionListenerAttached = true;
 
     const handler = () => {
+      this._resumeAudioContext();
       if (!this._userInteracted) {
         this._userInteracted = true;
         this._ensurePlayback();
@@ -221,15 +214,10 @@ class AudioManager {
   }
 
   async _ensurePlayback() {
-    // Resume audio context for beeps if needed
     this._ensureAudioContext();
+    this._resumeAudioContext();
 
-    if (this.isMuted) {
-      this._pauseAudio();
-      this._updateUI();
-      return;
-    }
-
+    if (this.isMuted) return;
     if (this.isPlaying) return;
 
     if (!this._playlistLoaded) {
@@ -237,11 +225,9 @@ class AudioManager {
       if (this._playlist.length === 0) return;
     }
 
-    if (!this.isPlaying) {
-      // Increment generation to cancel any stale operations
-      this._playGeneration++;
-      this._playTrack(this._playGeneration);
-    }
+    // If a track is loaded but paused, resume it; else start fresh.
+    if (this._current && this._current.paused) this._play(this._current);
+    else if (!this.isPlaying) this._startCurrent();
   }
 
   _ensureAudioContext() {
@@ -249,6 +235,12 @@ class AudioManager {
     try {
       this._audioContext = new (window.AudioContext || window.webkitAudioContext)();
     } catch (_) {}
+  }
+
+  _resumeAudioContext() {
+    if (this._audioContext && this._audioContext.state === 'suspended') {
+      this._audioContext.resume().catch(() => {});
+    }
   }
 
   // ── UI Updates ──────────────────────────────────────────────────────────
@@ -271,48 +263,42 @@ class AudioManager {
   }
 
   async tryAudio() {
-    if (!this._playlistLoaded) {
-      await this._ensurePlaylistLoaded();
-    }
     this._attachInteractionListener();
     await this._ensurePlayback();
   }
 
   toggleAudio() {
     if (this.isMuted) {
-      // Unmute
+      // Unmute — resume the existing track (no re-download) if we have one.
       S.musicOff = false;
-      this._playGeneration++;
-      this._playTrack(this._playGeneration);
+      this._resumeAudioContext();
+      if (this._current) this._play(this._current);
+      else this._ensurePlayback();
     } else {
-      // Mute
+      // Mute — just pause; position and buffer are preserved.
       S.musicOff = true;
-      this._pauseAudio();
+      if (this._current) this._current.pause();
     }
-
     this._updateUI();
     saveS();
   }
 
   skipSong() {
     if (!this._playlistLoaded || this._playlist.length <= 1) return;
-
-    this._currentIndex = (this._currentIndex + 1) % this._playlist.length;
-    this._playGeneration++;
-
-    if (!this.isMuted) {
-      const src = this._playlist[this._currentIndex];
-      this._loadAndPlayTrack(src);
+    this._failCount = 0;
+    if (this.isMuted) {
+      // Advance the pointer only; nothing plays while muted.
+      this._currentIndex = this._nextIndex();
+      this._destroy(this._next); this._next = null; this._nextIdx = -1;
     } else {
-      this._updateUI();
+      this._advance();
     }
+    this._updateUI();
   }
 
   stopMusic() {
-    this._pauseAudio();
-    S.musicOff = true;
+    if (this._current) this._current.pause();
     this._updateUI();
-    saveS();
   }
 
   syncAudioBtn() {
