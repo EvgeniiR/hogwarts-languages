@@ -144,32 +144,53 @@ async function callOpenAI(systemPrompt, messages, maxTokens){
   return data.choices?.[0]?.message?.content||'';
 }
 
-// One-shot JSON repair — fires on safeParse failure. Uses Groq fast model.
+// One-shot JSON repair — fires on safeParse failure. Tries providers in order.
 export async function repairJSON(raw){
   const entry = {
-    ts:Date.now(), provider:'groq', systemPrompt:'(repairJSON)',
+    ts:Date.now(), provider:'', systemPrompt:'(repairJSON)',
     messages:[{role:'user',content:raw.slice(0,800)}],
     maxTokens:300, effort:'repair', status:'pending'
   };
   R.llmLog.push(entry);
   if(R.llmLog.length>50)R.llmLog.shift();
-  try{
-    const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':`Bearer ${R.keys.groq}`},
-      body:JSON.stringify({
-        model:'llama-3.1-8b-instant',
-        messages:[{role:'user',content:`Convierte este texto en un objeto JSON válido con los campos reply, note, vocab, mistakes, spells, options, points, mood, challengeDone. Responde SOLO con el JSON, sin explicaciones ni backticks:\n\n${raw.slice(0,2000)}`}],
-        max_tokens:300,
-        temperature:0
-      })
-    });
-    const data = await res.json();
-    const result = data.choices?.[0]?.message?.content||'';
-    entry.status='ok';entry.responseRaw=result;entry.latencyMs=Date.now()-entry.ts;entry.attempts=1;
-    return result;
-  }catch(e){
-    entry.status='error';entry.error=e.message;entry.latencyMs=Date.now()-entry.ts;entry.attempts=1;
-    return '';
+  const msg = `Convierte este texto en un objeto JSON válido con los campos reply, note, vocab, mistakes, spells, options, points, mood, challengeDone. Responde SOLO con el JSON, sin explicaciones ni backticks:\n\n${raw.slice(0,2000)}`;
+  const providers = [
+    { name:'groq', key:R.keys.groq,
+      fn: ()=>fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${R.keys.groq}`},
+        body:JSON.stringify({model:'llama-3.1-8b-instant',messages:[{role:'user',content:msg}],max_tokens:300,temperature:0})
+      }).then(r=>r.json()).then(d=>d.choices?.[0]?.message?.content||'')
+    },
+    { name:'openai', key:R.keys.openai,
+      fn: ()=>fetchWithTimeout('https://api.openai.com/v1/chat/completions',{
+        method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${R.keys.openai}`},
+        body:JSON.stringify({model:'gpt-4.1-mini',messages:[{role:'user',content:msg}],max_tokens:300,temperature:0})
+      }).then(r=>r.json()).then(d=>d.choices?.[0]?.message?.content||'')
+    },
+    { name:'anthropic', key:R.keys.anthropic,
+      fn: ()=>fetchWithTimeout('https://api.anthropic.com/v1/messages',{
+        method:'POST', headers:{'Content-Type':'application/json','x-api-key':R.keys.anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:msg}]})
+      }).then(r=>r.json()).then(d=>d.content?.filter(b=>b.type==='text').map(b=>b.text).join('')||'')
+    },
+    { name:'gemini', key:R.keys.gemini,
+      fn: ()=>fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent`,{
+        method:'POST', headers:{'Content-Type':'application/json','x-goog-api-key':R.keys.gemini},
+        body:JSON.stringify({contents:[{role:'user',parts:[{text:msg}]}],generationConfig:{maxOutputTokens:300,temperature:0}})
+      }).then(r=>r.json()).then(d=>d.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||'')
+    }
+  ];
+  for (const p of providers) {
+    if (!p.key) continue;
+    entry.provider = p.name;
+    try {
+      const result = await p.fn();
+      if (result) {
+        entry.status='ok';entry.responseRaw=result;entry.latencyMs=Date.now()-entry.ts;entry.attempts=1;
+        return result;
+      }
+    } catch(e) { /* try next provider */ }
   }
+  entry.status='error';entry.error='all providers failed';entry.latencyMs=Date.now()-entry.ts;entry.attempts=1;
+  return '';
 }
