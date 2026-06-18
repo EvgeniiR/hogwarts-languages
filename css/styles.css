@@ -28,6 +28,8 @@ body{font-family:'IM Fell English',Georgia,serif;background:var(--bg0);display:f
 .abtn{background:none;border:none;cursor:pointer;color:var(--mt);font-size:15px;padding:4px;}
 .abtn:hover{color:var(--gold);}
 .ctabs{position:relative;z-index:10;display:flex;border-bottom:1px solid var(--bd);background:rgba(7,9,22,.97);}
+.ctab-reset{background:none;border:none;cursor:pointer;color:var(--dim);font-size:13px;padding:8px 10px;flex-shrink:0;align-self:center;transition:color .2s;}
+.ctab-reset:hover{color:var(--mt);}
 .ctab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
 .ctab:hover{background:rgba(201,168,76,.05);}
 .ctab.active{background:rgba(201,168,76,.06);box-shadow:0 2px 14px rgba(201,168,76,.12);}
