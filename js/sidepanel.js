@@ -86,7 +86,9 @@ export function startSrsReview() {
 }
 export function srsReveal() {
   const def = document.getElementById('srsDef');
+  const btn = document.getElementById('srsRevealBtn');
   if (def) def.style.display = '';
+  if (btn) btn.style.display = 'none';
 }
 export function srsAnswer(known) {
   const v = srsReviewCards[srsReviewIdx];
@@ -95,7 +97,7 @@ export function srsAnswer(known) {
   if (srsReviewIdx >= srsReviewCards.length) { srsReviewing = false; saveS(); renderSide(); return; }
   renderSide();
 }
-function closeSrsReview() { srsReviewing = false; renderSide(); }
+export function closeSrsReview() { srsReviewing = false; renderSide(); }
 
 // ── Week navigation ────────────────────────────────────────────────────────────
 let viewWeek=weekStart(Date.now());

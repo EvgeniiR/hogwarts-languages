@@ -217,7 +217,7 @@ textarea#ui::placeholder{color:#8b9bb8;}
 .side-act:hover{color:var(--gold);}
 /* SRS review in side panel */
 .srs-review{text-align:center;padding:8px 0;}
-.srs-hdr{font-size:10px;color:#b09848;font-family:'Cinzel',Georgia,serif;margin-bottom:8px;letter-spacing:.05em;}
+.srs-hdr{font-size:11px;color:#b09848;font-family:'Cinzel',Georgia,serif;margin-bottom:8px;letter-spacing:.05em;}
 .srs-review .srs-word{font-size:15px;color:var(--gold);font-style:italic;margin-bottom:4px;line-height:1.4;}
 .srs-review .srs-def{font-size:12px;color:var(--lt);line-height:1.4;}
 .srs-reveal-btn{font-size:11px;padding:4px 12px;border-radius:3px;border:1px solid var(--bdg);background:none;color:var(--gold);cursor:pointer;font-family:'Cinzel',Georgia,serif;}
