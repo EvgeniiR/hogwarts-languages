@@ -32,11 +32,11 @@ export async function genTranslation(){
 
 export function renderTranslationRound(){
   document.getElementById('gamesContent').innerHTML=diffSelectorHtml()+`
-    <div class="svc-row">
+    <div class="svc-row" style="text-align:center;">
       ${round.review?'<div class="edim">🔁 Repaso de un error anterior</div>':''}
-      <div class="svc-lbl">Traduce al español:</div>
-      <div class="game-phrase">"${esc(round.phrase)}"</div>
-      <input id="translInput" placeholder="Tu traducción…" autocomplete="off">
+      <div class="svc-lbl" style="text-align:center;">Traduce al español:</div>
+      <div class="game-phrase" style="text-align:center;">"${esc(round.phrase)}"</div>
+      <input id="translInput" class="game-input" placeholder="Tu traducción…" autocomplete="off">
       <div class="vadd-row">
         <button aria-label="Pista" onclick="hintTranslation()">💡 Pista</button>
         <button aria-label="Comprobar traducción" onclick="checkTranslation(this)">✅ Comprobar</button>
@@ -59,6 +59,7 @@ export async function checkTranslation(btn){
   if(!input)return;
   // Disable all action buttons to prevent skip/hint races during the async LLM call.
   document.querySelectorAll('#gamesContent .vadd-row button').forEach(b=>{b.disabled=true;});
+  btn.classList.add('loading-btn');
   btn.textContent='⏳ Comprobando…';
   let verdict;
   try{
@@ -66,6 +67,7 @@ export async function checkTranslation(btn){
     verdict={status:'incorrect',correction:round.ref||round.phrase,note:'',...extractJSON(raw)};
   }catch(e){
     document.querySelectorAll('#gamesContent .vadd-row button').forEach(b=>{b.disabled=false;});
+    btn.classList.remove('loading-btn');
     btn.textContent='✅ Comprobar';
     document.getElementById('translResult').innerHTML=`<div class="game-error">${esc(friendlyError(e))}</div>`;
     return;
@@ -82,5 +84,5 @@ export async function checkTranslation(btn){
   saveS();
   const transDiffHtml=tier!=='correct'?wordDiffHtml(normWords(input),normWords(verdict.correction)):'';
   const tierMsg={correct:'✓ ¡Correcto! +'+diff.pts+' pts',minor:'〜 Casi correcto. +'+diff.minorPts+' pts',incorrect:'✗ Incorrecto. -'+diff.penalty+' pts'}[tier];
-  document.getElementById('translResult').innerHTML=`<div class="game-result-msg tier-${tier}">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div>${transDiffHtml?`<div class="game-result-msg">${transDiffHtml}</div>`:''}${verdict.note?`<div style="font-size:11px;color:var(--mt);margin-top:4px;">${esc(verdict.note)}</div>`:''}<button class="fc-btn" style="margin-top:8px;width:100%;" onclick="genTranslation()">Siguiente →</button>`;
+  document.getElementById('translResult').innerHTML=`${transDiffHtml?`<div class="game-result-msg">${transDiffHtml}</div>`:''}<div class="game-result-msg tier-${tier}">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div>${verdict.note?`<div style="font-size:11px;color:#5a3000;margin-top:4px;">${esc(verdict.note)}</div>`:''}<button class="game-next" onclick="genTranslation()">Siguiente →</button>`;
 }

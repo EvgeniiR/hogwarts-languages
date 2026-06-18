@@ -27,10 +27,10 @@ async function enterApp(skipValidation=false){
   document.getElementById('splashKeyErr')?.remove();
   if(!skipValidation&&keyVal){
     const btn=document.getElementById('splashBtn');
-    const prev=btn.textContent;btn.textContent='Verificando…';btn.disabled=true;
+    const prev=btn.textContent;    btn.textContent='Verificando…';btn.classList.add('loading');btn.disabled=true;
     const ok=await validateProviderKey(R.provider,keyVal);
     if(ok===false){
-      btn.textContent=prev;btn.disabled=false;
+      btn.textContent=prev;btn.classList.remove('loading');btn.disabled=false;
       const errEl=document.createElement('div');
       errEl.id='splashKeyErr';
       errEl.style.cssText='font-size:11px;color:#d04040;margin-top:6px;text-align:center;';
@@ -51,7 +51,7 @@ async function enterApp(skipValidation=false){
   const remember=document.getElementById('rememberKey').checked;
   if(remember&&keyVal)await saveCreds(R.provider,keyVal);
   else if(!remember)await clearCreds(R.provider);
-  const btn=document.getElementById('splashBtn');btn.textContent='Cargando…';btn.disabled=true;
+  const btn=document.getElementById('splashBtn');  btn.textContent='Cargando…';btn.classList.add('loading');btn.disabled=true;
   await loadS();processDateChanges();
   if(S.musicOff)stopMusic();
   syncAudioBtn();

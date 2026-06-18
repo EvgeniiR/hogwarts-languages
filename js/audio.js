@@ -252,6 +252,12 @@ class AudioManager {
     btn.innerHTML = this.isMuted
         ? '<i class="ti ti-volume-off"></i>'
         : '<i class="ti ti-volume"></i>';
+
+    const skipBtn = document.getElementById('skipBtn');
+    if (skipBtn) {
+      skipBtn.style.opacity = this.isMuted ? '0.3' : '';
+      skipBtn.style.pointerEvents = this.isMuted ? 'none' : '';
+    }
   }
 
   // ── Public API ──────────────────────────────────────────────────────────

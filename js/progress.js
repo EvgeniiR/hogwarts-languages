@@ -54,7 +54,11 @@ export function updPtsUI(){
     dn.classList.toggle('goal-done',done);
   }
 }
-export function updStreakUI(){document.getElementById('streakN').textContent=S.streak.count||0;}
+export function updStreakUI(){
+  const n=S.streak.count||0;
+  document.getElementById('streakN').textContent=n;
+  document.querySelector('.streak-d').style.display=n>0?'':'none';
+}
 
 // ── Date changes: daily streak + weekly points reset ────────────────────────
 export function getISOWeek(d){

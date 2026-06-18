@@ -126,7 +126,7 @@
       <div id="geminiKeySaved" style="display:none;margin-bottom:6px;"><span style="color:#2a8018;font-size:11px;">✓ Clave guardada</span><button onclick="splashEditKey('gemini')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:8px;">Cambiar</button><button onclick="splashDeleteKey('gemini')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:4px;">Eliminar</button></div>
       <input type="password" id="geminiKeyInput" placeholder="AIza..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;width:260px;font-family:monospace;">
     </div>
-    <label style="display:flex;align-items:center;gap:6px;justify-content:center;margin-top:10px;font-size:11px;color:#6878a8;cursor:pointer;"><input type="checkbox" id="rememberKey" style="cursor:pointer;width:13px;height:13px;margin:0;flex-shrink:0;">Recordar API key en este dispositivo</label>
+    <label style="display:flex;align-items:center;gap:6px;justify-content:center;margin-top:10px;font-size:11px;color:#6878a8;cursor:pointer;">    <input type="checkbox" id="rememberKey" style="cursor:pointer;width:16px;height:16px;margin:0;flex-shrink:0;">Recordar API key en este dispositivo</label>
   </div>
   <button id="splashBtn" class="sp-btn" onclick="enterApp()">Accio Español →</button>
   <button id="splashBackBtn" onclick="hideSplashAuth()" style="display:none;padding:6px 16px;border-radius:4px;border:1px solid var(--bd);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;margin-top:8px;">← Volver al juego</button>
@@ -137,8 +137,8 @@
     <div class="hdr-l">
       <span class="hdr-title">Hogwarts Español</span>
       <span class="hbadge" id="hbadge" style="background:#1a0400;color:#c9a84c;border-color:#8b6914;">Gryffindor</span>
-      <span class="lvlbadge" id="lvlBadge">A2</span>
-      <span class="pvd-badge" id="pvdBadge" title="Proveedor de AI activo">Groq</span>
+      <span class="lvlbadge" id="lvlBadge" title="Tu nivel CEFR de español">A2</span>
+      <span class="pvd-badge" id="pvdBadge" title="Proveedor de AI activo — clic para cambiar" onclick="openSettings()">Groq</span>
     </div>
     <div class="hdr-r">
       <div class="streak-d"><span style="font-size:15px;">🔥</span><span class="streak-n" id="streakN">0</span><span class="streak-lbl">días</span></div>
@@ -173,7 +173,7 @@
         <div class="chal-hdr">
           <div class="chal-lbl">⭐ Desafío del día</div>
         </div>
-        <div class="chal-txt" id="chalTxt">Cargando tu desafío…</div>
+        <div class="chal-txt mem-loading" id="chalTxt">Cargando tu desafío…</div>
         <div id="chalFocus"></div>
         <div id="chalOpener"></div>
       </div>

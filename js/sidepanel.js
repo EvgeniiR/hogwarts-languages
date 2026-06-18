@@ -135,7 +135,7 @@ export function saveEditMistake(idx){
 export function deleteMistake(idx){S.mistakes.splice(idx,1);renderSide();saveS();}
 
 // ── Flashcards ────────────────────────────────────────────────────────────────
-let fcCards=[],fcIdx=0,fcFlipped=false;
+let fcCards=[],fcIdx=0,fcFlipped=false,fcLastSpeak=0;
 export function openFc(){
   if(!S.vocab.length){showToast('Habla con los personajes para acumular vocabulario','#9aa8d0','#f0e8e0');return;}
   fcCards=[...S.vocab].sort(()=>Math.random()-.5);fcIdx=0;fcFlipped=false;renderFc();
@@ -156,7 +156,7 @@ export function flipFc(){
   fcFlipped=!fcFlipped;
   const cardEl=document.querySelector('.fc-card');
   if(cardEl)cardEl.classList.toggle('flipped',fcFlipped);
-  if(fcFlipped&&window.speechSynthesis){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(fcCards[fcIdx].word);u.lang='es-ES';u.rate=.82;u.onerror=()=>{};window.speechSynthesis.speak(u);}
+  if(fcFlipped&&window.speechSynthesis){const now=Date.now();if(now-fcLastSpeak<800)return;fcLastSpeak=now;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(fcCards[fcIdx].word);u.lang='es-ES';u.rate=.82;u.onerror=()=>{};window.speechSynthesis.speak(u);}
 }
 export function navFc(dir){fcIdx=(fcIdx+dir+fcCards.length)%fcCards.length;renderFc();}
 

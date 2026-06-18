@@ -8,7 +8,7 @@ import { esc, friendlyError } from './helpers.js';
 import { awardPoints, pushLevelOutcome } from './progress.js';
 import { renderSide } from './sidepanel.js';
 import { playCorrect, playMinor, playIncorrect } from './audio.js';
-import { round, game, GAME_DIFF, diffSelectorHtml, award, recentOrderSentences, rememberRecent } from './game-core.js';
+import { round, game, GAME_DIFF, diffSelectorHtml, award, recentOrderSentences, rememberRecent, pickReviewItem } from './game-core.js';
 
 let sortableScrambled=null, sortableTarget=null;
 let orderReqId=0;
@@ -27,8 +27,10 @@ function scrambleWords(words){
 
 export async function genOrderGame(){
   const el=document.getElementById('gamesContent');
-  round.sentence='';round.checked=false;round.orderWords=[];
+  round.sentence='';round.checked=false;round.orderWords=[];round.review=false;
   el.innerHTML=diffSelectorHtml()+'<div class="mem-loading">La lechuza está preparando tu carta</div>';
+  const review=Math.random()<0.3?pickReviewItem(m=>m.source==='orden'):null;
+  if(review){round.orderWords=review.right.split(/\s+/);round.review=true;renderOrderRound();return;}
   const reqId=++orderReqId;
   const avoid=recentOrderSentences.length?` No repitas ni te parezcas a estos titulares recientes: ${recentOrderSentences.map(s=>`"${s}"`).join('; ')}.`:'';
   try{
@@ -50,6 +52,7 @@ export function renderOrderRound(){
   const shuffled=scrambleWords(round.orderWords);
   el.innerHTML=diffSelectorHtml()+`
     <div class="order-letter">
+      ${round.review?'<div class="edim" style="margin-bottom:6px;">🔁 Repaso de un error anterior</div>':''}
       <span class="owl-stamp">🦉</span>
       <div class="order-desc">La lechuza ha mezclado las palabras de esta noticia. Arrástralas al orden correcto.</div>
       <div class="order-scrambled" id="orderScrambled">
@@ -138,7 +141,7 @@ export function checkOrder(){
   const restored=correct.join(' ');
   const tierMsg={correct:'✓ ¡Orden correcto! +'+diff.pts+' pts',minor:'〜 Casi correcto. +'+diff.minorPts+' pts',incorrect:'✗ Orden incorrecto. -'+diff.penalty+' pts'}[tier];
   const userLine=tier!=='correct'?`<div class="incorrect-line">Tu orden: ${userWords.join(' ')}</div>`:'';
-  document.getElementById('orderResult').innerHTML=`<div class="order-result"><div class="tier-${tier}">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div><div class="restored-sentence">${esc(restored)}</div>${userLine}</div><button class="fc-btn" style="margin-top:8px;width:100%;" onclick="genOrderGame()">Siguiente →</button>`;
+  document.getElementById('orderResult').innerHTML=`<div class="order-result"><div class="tier-${tier}">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div><div class="restored-sentence">${esc(restored)}</div>${userLine}</div><button class="game-next" onclick="genOrderGame()">Siguiente →</button>`;
 }
 
 export function skipOrder(){destroySortable();game.combo=0;awardPoints(-1);genOrderGame();}

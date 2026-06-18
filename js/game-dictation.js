@@ -32,9 +32,11 @@ export function renderDictationRound(){
   document.getElementById('gamesContent').innerHTML=diffSelectorHtml()+`
     <div class="svc-row" style="text-align:center;">
       ${round.review?'<div class="edim">🔁 Repaso de un error anterior</div>':''}
-      <button aria-label="Escuchar la oración" data-txt="${esc(round.sentence)}" onclick="speakFromBtn(this)" style="margin-bottom:6px;">🔊 Escuchar</button>
-      <button aria-label="Escuchar más despacio" data-txt="${esc(round.sentence)}" data-rate="0.55" onclick="speakFromBtn(this)" style="margin-bottom:8px;">🐢 Más despacio</button>
-      <input id="dictInput" placeholder="Escribe lo que escuchaste…" autocomplete="off">
+      <div class="game-listen-row">
+        <button aria-label="Escuchar la oración" data-txt="${esc(round.sentence)}" onclick="speakFromBtn(this)">🔊 Escuchar</button>
+        <button aria-label="Escuchar más despacio" data-txt="${esc(round.sentence)}" data-rate="0.55" onclick="speakFromBtn(this)">🐢 Más despacio</button>
+      </div>
+      <input id="dictInput" class="game-input" placeholder="Escribe lo que escuchaste…" autocomplete="off">
       <div class="vadd-row">
         <button aria-label="Pista" onclick="hintDictation()">💡 Pista</button>
         <button aria-label="Comprobar respuesta" onclick="checkDictation()">✅ Comprobar</button>
@@ -65,5 +67,5 @@ export function checkDictation(){
   }
   saveS();
   const tierMsg={correct:'✓ ¡Correcto! +'+diff.pts+' pts',minor:'〜 Casi correcto. +'+diff.minorPts+' pts',incorrect:'✗ Incorrecto. -'+diff.penalty+' pts'}[tier];
-  document.getElementById('dictResult').innerHTML=`<div class="game-result-msg">${wordDiffHtml(a,b)}</div><div class="game-result-msg tier-${tier}">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div><button class="fc-btn" style="margin-top:8px;width:100%;" onclick="genDictation()">Siguiente →</button>`;
+  document.getElementById('dictResult').innerHTML=`<div class="game-result-msg">${wordDiffHtml(a,b)}</div><div class="game-result-msg tier-${tier}">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div><button class="game-next" onclick="genDictation()">Siguiente →</button>`;
 }

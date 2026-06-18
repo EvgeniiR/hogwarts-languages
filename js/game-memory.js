@@ -52,9 +52,9 @@ function boardComplete() {
   pushLevelOutcome(true);
   document.getElementById('memResult').innerHTML = `<div style="margin-top:10px;text-align:center;">
     <div class="tier-correct" style="font-size:13px;font-weight:500;">✓ ¡Pensieve completado!</div>
-    <div style="font-size:11px;color:var(--mt);margin-top:4px;">⏱ ${seconds}s${timeBonus > 0 ? ' · +' + timeBonus + ' pts (tiempo)' : ''}</div>
-    <div style="font-size:11px;color:var(--mt);">+${diff.pts} pts${bonus ? ` · 🔥 Combo +${bonus}` : ''} · ${totalPairs} parejas</div>
-    <button class="fc-btn" style="margin-top:8px;width:100%;" onclick="renderMemoryLobby()">Siguiente →</button>
+    <div style="font-size:11px;color:#7a5520;margin-top:4px;">⏱ ${seconds}s${timeBonus > 0 ? ' · +' + timeBonus + ' pts (tiempo)' : ''}</div>
+    <div style="font-size:11px;color:#7a5520;">+${diff.pts} pts${bonus ? ` · 🔥 Combo +${bonus}` : ''} · ${totalPairs} parejas</div>
+    <button class="game-next" onclick="renderMemoryLobby()">Menú →</button>
   </div>`;
   saveS();
 }
@@ -156,8 +156,9 @@ function renderMemory() {
         </div>
       `).join('')}
     </div>
+    <div class="mem-preview-bar" id="memPreviewBar" style="display:none;"><div class="mem-preview-bar-fill" id="memPreviewFill"></div></div>
     <div class="pensieve-actions" style="justify-content:center;">
-      <button onclick="skipMemory()">⏭ Revelar todo</button>
+      <button onclick="skipMemory()">⏭ Revelar todo (-1)</button>
     </div>
     <div id="memResult"></div>`;
   if (window.innerWidth >= 820) {
@@ -197,7 +198,7 @@ export async function genMemory() {
     }
   }
   if (!picked || picked.length < 2) {
-    document.getElementById('gamesContent').innerHTML = diffSelectorHtml() + '<div class="edim">Agrega más vocabulario primero (al menos 2 palabras).</div><button class="fc-btn" style="margin-top:8px;width:100%;" onclick="closeGames()">Ir al chat →</button>';
+    document.getElementById('gamesContent').innerHTML = diffSelectorHtml() + '<div class="edim">Agrega más vocabulario primero (al menos 2 palabras).</div><button class="game-next" onclick="closeGames()">Ir al chat →</button>';
     return;
   }
   totalPairs = Math.min(picked.length, pairs);
@@ -220,7 +221,22 @@ export async function genMemory() {
   requestAnimationFrame(() => { if (engine) engine.start(); });
   isPreviewing = true;
   document.querySelectorAll('#memGrid .memory-card').forEach(el => el.classList.add('flipped'));
+  const previewBar = document.getElementById('memPreviewBar');
+  const previewFill = document.getElementById('memPreviewFill');
+  if (previewBar && previewFill) {
+    previewBar.style.display = 'block';
+    const start = performance.now();
+    const duration = 3000;
+    function tick() {
+      const elapsed = performance.now() - start;
+      const pct = Math.max(0, 100 - (elapsed / duration) * 100);
+      previewFill.style.width = pct + '%';
+      if (elapsed < duration) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
   setTimeout(() => {
+    if (previewBar) previewBar.style.display = 'none';
     document.querySelectorAll('#memGrid .memory-card:not(.matched)').forEach(el => el.classList.remove('flipped'));
     cards.forEach(c => { c.flipped = false; });
     isPreviewing = false;
@@ -240,7 +256,7 @@ export function skipMemory() {
   }
   const el = document.getElementById('memResult');
   if (el) {
-    el.innerHTML = `<button class="fc-btn" style="margin-top:10px;width:100%;" onclick="renderMemoryLobby()">Siguiente →</button>`;
+    el.innerHTML = `<button class="game-next" style="margin-top:10px;" onclick="renderMemoryLobby()">Menú →</button>`;
   }
   saveS();
 }

@@ -47,10 +47,13 @@ export function renderChallengeUI(k){
 export function updateChalTxt(k){
   const today=new Date().toISOString().slice(0,10);
   const c=S.challenges[today]?.[k];
+  const chalEl=document.getElementById('chalTxt');
   const focusEl=document.getElementById('chalFocus');
   const opEl=document.getElementById('chalOpener');
   if(c){
-    document.getElementById('chalTxt').textContent=c.challenge;
+    chalEl.classList.remove('mem-loading');
+    chalEl.style.fontStyle='';
+    chalEl.textContent=c.challenge;
     if(focusEl)focusEl.textContent=c.focus?'📌 '+c.focus:'';
     if(opEl){
       opEl.textContent=c.exampleOpener?'💬 '+c.exampleOpener:'';
@@ -59,7 +62,9 @@ export function updateChalTxt(k){
       opEl.onclick=c.exampleOpener?()=>{const ta=document.getElementById('ui');ta.value=c.exampleOpener;aResize(ta);ta.focus();opEl.classList.add('opener-flash');setTimeout(()=>opEl.classList.remove('opener-flash'),400);}:null;
     }
   }else{
-    document.getElementById('chalTxt').textContent='Cargando tu desafío…';
+    chalEl.classList.add('mem-loading');
+    chalEl.style.fontStyle='normal';
+    chalEl.textContent='Cargando tu desafío…';
     if(focusEl)focusEl.textContent='';
     if(opEl){opEl.textContent='';opEl.onclick=null;opEl.style.cursor='';}
   }
@@ -74,7 +79,10 @@ export async function genDailyChallenges(){
   }
   if(challengesLoading)return;
   challengesLoading=true;
-  document.getElementById('chalTxt').innerHTML='<span class="mem-loading">Generando desafíos de hoy</span>';
+  const chalEl=document.getElementById('chalTxt');
+  chalEl.classList.remove('mem-loading');
+  chalEl.style.fontStyle='';
+  chalEl.innerHTML='<span class="mem-loading">Generando desafíos de hoy</span>';
   try{
     const raw=await callLLM(null,[{role:'user',content:CHALLENGE_PROMPT.replace(/\{\{LEVEL\}\}/g,LEVELS[S.level]).replace(/\{\{DATE\}\}/g,today)}],800,'low');
     const arr=extractJSON(raw);
@@ -85,6 +93,8 @@ export async function genDailyChallenges(){
     }
   }catch(e){
     challengesLoading=false;
+    document.getElementById('chalTxt').classList.remove('mem-loading');
+    document.getElementById('chalTxt').style.fontStyle='';
     document.getElementById('chalTxt').textContent='No disponible';
     const el=document.getElementById('chalFocus');if(el)el.textContent='';
     const op=document.getElementById('chalOpener');
