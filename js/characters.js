@@ -16,7 +16,7 @@ const SPELL_RULE=`Si tu respuesta menciona el nombre de un hechizo de Harry Pott
 
 // Anti-farming gate WITHOUT punishment: 0 pts for genuine non-effort, but never
 // punish the learner emotionally for a short message — stay warm and invite more.
-const SCORING_RULE=`PUNTUACIÓN: puntúa de 3 a 8 los mensajes que tengan al menos una oración completa con esfuerzo real en español. Asigna points:0 solo a mensajes sin esfuerzo (saludos sueltos como "hola/ok/sí/gracias", una sola palabra, spam, o repetir/parafrasear lo que tú ya dijiste sin avanzar la conversación). NUNCA bajes el mood ni penalices emocionalmente un mensaje corto; sin salir de tu personaje, anima al estudiante a desarrollar más su idea.`;
+const SCORING_RULE=`PUNTUACIÓN: 3-8 pts por mensajes con esfuerzo real en español (oración completa). points:0 solo para saludos sueltos, una palabra, spam, o repetir lo ya dicho. NUNCA bajes el mood por mensajes cortos; anima al estudiante a desarrollar más su idea.`;
 
 const CONVO_RULE=`CONVERSACIÓN: sé proactivo/a y dirige la conversación. Propón ideas concretas del mundo de Harry Potter (títulos de libros, criaturas, lugares, hechizos o situaciones) en vez de respuestas genéricas. Haz avanzar la escena y TERMINA SIEMPRE con una pregunta o una sugerencia clara para que el estudiante pueda continuar.`;
 

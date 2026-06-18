@@ -5,11 +5,11 @@ import { esc, friendlyError, extractJSON, mdInline } from './helpers.js';
 let convHistory = [];
 let currentMistake = null;
 
-const SYS = `You are a Spanish language tutor. The learner made a mistake. Explain it clearly.
+const SYS = `You are a Spanish language tutor. The learner made a mistake in Spanish. Write the explanation IN SPANISH.
 Respond ONLY with a JSON object:
 {"explanation":"...","suggestions":["...","...","..."]}
-- explanation: 2-4 short paragraphs, **bold** key grammar terms, include example sentences.
-- suggestions: 3 concise follow-up questions the learner might ask.`;
+- explanation: 2-4 short paragraphs in Spanish, **bold** key grammar terms, include example sentences.
+- suggestions: 3 concise follow-up questions in Spanish the learner might ask.`;
 
 export function openErrExplain(idx) {
   currentMistake = S.mistakes[idx];

@@ -63,7 +63,18 @@ export async function checkTranslation(btn){
   btn.textContent='⏳ Comprobando…';
   let verdict;
   try{
-    const raw=await callLLM(null,[{role:'user',content:`Frase en inglés: "${round.phrase}". El estudiante tradujo: "${input}". El estudiante no tiene teclado español, así que IGNORA tildes/acentos faltantes y "n" en vez de "ñ" — no los marques como error. Clasifica la traducción como "correct" (completamente correcta, acepta variantes válidas), "minor" (un error pequeño pero se entiende el significado, ej. una palabra equivocada o un pequeño fallo de concordancia), o "incorrect" (el significado está mal o falta algo importante). RESPONDE SOLO con este JSON: {"status":"correct","correction":"traducción correcta","note":"breve explicación en español"}`}],100,'medium');
+    const raw=await callLLM(null,[{role:'user',content:`Evalúa esta traducción inglés→español:
+
+Frase en inglés: "${round.phrase}"
+El estudiante tradujo: "${input}"
+
+REGLAS:
+- IGNORA tildes/acentos faltantes y "n" en vez de "ñ" — no son errores.
+- "correct": traducción completamente correcta (acepta variantes válidas).
+- "minor": un error pequeño pero se entiende el significado.
+- "incorrect": el significado está mal o falta algo importante.
+
+Responde SOLO con: {"status":"correct|minor|incorrect","correction":"traducción correcta","note":"breve explicación en español"}`}],100,'medium');
     verdict={status:'incorrect',correction:round.ref||round.phrase,note:'',...extractJSON(raw)};
   }catch(e){
     document.querySelectorAll('#gamesContent .vadd-row button').forEach(b=>{b.disabled=false;});
