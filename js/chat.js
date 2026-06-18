@@ -153,11 +153,6 @@ function safeParse(raw){
     return{reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2,options:[]};
   }
 }
-    }
-    try{return extractJSON(repaired);}catch(e3){}
-    return{reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2,options:[]};
-  }
-}
 
 // ── Character selection ───────────────────────────────────────────────────────
 export function selChar(tab){
