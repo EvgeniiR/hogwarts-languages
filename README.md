@@ -2,6 +2,8 @@
 
 A Spanish-practice web app where you hold conversations with Hermione, Dumbledore, Hagrid, and Snape. It tracks the vocabulary and grammar mistakes that come up while you chat, turns them into flashcards and spaced-repetition reviews, and wraps the whole thing in daily challenges, minigames, and house points.
 
+The goal was a low-friction entry point for learners who want to use LLMs for practice but don't want to wrangle tools or subscriptions — bring an API key, pick a character, start talking.
+
 **Live:** https://hogwarts-espanol.pages.dev
 
 A working MVP, taken from concept to something deployed and usable day to day rather than a throwaway demo. The work was in owning it end to end: deciding what to build, what to cut, and sweating the details a prototype skips — UX, accessibility, asynchronous behavior, performance, and LLM token efficiency.
