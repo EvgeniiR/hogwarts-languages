@@ -73,7 +73,7 @@ async function fetchExplanation() {
   setSugg([]);
   let raw;
   try {
-    raw = await callLLM(SYS, [{ role: 'user', content: userMsg }], 600, 'medium');
+    raw = await callLLM(SYS, [{ role: 'user', content: userMsg }], 600);
   } catch(e) {
     setExplLoading(false);
     document.getElementById('eeExpl').innerHTML =
@@ -83,7 +83,7 @@ async function fetchExplanation() {
   let data;
   try {
     data = extractJSON(sanitizeJSON(raw));
-  } catch(e) {}
+  } catch(e) { console.warn('JSON parse falló en fetchExplanation', e); }
   convHistory = [{ role: 'assistant', content: (data && data.explanation) || raw }];
   setExplLoading(false);
   renderChat();
@@ -107,7 +107,7 @@ async function fetchAnswer(question) {
   renderChat();
   let raw;
   try {
-    raw = await callLLM(SYS, msgs, 500, 'medium');
+    raw = await callLLM(SYS, msgs, 500);
   } catch(e) {
     convHistory.splice(loadIdx, 1);
     convHistory.push({ role: 'assistant', content: friendlyError(e) });
@@ -118,7 +118,7 @@ async function fetchAnswer(question) {
   let data;
   try {
     data = extractJSON(sanitizeJSON(raw));
-  } catch(e) {}
+  } catch(e) { console.warn('JSON parse falló en fetchAnswer', e); }
   convHistory.push({ role: 'assistant', content: (data && (data.explanation || data.answer)) || raw });
   renderChat();
   setSugg((data && data.suggestions) || []);

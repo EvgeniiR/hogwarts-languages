@@ -80,13 +80,13 @@ export async function genDailyChallenges(){
   chalEl.style.fontStyle='';
   chalEl.innerHTML='<span class="mem-loading">Generando desafíos de hoy</span>';
   try{
-    const raw=await callLLM(CHALLENGE_SYS,[{role:'user',content:CHALLENGE_USER.replace(/\{\{LEVEL\}\}/g,LEVELS[S.level]).replace(/\{\{DATE\}\}/g,today)}],800,'low');
+    const raw=await callLLM(CHALLENGE_SYS,[{role:'user',content:CHALLENGE_USER.replace(/\{\{LEVEL\}\}/g,LEVELS[S.level]).replace(/\{\{DATE\}\}/g,today)}],800);
     const parsed=extractJSON(raw);
     const arr=parsed.challenges||parsed;
     if(Array.isArray(arr)&&arr.length>=4){
       const map={};
       arr.forEach(c=>{if(c.character&&c.challenge&&c.exampleOpener)map[c.character]={challenge:c.challenge,focus:c.focus||'',exampleOpener:c.exampleOpener};});
-      if(Object.keys(map).length===4){S.challenges[today]=map;saveS();}
+      if(Object.keys(map).length===4){S.challenges[today]=map;await saveS();}
     }
   }catch(e){
     challengesLoading=false;

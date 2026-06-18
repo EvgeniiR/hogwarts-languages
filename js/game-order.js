@@ -34,7 +34,7 @@ export async function genOrderGame(){
   const reqId=++orderReqId;
   const avoid=recentOrderSentences.length?` No repitas ni te parezcas a estos titulares recientes: ${recentOrderSentences.map(s=>`"${s}"`).join('; ')}.`:'';
   try{
-    const txt=await callLLM(`Eres un profesor de español generando titulares del mundo mágico para un ejercicio de ordenar palabras.`,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].orderPrompt} Tema: una noticia del mundo mágico relacionada contigo. Genera UNA frase corta en español que sea un titular. Sin signos de puntuación. Solo la frase, sin comillas ni explicaciones.${avoid}`}],60,'low');
+    const txt=await callLLM(`Eres un profesor de español generando titulares del mundo mágico para un ejercicio de ordenar palabras.`,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].orderPrompt} Tema: una noticia del mundo mágico relacionada contigo. Genera UNA frase corta en español que sea un titular. Sin signos de puntuación. Solo la frase, sin comillas ni explicaciones.${avoid}`}],60);
     if(reqId!==orderReqId)return;
     const words=txt.trim().split(/\s+/).map(w=>w.replace(/^[¿¡"'(]+|[.,!?;:"')]+$/g,'')).filter(Boolean);
     if(words.length<3)throw new Error('too short');

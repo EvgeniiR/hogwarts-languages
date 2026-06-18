@@ -26,6 +26,7 @@ const STATIC = [
   '/js/particles.js',
   '/js/settings.js',
   '/js/srs.js',
+  '/js/model-compare.js',
   '/audio/manifest.json',
   '/manifest.json'
 ];

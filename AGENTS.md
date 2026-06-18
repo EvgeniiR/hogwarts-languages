@@ -18,14 +18,14 @@ Built for a specific user (~A2/B1 Spanish, ~1.5 years Duolingo). Deployed on Clo
 
 ```
 hogwarts-espanol.html   ← HTML shell only. No JS, no CSS.
-css/styles.css          ← All styles (~357 lines, static)
-js/                     ← ES modules (24 files)
+css/styles.css          ← All styles (~362 lines, static)
+js/                     ← ES modules (25 files)
 audio/                  ← Ambient MP3s + manifest.json
 index.html              ← Redirects to hogwarts-espanol.html
 DEPLOY.md               ← Deploy instructions
 AGENTS.md               ← This file
 manifest.json           ← PWA manifest
-sw.js                   ← Service worker (cache-first for static assets)
+sw.js                   ← Service worker (stale-while-revalidate for static assets)
 icon-192.png            ← PWA icon 192×192
 icon-512.png            ← PWA icon 512×512
 ```
@@ -38,11 +38,11 @@ When editing a feature, load **only this file** — not the whole project.
 |---------|------|
 | App entry point, init, window bindings | `js/main.js` |
 | Persisted state (S), runtime state (R), loadS/saveS, onSaveError | `js/state.js` |
-| localStorage / window.storage abstraction | `js/storage.js` |
+| localStorage abstraction | `js/storage.js` |
 | Shared pure utilities (esc, showToast, normWords, weekStart, extractJSON…) | `js/helpers.js` |
 | Character definitions, system-prompt assembly (`buildSys`, `getSys`) | `js/characters.js` |
 | SVG portraits (static, rarely changes) | `js/portraits.js` |
-| LLM router: Anthropic / Gemini / Groq | `js/llm.js` |
+| LLM router: Groq / OpenAI / DeepSeek | `js/llm.js` |
 | API key persistence, provider selection, splash auth management (`splashEditKey`, `splashDeleteKey`, `removeCreds`, `savedKeyIndicator`) | `js/credentials.js` |
 | Ambient music (gapless two-element preload), instant mute/unmute, UI beeps | `js/audio.js` |
 | Text-to-speech (speak, speakFromBtn with rate, voice picker) | `js/tts.js` |
@@ -59,7 +59,8 @@ When editing a feature, load **only this file** — not the whole project.
 | Pensieve Memory Match (card-flip, Canvas particle engine) | `js/game-memory.js` |
 | Canvas particle engine (ambient float + burst on match) | `js/particles.js` |
 | Spaced repetition (vocab SRS — Leitner levels 0-4) | `js/srs.js` |
-| Settings overlay: voice, model, llm log viewer | `js/settings.js` |
+| Settings overlay: voice, model, llm log viewer, model comparison | `js/settings.js` |
+| Model comparison debug tool (compareModels) | `js/model-compare.js` |
 | All CSS | `css/styles.css` |
 
 **Memory Match (game-memory.js) specifics:**
@@ -127,13 +128,15 @@ S = {
   challengeDone: {'charKey_YYYY-MM-DD': true},  // pruned to 14 days
   challengesCompleted: number,  // PERSISTENT lifetime counter (not pruned)
   voicePrefs: {f:'', m:''},
-  modelPrefs: {anthropic:'', gemini:'', groq:'', openai:''},
-  achievements: {streak, msgs, vocab, challenges, pts, hp_firstYear, hp_quidditch, hp_merlin, hp_champion},
+  modelPrefs: {groq:'', openai:'', deepseek:''},
+  achievements: {streak:0, msgs:0, vocab:0, challenges:0, pts:0},
   levelWindow: bool[],       // last 30 correct/incorrect outcomes
   gameDifficulty: 'easy'|'medium'|'hard',
   musicOff: false,           // persisted music on/off state
   ttsOff: false,             // persisted TTS mute state (use !==undefined check in loadS)
   currentHints: {hermione:[], dumbledore:[], hagrid:[], snape:[]},  // persisted reply-suggestion hints per character
+  repairProvider: 'groq',    // provider used for JSON repair (Groq always, or '' = main provider)
+  lastChar: 'hermione',      // last active character, restored on reload
   version: 2                 // schema version stamp
 }
 ```
@@ -147,8 +150,8 @@ S = {
 ```js
 R = {
   cur: 'hermione',             // active character key
-  provider: 'groq',            // 'anthropic'|'gemini'|'groq'|'openai'
-  keys: {anthropic, gemini, groq, openai},  // in-memory API keys
+  provider: 'groq',            // 'groq' | 'openai' | 'deepseek'
+  keys: {groq:'', openai:'', deepseek:''},  // in-memory API keys
   cachedCreds: {},             // saved creds from hp_creds storage
   loading: false,              // true while an LLM call is in flight
   llmLog: []                   // session-only query log (capped 50, cleared on reload)
@@ -188,20 +191,17 @@ The HTML has ~51 `onclick="fnName()"` attributes. Module scope is not global, so
 | Hagrid    | Enthusiastic, warm, animal-obsessed (richer vocab) | 4 | `chars.hagrid` |
 | Snape     | Sarcastic, corrects everything, no mercy | 6 | `chars.snape` |
 
-System prompts are assembled at call time by `getSys(k)` in `characters.js`, which is **provider-aware** (branches on `R.provider`): Groq gets terse/directive framing, Gemini moderate, Anthropic/OpenAI the richest persona. Each character stores a `persona` (with a `{{LV}}` placeholder) and a JSON `shape`; the shared rules — `SPELL_RULE`, `SCORING_RULE` (anti-farming: `points:0` for non-effort but **no** mood punishment), `CONVO_RULE` (be proactive, end with a question), `OPTIONS_RULE`, and `VARIETY_RULE` (anti-repetition — applied in all three provider branches) — live **once** in `characters.js`. Each `shape` includes an `options` array (2-3 learner-POV reply suggestions); `getSys(k)` appends the daily-challenge line **only if the challenge for that character is not yet completed** (saves tokens). Reply-suggestion chips are rendered via `renderHints()`/`#hintsR` UI from the LLM `options` field and are **persisted** in `S.currentHints` per character (saved in `sendMsg` and `genStarter`; restored on `selChar`/page reload). Static hints (`chars[k].hints`) are shown by `showHints()` as a fallback when no persisted hints exist for the character. `genStarter` seeds the user turn with a random HP scenario (`SEEDS` array in `chat.js`) so openers vary across resets.
+System prompts are assembled at call time by `getSys(k)` in `characters.js`, which uses a single format for all providers (Groq/OpenAI/DeepSeek — all are OpenAI-compatible and Groq+DeepSeek enforce JSON at the API level via `response_format:json_object`). Each character stores a `persona` (with a `{{LV}}` placeholder) and a JSON `shape`; the shared rules — `SCORING_RULE` (anti-farming: `points:0` for non-effort but **no** mood punishment), `CONVO_RULE` (be proactive, end with a question), `OPTIONS_RULE`, and `VARIETY_RULE` (anti-repetition) — live **once** in `characters.js`. `buildSys(persona,shape)` assembles the prompt; `getSys(k)` appends the daily-challenge line **only if the challenge for that character is not yet completed** (saves tokens). Reply-suggestion chips are rendered via `renderHints()`/`#hintsR` UI from the LLM `options` field and are **persisted** in `S.currentHints` per character (saved in `sendMsg` and `genStarter`; restored on `selChar`/page reload). Static hints (`chars[k].hints`) are shown by `showHints()` as a fallback when no persisted hints exist for the character. `genStarter` seeds the user turn with a random HP scenario (`SEEDS` array in `chat.js`) so openers vary across resets.
 
 ## LLM providers
 
 | Provider | Key (`R.keys.X`) | Default model | Notes |
 |----------|-----------------|---------------|-------|
-| Anthropic | `R.keys.anthropic` | `claude-opus-4-8` | Effort via `output_config:{effort}` (NOT `thinking`). Haiku skips effort param. Opus 4.8 uses adaptive thinking — `thinking:{type:'enabled'}` returns 400. |
-| Gemini | `R.keys.gemini` | `gemini-2.5-flash` | Falls back to `gemini-2.5-flash-lite` on 429 |
-| Groq | `R.keys.groq` | `llama-3.3-70b-versatile` | OpenAI-compatible |
-| OpenAI | `R.keys.openai` | `gpt-4.1-mini` | OpenAI-compatible, same format as Groq |
+| Groq | `R.keys.groq` | `llama-3.3-70b-versatile` | OpenAI-compatible. `response_format:{type:'json_object'}` enforces valid JSON at API level. |
+| DeepSeek | `R.keys.deepseek` | `deepseek-v4-flash` | OpenAI-compatible. Thinking mode ON by default — must set `thinking:{type:'disabled'}`. JSON enforced via `response_format`. |
+| OpenAI | `R.keys.openai` | `gpt-4.1-mini` | OpenAI-compatible. |
 
-Valid effort values: `low`, `medium`, `high`, `xhigh`, `max` — passed as `output_config:{effort}` in the Anthropic request body. Conversation (`sendMsg`) and error explanations use `'medium'` effort; conversation starters and daily challenges use `'low'`. Effort is consumed only by the Anthropic path. Groq and Gemini set `temperature:0.9`; Anthropic accepts no temperature (Opus 4.8 returns 400 on it).
-
-All three providers use `fetchWithTimeout` (30s) defined in `llm.js`. `AbortError` is non-retryable.
+All three providers use `fetchWithTimeout` (30s) defined in `llm.js`. `AbortError` is non-retryable. Groq and DeepSeek use `temperature:0.9` with `response_format:{type:'json_object'}`; OpenAI uses `temperature:0.9`.
 
 ## Daily challenges
 
@@ -209,16 +209,18 @@ All three providers use `fetchWithTimeout` (30s) defined in `llm.js`. `AbortErro
 
 ## Settings / overlays
 
-The app has **four separate overlays**, each with its own `<div class="settings-ov">` in the HTML:
+The app has **five separate overlays**, each with its own `<div class="settings-ov">` in the HTML:
 
-- **`settingsOv`** — 3-tab settings card + auth button:
+- **`settingsOv`** — 3-tab settings card + auth button + model comparison:
   - **🔊 Voz** — TTS voice picker; male/female; test button
   - **🧠 Modelo** — per-provider model selector (reads `R.provider`)
   - **📋 Log** — in-memory LLM query log viewer; click to expand prompt/response; clear button; dropped on reload
   - **🔑 Gestionar cuentas →** — opens splash overlay for full auth management (providers, keys, saved-key pattern with Cambiar/Eliminar)
+  - **⚡ Comparar modelos** — parallel comparison across all available models with custom question + character selector
 - **Header provider badge** — `#pvdBadge` element updated by `updProviderBadge()` (exported from `chat.js`, called by `setProvider` in `credentials.js` and `updHeaderAll`)
 - **`achievementsOv`** — HP milestones (top) + stat achievement bars (bottom); opened via header trophy icon
 - **`gamesOv`** — 4-tab minigames card: Dictado / Traducción / Orden / Pensieve
+- **`errExplainOv`** — grammar mistake Q&A overlay; opened from side-panel mistake list
 - **`fcOv`** — flashcard overlay
 
 ## Minigames
@@ -236,20 +238,20 @@ Four games, each in its own file. All share engine state from `game-core.js`:
 
 ## Auth / credentials
 
-- `hp_creds` stores `{groq, openai, anthropic, gemini, last}` in storage
+- `hp_creds` stores `{groq, openai, deepseek, last}` in storage
 - `prefillCreds()` runs at page load; returns `true` if autologin; `main.js` hides `.sp-key` and changes the button to "Continuar →" (calls `enterApp(true)` on click)
 - All providers' keys are loaded into `R.keys` on autologin
 - Provider default: if saved last-provider has no key, falls back to Groq
 - **Splash is the auth hub**: provider selection, key input with saved-key pattern (✓ Guardada / Cambiar / Eliminar), and per-provider descriptions with "conseguir clave →" links
 - `showSplashAuth()` (from settings "Gestionar cuentas →" button) pre-fills saved keys and changes splash button to "Guardar"; `hideSplashAuth()` returns to app
 - Per-provider key deletion via `splashDeleteKey(p)` / `removeCreds(p)` — no reload needed
-- Provider order on splash: Groq → OpenAI → Anthropic → Gemini
-- Provider labels: Groq "✦ Gratis", OpenAI "★ Recomendado", Gemini "✦ Gratis"
-- `validateProviderKey()` in `settings.js` handles all 4 providers for splash key validation
+- Provider order on splash: Groq → DeepSeek → OpenAI
+- Provider labels: Groq "Recomendado · Gratis", DeepSeek "Recomendado · Avanzado", OpenAI (bare)
+- `validateProviderKey()` in `settings.js` handles all 3 providers for splash key validation
 
 ## Persistence
 
-- Storage: `window.storage` (artifact) checked first, then `localStorage`
+- Storage: `localStorage` via `storage.js` `kvGet`/`kvSet`
 - Keys: `hp_v1` (state S), `hp_creds` (API keys)
 - Pruning on save: vocab ≤200, mistakes ≤60, grammar ≤80, hist ≤25/char, challenges/challengeDone pruned to 14 days
 - `kvSet` now propagates errors (no silent catch). `saveS` catches them and calls the `onSaveError` callback registered in `main.js` (shows a toast). To register: `import {onSaveError} from './state.js'` then `onSaveError(cb)`.
@@ -281,12 +283,10 @@ Four games, each in its own file. All share engine state from `game-core.js`:
 
 ## Common pitfalls
 
-- **Boolean state in loadS()** — use `!==undefined` check, not truthiness
+- **Boolean state in loadS()** — use `!==undefined` check, not truthiness. `if(d.field)` silently skips `false` and `0`.
 - **New `onclick` in HTML** — must add matching `window.X = fn` in `js/main.js`'s `Object.assign` block
 - **Circular imports** — `state.js`, `helpers.js`, and `storage.js` are leaf modules; keep them dependency-free. `game-core.js` is also a leaf; `game-*.js` files import engine primitives from it, never vice versa. `games.js` is a pure router that re-exports game functions — `game-*.js` files must not import from `games.js`.
 - **API history cap** — `sendMsg()` slices to `.slice(-25)` before every call; don't add extra slicing
-- **Gemini message format** — role is `'model'` not `'assistant'`; handled in `callGeminiModel` in `llm.js`
-- **`window.storage` in artifacts** — must be checked first in all storage reads/writes; already handled by `storage.js` `kvGet`/`kvSet`
 - **`R.loading`** — set in `chat.js` `sendMsg()`; guards against double-submit; do not reset elsewhere
 - **Focus trap** — `main.js` keydown handler traps Tab within open overlays (settings, games, achievements, error explain, flashcards); add new overlays to the `overlays` array if needed
 - **`speakFromBtn` rate** — `tts.js` `speakFromBtn` reads `btn.dataset.rate` (optional float). Use `data-rate="0.55"` on slow-speak buttons instead of inline `speak(x, 0.55)` calls.

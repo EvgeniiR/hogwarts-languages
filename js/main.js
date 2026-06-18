@@ -14,8 +14,9 @@ import { genDailyChallenges } from './challenges.js';
 import { sendMsg, selChar, selCharByName, updHeaderAll, showHints, useHint, renderMsgs, genStarter, retryLastMsg, resetConversation } from './chat.js';
 import { renderSide, setSTab, navWeek, toggleVAdd, submitVAdd, editVocab, cancelEditVocab, saveEditVocab, deleteVocab, editMistake, cancelEditMistake, saveEditMistake, deleteMistake, openFc, closeFc, flipFc, navFc, toggleFcReverse, handleSelUp, hideSelBtn, addSelectionToVocab, startSrsReview, srsReveal, srsAnswer, closeSrsReview } from './sidepanel.js';
 import { openGames, closeGames, setGameTab, setGameDifficulty, genDictation, genTranslation, hintDictation, checkDictation, skipDictation, hintTranslation, checkTranslation, skipTranslation, genOrderGame, checkOrder, hintOrder, skipOrder, genMemory, skipMemory, flipMemCard, cleanupMemory, setRandomMode, renderMemoryLobby } from './games.js';
-import { openSettings, closeSettings, setSettingsTab, renderSettings, setModelPref, setRepairProvider, setTtsOff, openAchievements, closeAchievements, renderAchievements, validateProviderKey, clearLog } from './settings.js';
+import { openSettings, closeSettings, setSettingsTab, renderSettings, setModelPref, setTtsOff, openAchievements, closeAchievements, renderAchievements, validateProviderKey, clearLog } from './settings.js';
 import { openErrExplain, closeErrExplain, askErrFollowUp, clickErrSuggestion } from './error-explain.js';
+import { compareModels } from './model-compare.js';
 import { showToast, aResize } from './helpers.js';
 
 // Portrait injection
@@ -39,14 +40,10 @@ async function enterApp(skipValidation=false){
       return;
     }
   }
-  if(R.provider==='anthropic')R.keys.anthropic=keyVal;
-  else if(R.provider==='gemini')R.keys.gemini=keyVal;
-  else if(R.provider==='openai')R.keys.openai=keyVal;
+  if(R.provider==='openai')R.keys.openai=keyVal;
   else if(R.provider==='deepseek')R.keys.deepseek=keyVal;
   else R.keys.groq=keyVal;
   // Restore all other providers' saved keys so settings tab stays correct.
-  if(R.cachedCreds.anthropic&&!R.keys.anthropic)R.keys.anthropic=R.cachedCreds.anthropic;
-  if(R.cachedCreds.gemini&&!R.keys.gemini)R.keys.gemini=R.cachedCreds.gemini;
   if(R.cachedCreds.groq&&!R.keys.groq)R.keys.groq=R.cachedCreds.groq;
   if(R.cachedCreds.openai&&!R.keys.openai)R.keys.openai=R.cachedCreds.openai;
   if(R.cachedCreds.deepseek&&!R.keys.deepseek)R.keys.deepseek=R.cachedCreds.deepseek;
@@ -70,7 +67,7 @@ async function enterApp(skipValidation=false){
     if(delay)setTimeout(()=>genStarter(chars[i]),delay);
     else genStarter(chars[i]);
   }
-  setInterval(()=>{const t=new Date().toISOString().slice(0,10);if(S.lastActiveDate&&S.lastActiveDate!==t)processDateChanges();},60000);
+  setInterval(()=>{const t=new Date().toISOString().slice(0,10);if(S.lastActiveDate&&S.lastActiveDate!==t){processDateChanges();saveS();}},60000);
   tryAudio();
   await saveS();
 }
@@ -89,7 +86,7 @@ function showSplashAuth(){
   btn.disabled=false;
   btn.setAttribute('onclick','saveSplashAuth()');
   // Pre-fill inputs and indicators for all providers.
-  ['groq','openai','anthropic','gemini'].forEach(p=>{
+  ['groq','openai','deepseek'].forEach(p=>{
     if(R.keys[p]){
       const el=document.getElementById(KEY_INPUT_ID[p]);
       if(el)el.value=R.keys[p];
@@ -123,7 +120,7 @@ async function saveSplashAuth(){
       R.keys[R.provider]=keyVal;
       await saveCreds(R.provider,keyVal);
     }
-    for(const p of ['groq','openai','anthropic','gemini']){
+    for(const p of ['groq','openai','deepseek']){
       if(p===R.provider)continue;
       const v=document.getElementById(KEY_INPUT_ID[p])?.value?.trim();
       if(v){
@@ -251,9 +248,11 @@ Object.assign(window,{
   // Achievements overlay
   openAchievements, closeAchievements,
   // Settings overlay
-  openSettings, closeSettings, setSettingsTab, setModelPref, setRepairProvider, setTtsOff,
+  openSettings, closeSettings, setSettingsTab, setModelPref, setTtsOff,
   setVoicePref, testVoice,
   clearLog,
+  // Model comparison
+  compareModels,
   // Auth / splash management
   splashEditKey, splashDeleteKey, showSplashAuth, hideSplashAuth, saveSplashAuth,
   // Error explain overlay

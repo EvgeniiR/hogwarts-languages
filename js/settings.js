@@ -34,19 +34,10 @@ export function renderSettings(){
         <button onclick="testVoice('m')">▶ Probar</button></div>
       ${voices.length?'':'<div class="edim">Tu navegador no expone voces en español. Prueba con Chrome o Edge.</div>'}`;
   }else if(settingsTab==='model'){
-    if(R.provider==='anthropic'){
-      const models=[['','Opus 4.8 (mejor calidad)'],['claude-sonnet-4-6','Sonnet 4.6 (más económico)'],['claude-haiku-4-5-20251001','Haiku 4.5 (el más económico)']];
-      el.innerHTML=`<div class="svc-row"><div class="svc-lbl">Modelo de Anthropic</div>
-        <select onchange="setModelPref('anthropic',this.value)">${models.map(([v,l])=>`<option value="${v}" ${S.modelPrefs.anthropic===v?'selected':''}>${esc(l)}</option>`).join('')}</select></div>`;
-    }else if(R.provider==='groq'){
+    if(R.provider==='groq'){
       const models=[['','Llama 3.3 70B (mejor calidad)'],['llama-3.1-8b-instant','Llama 3.1 8B (más rápido)']];
       el.innerHTML=`<div class="svc-row"><div class="svc-lbl">Modelo de Groq</div>
         <select onchange="setModelPref('groq',this.value)">${models.map(([v,l])=>`<option value="${v}" ${S.modelPrefs.groq===v?'selected':''}>${esc(l)}</option>`).join('')}</select></div>`;
-    }else if(R.provider==='gemini'){
-      const models=[['','Flash 2.5 (mejor calidad)'],['gemini-2.5-flash-lite','Flash Lite 2.5 (más rápido)']];
-      el.innerHTML=`<div class="svc-row"><div class="svc-lbl">Modelo de Gemini</div>
-        <select onchange="setModelPref('gemini',this.value)">${models.map(([v,l])=>`<option value="${v}" ${S.modelPrefs.gemini===v?'selected':''}>${esc(l)}</option>`).join('')}
-        </select><div class="edim">Flash 2.5 cambia a Flash Lite automáticamente si se alcanza el límite de velocidad.</div></div>`;
     }else if(R.provider==='openai'){
       const models=[['','GPT-4.1 Mini (buena calidad)'],['gpt-4.1','GPT-4.1 (mejor calidad, más lento)']];
       el.innerHTML=`<div class="svc-row"><div class="svc-lbl">Modelo de OpenAI</div>
@@ -55,10 +46,18 @@ export function renderSettings(){
       el.innerHTML=`<div class="svc-row"><div class="svc-lbl">Modelo de DeepSeek</div>
         <div style="font-size:12px;color:var(--ink);">DeepSeek V4 Flash</div></div>`;
     }
-    const repairOpts=[['groq','Groq (gratis, rápido)'],['','Proveedor principal']];
-    el.innerHTML+=`<div class="svc-row" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--bdg);"><div class="svc-lbl">Reparar JSON (si falla el parseo)</div>
-      <select onchange="setRepairProvider(this.value)">${repairOpts.map(([v,l])=>`<option value="${v}" ${S.repairProvider===v?'selected':''}>${esc(l)}</option>`).join('')}</select>
-      <div class="edim" style="font-size:10px;">Si un modelo devuelve JSON roto, se usa este proveedor para repararlo.</div></div>`;
+    el.innerHTML+=`<div class="compare-section">
+      <div class="svc-lbl" style="margin-top:4px;">⚡ Comparar modelos</div>
+      <select id="compareChar" style="margin-top:6px;width:100%;">
+        <option value="hermione">Hermione</option>
+        <option value="dumbledore" selected>Dumbledore</option>
+        <option value="hagrid">Hagrid</option>
+        <option value="snape">Snape</option>
+      </select>
+      <textarea id="compareQuestion" rows="2" style="width:100%;margin-top:6px;background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 8px;border-radius:4px;font-size:11px;resize:vertical;font-family:monospace;">Profesor Dumbledore, ¿cuál fue el momento más oscuro de su vida y qué aprendió de él?</textarea>
+      <button onclick="compareModels()" class="compare-btn" style="width:100%;margin-top:6px;">⚡ Enviar a todos los modelos</button>
+      <div id="compareResults" style="margin-top:8px;"></div>
+    </div>`;
   }else if(settingsTab==='log'){
     renderLogTab(el);
   }
@@ -70,7 +69,7 @@ function renderLogTab(el){
     el.innerHTML='<div class="edim">No hay consultas registradas en esta sesión. El log se borra al recargar la página.</div>';
     return;
   }
-  const pvdNames={groq:'Groq',openai:'OpenAI',anthropic:'Anthropic',gemini:'Gemini',deepseek:'DeepSeek'};
+  const pvdNames={groq:'Groq',openai:'OpenAI',deepseek:'DeepSeek'};
   const rows=log.map((e,i)=>{
     const time=new Date(e.ts).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
     const statusIcon=e.status==='ok'?'<span style="color:#4aa020;">✓</span>':'<span style="color:#d04040;">✗</span>';
@@ -86,7 +85,6 @@ function renderLogTab(el){
       <div class="log-summary" onclick="this.parentElement.classList.toggle('open')">
         <span class="log-time">${time}</span>
         <span class="log-pvd ${e.provider}">${pvdNames[e.provider]||e.provider}</span>
-        ${e.effort?`<span class="log-effort">${e.effort}</span>`:''}
         <span class="log-status">${statusIcon}${e.attempts>1?` ×${e.attempts}`:''}</span>
         <span class="log-latency">${latency}</span>
         ${tokens}
@@ -133,7 +131,6 @@ export function openAchievements(){renderAchievements();document.getElementById(
 export function closeAchievements(){document.getElementById('achievementsOv').style.display='none';}
 
 export async function setModelPref(provider,v){S.modelPrefs[provider]=v;await saveS();}
-export async function setRepairProvider(v){S.repairProvider=v;await saveS();}
 export async function setTtsOff(v){S.ttsOff=v;await saveS();}
 
 export async function validateProviderKey(provider,key){
@@ -141,14 +138,12 @@ export async function validateProviderKey(provider,key){
     let res;
     if(provider==='groq'){
       res=await fetch('https://api.groq.com/openai/v1/models',{headers:{'Authorization':`Bearer ${key}`}});
-    }else if(provider==='gemini'){
-      res=await fetch('https://generativelanguage.googleapis.com/v1beta/models',{headers:{'x-goog-api-key':key}});
     }else if(provider==='openai'){
       res=await fetch('https://api.openai.com/v1/models',{headers:{'Authorization':`Bearer ${key}`}});
     }else if(provider==='deepseek'){
       res=await fetch('https://api.deepseek.com/v1/models',{headers:{'Authorization':`Bearer ${key}`}});
     }else{
-      res=await fetch('https://api.anthropic.com/v1/models',{headers:{'x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}});
+      return false;
     }
     return res.ok;
   }catch(e){return null;}

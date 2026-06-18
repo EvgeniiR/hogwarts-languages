@@ -347,12 +347,6 @@ class AudioManager {
     this._beep(880, 'sine', 0.07, 0.28);
   }
 
-  playSpell() {
-    [400, 600, 900, 1200, 1600].forEach((f, i) =>
-        this._beep(f, 'triangle', 0.06, 0.25, i * 0.06)
-    );
-  }
-
   playCorrect() {
     [523, 659, 784].forEach((f, i) =>
         this._beep(f, 'sine', 0.08, 0.25, i * 0.08)
@@ -386,7 +380,6 @@ export function syncAudioBtn() { audioManager.syncAudioBtn(); }
 export function playSend() { audioManager.playSend(); }
 export function playRecv() { audioManager.playRecv(); }
 export function playVocab() { audioManager.playVocab(); }
-export function playSpell() { audioManager.playSpell(); }
 export function playCorrect() { audioManager.playCorrect(); }
 export function playMinor() { audioManager.playMinor(); }
 export function playIncorrect() { audioManager.playIncorrect(); }

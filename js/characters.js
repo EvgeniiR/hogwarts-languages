@@ -1,9 +1,8 @@
 // ── CHARACTERS ─────────────────────────────────────────────────────────────
-// Character definitions and system-prompt assembly. Shared rules (spell,
-// scoring, conversation, options) live ONCE here. getSys(k) assembles the final
-// system prompt AT CALL TIME and is provider-aware (reads R.provider): Groq gets
-// terse/directive framing, Gemini moderate, Anthropic the richest persona.
-import { S, R } from './state.js';
+// Character definitions and system-prompt assembly. Shared rules live ONCE here.
+// buildSys(persona,shape) assembles the final system prompt — single format for
+// all providers (Groq/OpenAI/DeepSeek all use response_format:json_object).
+import { S } from './state.js';
 
 export const LEVELS = ['A2','B1','B1+'];
 export const LV_NOTE = [
@@ -22,19 +21,9 @@ const OPTIONS_RULE=`OPCIONES: el array "options" contiene exactamente 3 frases l
 
 const VARIETY_RULE=`VARIEDAD: no repitas frases, aperturas ni estructuras que ya hayas usado en esta conversación. Revisa tus mensajes anteriores y asegúrate de no repetir vocabulario, ejemplos ni la forma de tus preguntas en cada respuesta.`;
 
-// Provider-aware assembly. persona/shape come from chars[k]; only the surrounding
-// framing/verbosity varies by R.provider (the "tune all three separately" decision).
-// Every branch now leads with a CRITICAL JSON-only guard before the persona so the
-// model never starts roleplaying before absorbing the output-format constraint.
-function buildSys(persona,shape){
-  if(R.provider==='groq'){
-    // Llama 3.3 follows short, rule-style, directive prompts best.
-    return `CRITICAL: Responde EXCLUSIVAMENTE con el JSON de abajo. Todo tu contenido conversacional debe ir DENTRO del campo "reply". Prohibido escribir cualquier texto antes o después del JSON. Sin markdown ni backticks.\n${persona}\nReglas:\n- ${SCORING_RULE}\n- ${CONVO_RULE}\n- ${VARIETY_RULE}\n- ${OPTIONS_RULE}\n${shape}`;
-  }
-  if(R.provider==='gemini'){
-    return `CRITICAL: Responde EXCLUSIVAMENTE con el JSON de abajo. El campo "reply" debe contener tu respuesta conversacional COMPLETA — toda la conversación, incluyendo la pregunta final, va DENTRO de "reply". Prohibido escribir cualquier texto antes o después del JSON. Sin markdown ni backticks.\n\n${persona}\n${CONVO_RULE}\n${SCORING_RULE}\n${VARIETY_RULE}\n${OPTIONS_RULE}\n${shape}`;
-  }
-  // anthropic / openai (default branch): richest persona, most nuance.
+// Single format for all providers — all are OpenAI-compat and Groq/DeepSeek
+// enforce JSON via response_format:json_object at the API level.
+export function buildSys(persona,shape){
   return `CRITICAL: Responde EXCLUSIVAMENTE con el JSON de abajo. Todo tu contenido conversacional debe ir DENTRO del campo "reply". Prohibido escribir cualquier texto antes o después del JSON. Sin markdown ni backticks.\n\n${persona}\n\nMantente siempre en personaje, con un español natural, vivo y expresivo.\n${CONVO_RULE}\n${SCORING_RULE}\n${VARIETY_RULE}\n${OPTIONS_RULE}\n\nReemplaza cada [PLACEHOLDER] con tu contenido real:\n${shape}`;
 }
 

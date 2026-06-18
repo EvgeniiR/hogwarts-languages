@@ -37,7 +37,7 @@ export function updHeaderAll(){
 export function updProviderBadge(){
   const badge=document.getElementById('pvdBadge');
   if(!badge)return;
-  const names={groq:'Groq',openai:'OpenAI',anthropic:'Anthropic',gemini:'Gemini'};
+  const names={groq:'Groq',openai:'OpenAI',deepseek:'DeepSeek'};
   badge.textContent=names[R.provider]||R.provider;
   badge.dataset.pvd=R.provider;
 }
@@ -86,12 +86,12 @@ export function renderMsgs(){
   const msgs=S.hist[R.cur];const c=document.getElementById('msgs');
   const ch=chars[R.cur];
   if(!msgs.length){
-    c.innerHTML=`<div class="empty-ch"><div style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid var(--dim);">${SVG[R.cur]}</div><div style="color:var(--gold);font-style:italic;">${ch.name}</div><div>Di "Hola" para empezar</div><i class="ti ti-arrow-back-up" onclick="resetConversation()" title="reiniciar charla" style="margin-top:8px;cursor:pointer;color:var(--mt);font-size:13px;opacity:.55;transition:opacity .2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.45'"></i></div>`;
+    c.innerHTML=`<div class="empty-ch"><div style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid var(--dim);">${SVG[R.cur]}</div><div style="color:var(--gold);font-style:italic;">${ch.name}</div><div>Di "Hola" para empezar</div><i class="ti ti-arrow-back-up" role="button" tabindex="0" aria-label="Reiniciar charla" onclick="resetConversation()" onkeydown="if(event.key==='Enter')resetConversation()" title="reiniciar charla" style="margin-top:8px;cursor:pointer;color:var(--mt);font-size:13px;opacity:.55;transition:opacity .2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.45'"></i></div>`;
     return;
   }
   c.innerHTML='';
   msgs.forEach((m,i)=>c.appendChild(createMsgEl(m,i,R.cur)));
-  c.insertAdjacentHTML('afterbegin',`<div style="position:sticky;top:0;z-index:2;text-align:right;margin-bottom:-18px;"><i class="ti ti-arrow-back-up" onclick="resetConversation()" title="reiniciar charla con ${esc(chars[R.cur].name)}" style="cursor:pointer;color:var(--mt);font-size:13px;opacity:.55;transition:opacity .2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.55'"></i></div>`);
+  c.insertAdjacentHTML('afterbegin',`<div style="position:sticky;top:0;z-index:2;text-align:right;margin-bottom:-18px;"><i class="ti ti-arrow-back-up" role="button" tabindex="0" aria-label="Reiniciar charla" onclick="resetConversation()" onkeydown="if(event.key==='Enter')resetConversation()" title="reiniciar charla con ${esc(chars[R.cur].name)}" style="cursor:pointer;color:var(--mt);font-size:13px;opacity:.55;transition:opacity .2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.55'"></i></div>`);
   c.scrollTop=c.scrollHeight;
 }
 
@@ -119,12 +119,12 @@ export function useHint(el){
 }
 
 // Sanitize LLM reply suggestions → array of ≤3 trimmed non-empty strings (≤80 chars).
-function sanitizeOptions(o){
+export function sanitizeOptions(o){
   if(!Array.isArray(o))return [];
   return o.filter(s=>typeof s==='string'&&s.trim()).map(s=>s.trim().slice(0,80)).slice(0,3);
 }
 
-async function safeParse(raw){
+export async function safeParse(raw){
   try{
     const parsed=extractJSON(raw);
     // model "thought out loud" before outputting JSON — prefer the pre-JSON prose if it's substantially richer
@@ -177,10 +177,10 @@ export async function selChar(tab){
   tab.classList.add('active');R.cur=tab.dataset.ch;
   S.lastChar=R.cur;await saveS();
   const ch=chars[R.cur];tab.style.borderBottomColor=ch.ac;
-  const b=document.getElementById('hbadge');b.textContent=ch.house;b.style.background=ch.bbg;b.style.color=ch.btxt;b.style.borderColor=ch.bbd;
-  document.getElementById('mainApp').style.setProperty('--char-ac',ch.ac);
+  const b=document.getElementById('hbadge');if(b){b.textContent=ch.house;b.style.background=ch.bbg;b.style.color=ch.btxt;b.style.borderColor=ch.bbd;}
+  const ma=document.getElementById('mainApp');if(ma)ma.style.setProperty('--char-ac',ch.ac);
   renderMsgs();renderHints(S.currentHints[R.cur]&&S.currentHints[R.cur].length?S.currentHints[R.cur]:chars[R.cur].hints);renderSide();
-  document.getElementById('sendB').disabled=false;document.getElementById('ui').focus();
+  const sb=document.getElementById('sendB');if(sb)sb.disabled=false;document.getElementById('ui')?.focus();
   genDailyChallenges();
 }
 export function selCharByName(n){const t=document.querySelector(`[data-ch="${n}"]`);if(t)selChar(t);}
@@ -213,7 +213,7 @@ export async function genStarter(k){
     const seeds=STARTER_SEEDS[k]||STARTER_SEEDS.hermione;
     const seed=seeds[Math.floor(Math.random()*seeds.length)];
     const framing=STARTER_FRAMING[k]||STARTER_FRAMING.hermione;
-    const raw=await callLLM(getSys(k),[{role:'user',content:`${framing} ${seed}.`}],400,'low');
+    const raw=await callLLM(getSys(k),[{role:'user',content:`${framing} ${seed}.`}],400);
     if(S.hist[k].length===0){
       const p=await safeParse(raw);
       S.hist[k].push({role:'assistant',content:p.reply,display:p.reply,note:p.note});
@@ -236,14 +236,13 @@ export async function sendMsg(){
   const ta=document.getElementById('ui');const txt=ta.value.trim();if(!txt)return;
   S.hist[R.cur].push({role:'user',content:txt});ta.value='';ta.style.height='auto';
   document.getElementById('sendB').disabled=true;R.loading=true;appendMsg(S.hist[R.cur].at(-1));showTyping();playSend();
-  const effort='medium';
   let suggestions=[];
   try{
     let hist=S.hist[R.cur].filter(m=>!m.error);
     let msgs=hist.slice(-25).map(m=>({role:m.role,content:m.content}));
     msgs=msgs.filter((m,i)=>i===msgs.length-1||m.role!==msgs[i+1].role);
     const firstUser=msgs.findIndex(m=>m.role==='user');if(firstUser>0)msgs=msgs.slice(firstUser);
-    const raw=await callLLM(getSys(R.cur),msgs,2500,effort);
+    const raw=await callLLM(getSys(R.cur),msgs,2500);
     const p=await safeParse(raw);suggestions=sanitizeOptions(p.options);
     S.hist[R.cur].push({role:'assistant',content:p.reply,display:p.reply,note:p.note});
     S.totalMsgs++;
@@ -262,12 +261,13 @@ export async function sendMsg(){
     pushLevelOutcome(!(p.mistakes&&p.mistakes.length));
     if(p.note){S.grammar.push({ch:R.cur,text:p.note,ts:Date.now()});changed=true;}
     if(p.points)awardPoints(p.points);
-    if(typeof p.mood==='number')updMood(R.cur,p.mood);
-    if(checkLevelUp())saveS();
-    if(changed)renderSide();
-    checkAchievements();
-    playRecv();if(!S.ttsOff)setTimeout(()=>speak(p.reply),350);
-    S.currentHints[R.cur]=suggestions;saveS();
+  if(typeof p.mood==='number')updMood(R.cur,p.mood);
+  const leveledUp=checkLevelUp();
+  if(changed)renderSide();
+  checkAchievements();
+  playRecv();if(!S.ttsOff)setTimeout(()=>speak(p.reply),350);
+  S.currentHints[R.cur]=suggestions;saveS();
+  if(leveledUp)saveS();
   }catch(e){const msg=friendlyError(e);S.hist[R.cur].push({role:'assistant',content:msg,display:msg,note:'',error:true});}
   rmTyping();R.loading=false;document.getElementById('sendB').disabled=false;appendMsg(S.hist[R.cur].at(-1));renderHints(suggestions);document.getElementById('ui').focus();
 }

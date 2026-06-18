@@ -18,7 +18,7 @@ export async function genTranslation(){
   const avoid=recentTranslPhrases.length?` No repitas ni te parezcas a estas frases recientes: ${recentTranslPhrases.map(s=>`"${s}"`).join('; ')}.`:'';
   const reqId=++translReqId;
   try{
-    const raw=await callLLM(`Eres un profesor de español generando ejercicios de traducción inglés→español para un estudiante de nivel ${LEVELS[S.level]}.`,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].prompt} Tema: ${topic}. Genera UNA frase corta en INGLÉS sobre ese tema para que el estudiante la traduzca al español.${avoid} Refleja tu personalidad. RESPONDE SOLO con este JSON: {"phrase":"frase en inglés","refTranslation":"una traducción correcta al español"}`}],100,'low');
+    const raw=await callLLM(`Eres un profesor de español generando ejercicios de traducción inglés→español para un estudiante de nivel ${LEVELS[S.level]}.`,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].prompt} Tema: ${topic}. Genera UNA frase corta en INGLÉS sobre ese tema para que el estudiante la traduzca al español.${avoid} Refleja tu personalidad. RESPONDE SOLO con este JSON: {"phrase":"frase en inglés","refTranslation":"una traducción correcta al español"}`}],100);
     if(reqId!==translReqId)return;
     const parsed=extractJSON(raw);
     round.phrase=parsed.phrase;round.ref=parsed.refTranslation||'';
@@ -74,7 +74,7 @@ REGLAS:
 - "minor": un error pequeño pero se entiende el significado.
 - "incorrect": el significado está mal o falta algo importante.
 
-Responde SOLO con: {"status":"correct|minor|incorrect","correction":"traducción correcta","note":"breve explicación en español"}`}],100,'medium');
+Responde SOLO con: {"status":"correct|minor|incorrect","correction":"traducción correcta","note":"breve explicación en español"}`}],100);
     verdict={status:'incorrect',correction:round.ref||round.phrase,note:'',...extractJSON(raw)};
   }catch(e){
     document.querySelectorAll('#gamesContent .vadd-row button').forEach(b=>{b.disabled=false;});

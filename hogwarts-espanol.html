@@ -82,7 +82,7 @@
     <div id="eeSugg"></div>
     <div id="eeChat" class="ee-chat"></div>
     <div class="ee-inp-row">
-      <input id="eeInp" class="ee-inp" placeholder="¿Más preguntas?" autocomplete="off"
+      <input id="eeInp" class="ee-inp" aria-label="Pregunta sobre el error" placeholder="¿Más preguntas?" autocomplete="off"
              onkeydown="if(event.key==='Enter')askErrFollowUp()">
       <button class="ee-send" onclick="askErrFollowUp()"><i class="ti ti-send"></i></button>
     </div>
@@ -103,36 +103,24 @@
   <div class="sp-key">
     <div style="margin-bottom:8px;color:#6878a8;">Elige tu proveedor de AI</div>
     <div class="sp-pvd-row" style="display:flex;gap:8px;justify-content:center;margin-bottom:10px;flex-wrap:wrap;">
-      <button onclick="setProvider('groq')" id="pvd_groq" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">Groq ✦ Gratis</button>
-      <button onclick="setProvider('openai')" id="pvd_openai" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">OpenAI ★ Recomendado</button>
-      <button onclick="setProvider('deepseek')" id="pvd_deepseek" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">DeepSeek ◆ Competitivo</button>
-      <button onclick="setProvider('anthropic')" id="pvd_anthropic" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">Anthropic</button>
-      <button onclick="setProvider('gemini')" id="pvd_gemini" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">Google Gemini ✦ Gratis</button>
+      <button onclick="setProvider('groq')" id="pvd_groq" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">Groq · Recomendado · Gratis</button>
+      <button onclick="setProvider('deepseek')" id="pvd_deepseek" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">DeepSeek · Recomendado · Avanzado</button>
+      <button onclick="setProvider('openai')" id="pvd_openai" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">OpenAI</button>
     </div>
     <div id="keyInputGroq">
-      <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">Gratis, sin límites de cuota. Calidad básica — ideal para empezar. · <a href="https://console.groq.com/keys" target="_blank" style="color:var(--gold);">conseguir clave →</a></div>
+      <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">Gratis, sin límites de cuota, rápida. · <a href="https://console.groq.com/keys" target="_blank" style="color:var(--gold);">conseguir clave →</a></div>
       <div id="groqKeySaved" style="display:none;margin-bottom:6px;"><span style="color:#2a8018;font-size:11px;">✓ Clave guardada</span><button onclick="splashEditKey('groq')" style="font-size:11px;padding:3px 8px;border-radius:3px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:8px;">Cambiar</button><button onclick="splashDeleteKey('groq')" style="font-size:11px;padding:3px 8px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:4px;">Eliminar</button></div>
-      <input type="password" id="groqKeyInput" placeholder="gsk_..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;width:260px;font-family:monospace;">
+      <input type="password" id="groqKeyInput" placeholder="gsk_..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;font-family:monospace;">
     </div>
     <div id="keyInputOpenai" style="display:none;">
-      <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">★ Recomendado · Mejor relación calidad/precio. GPT-4.1 Mini es rápido y preciso. · <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--gold);">conseguir clave →</a></div>
+      <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">GPT-4.1 Mini — rápido y preciso. · <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--gold);">conseguir clave →</a></div>
       <div id="openaiKeySaved" style="display:none;margin-bottom:6px;"><span style="color:#2a8018;font-size:11px;">✓ Clave guardada</span><button onclick="splashEditKey('openai')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:8px;">Cambiar</button><button onclick="splashDeleteKey('openai')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:4px;">Eliminar</button></div>
-      <input type="password" id="openaiKeyInput" placeholder="sk-proj-..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;width:260px;font-family:monospace;">
+      <input type="password" id="openaiKeyInput" placeholder="sk-proj-..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;font-family:monospace;">
     </div>
     <div id="keyInputDeepseek" style="display:none;">
       <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">◆ Excelente relación calidad/precio. API OpenAI-compatible, JSON fiable. · <a href="https://platform.deepseek.com/api_keys" target="_blank" style="color:var(--gold);">conseguir clave →</a></div>
       <div id="deepseekKeySaved" style="display:none;margin-bottom:6px;"><span style="color:#2a8018;font-size:11px;">✓ Clave guardada</span><button onclick="splashEditKey('deepseek')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:8px;">Cambiar</button><button onclick="splashDeleteKey('deepseek')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:4px;">Eliminar</button></div>
-      <input type="password" id="deepseekKeyInput" placeholder="sk-..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;width:260px;font-family:monospace;">
-    </div>
-    <div id="keyInputAnthropic" style="display:none;">
-      <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">La mejor calidad, pero más caro. Probablemente no vale la pena para práctica diaria. · <a href="https://console.anthropic.com/keys" target="_blank" style="color:var(--gold);">conseguir clave →</a></div>
-      <div id="anthropicKeySaved" style="display:none;margin-bottom:6px;"><span style="color:#2a8018;font-size:11px;">✓ Clave guardada</span><button onclick="splashEditKey('anthropic')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:8px;">Cambiar</button><button onclick="splashDeleteKey('anthropic')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:4px;">Eliminar</button></div>
-      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;width:260px;font-family:monospace;">
-    </div>
-    <div id="keyInputGemini" style="display:none;">
-      <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">Gratis pero con cuota diaria limitada. Se agota rápido con uso frecuente. · <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--gold);">conseguir clave →</a></div>
-      <div id="geminiKeySaved" style="display:none;margin-bottom:6px;"><span style="color:#2a8018;font-size:11px;">✓ Clave guardada</span><button onclick="splashEditKey('gemini')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:8px;">Cambiar</button><button onclick="splashDeleteKey('gemini')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:4px;">Eliminar</button></div>
-      <input type="password" id="geminiKeyInput" placeholder="AIza..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;width:260px;font-family:monospace;">
+      <input type="password" id="deepseekKeyInput" placeholder="sk-..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;font-family:monospace;">
     </div>
     <label style="display:flex;align-items:center;gap:6px;justify-content:center;margin-top:10px;font-size:11px;color:#6878a8;cursor:pointer;">    <input type="checkbox" id="rememberKey" style="cursor:pointer;width:16px;height:16px;margin:0;flex-shrink:0;">Recordar API key en este dispositivo</label>
   </div>
@@ -151,8 +139,8 @@
     <div class="hdr-r">
       <div class="streak-d"><span style="font-size:15px;">🔥</span><span class="streak-n" id="streakN">0</span><span class="streak-lbl">días</span></div>
       <div class="daily-goal"><i class="ti ti-star" id="dailyGoalStar" style="font-size:15px;"></i><span class="pts-n" id="dailyGoalNum">0/50</span></div>
-      <button class="abtn" id="aBtn" onclick="toggleAudio()" aria-label="Toggle sound"><i class="ti ti-volume"></i></button>
-      <button class="abtn" id="skipBtn" onclick="skipSong()" aria-label="Next song" title="Next song"><i class="ti ti-player-skip-forward"></i></button>
+      <button class="abtn" id="aBtn" onclick="toggleAudio()" aria-label="Sonido"><i class="ti ti-volume"></i></button>
+      <button class="abtn" id="skipBtn" onclick="skipSong()" aria-label="Siguiente canción" title="Siguiente canción"><i class="ti ti-player-skip-forward"></i></button>
       <button class="abtn" onclick="openGames()" aria-label="Minijuegos" title="Minijuegos"><i class="ti ti-target-arrow"></i></button>
       <button class="abtn" onclick="openAchievements()" aria-label="Logros" title="Logros"><i class="ti ti-trophy"></i></button>
       <button class="abtn" onclick="openSettings()" aria-label="Ajustes" title="Ajustes"><i class="ti ti-settings"></i></button>
@@ -190,7 +178,7 @@
       <div class="inp-area">
       <div class="inp-row">
         <button class="ibtn mic" id="micB" onclick="toggleMic()" aria-label="Voz"><i class="ti ti-microphone"></i></button>
-        <textarea id="ui" placeholder="Escribe o habla en español…" rows="1" onkeydown="hKey(event)" oninput="aResize(this)"></textarea>
+        <textarea id="ui" aria-label="Escribe en español" placeholder="Escribe o habla en español…" rows="1" onkeydown="hKey(event)" oninput="aResize(this)"></textarea>
         <button class="ibtn" onclick="showHints()" aria-label="Frases sugeridas"><i class="ti ti-bulb"></i></button>
         <button class="ibtn send" id="sendB" onclick="sendMsg()" disabled aria-label="Enviar"><i class="ti ti-send"></i></button>
       </div>

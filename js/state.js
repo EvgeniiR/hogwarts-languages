@@ -16,7 +16,7 @@ export let S = {
   moods:{hermione:2,dumbledore:2,hagrid:2,snape:2},
   hist:{hermione:[],dumbledore:[],hagrid:[],snape:[]},
   challenges:{},challengeDone:{},challengesCompleted:0,
-  voicePrefs:{f:'',m:''},modelPrefs:{anthropic:'',gemini:'',groq:'',openai:'',deepseek:''},
+  voicePrefs:{f:'',m:''},modelPrefs:{groq:'',openai:'',deepseek:''},
   achievements:{streak:0,msgs:0,vocab:0,challenges:0,pts:0},
   levelWindow:[],gameDifficulty:'medium',musicOff:false,ttsOff:false,
   repairProvider:'groq',
@@ -27,8 +27,8 @@ export let S = {
 
 export const R = {
   cur:'hermione',
-  provider:'groq',            // 'anthropic' | 'gemini' | 'groq' | 'openai' | 'deepseek'
-  keys:{anthropic:'',gemini:'',groq:'',openai:'',deepseek:''},
+  provider:'groq',            // 'groq' | 'openai' | 'deepseek'
+  keys:{groq:'',openai:'',deepseek:''},
   cachedCreds:{},
   llmLog:[]                   // session-only LLM query log (cleared on reload)
 };
@@ -65,23 +65,22 @@ export async function loadS(){
       if(d.dailyEarned!==undefined)S.dailyEarned=d.dailyEarned;
       if(d.currentWeek)S.currentWeek=d.currentWeek;
       if(d.lastActiveDate)S.lastActiveDate=d.lastActiveDate;
-      if(d.totalMsgs)S.totalMsgs=d.totalMsgs;if(d.streak)S.streak=d.streak;
+      if(d.totalMsgs!==undefined)S.totalMsgs=d.totalMsgs;if(d.streak)S.streak=d.streak;
       if(d.level!==undefined)S.level=d.level;if(d.moods)S.moods=d.moods;
       if(d.hist)S.hist={hermione:[],dumbledore:[],hagrid:[],snape:[],...d.hist};
       if(d.challenges){S.challenges=d.challenges;Object.keys(S.challenges).forEach(k=>{if(typeof S.challenges[k]==='string')delete S.challenges[k];});}
       if(d.challengeDone)S.challengeDone=d.challengeDone;
       if(d.voicePrefs)S.voicePrefs=d.voicePrefs;
       if(d.modelPrefs)S.modelPrefs={...S.modelPrefs,...d.modelPrefs};
-      else if(d.modelPref)S.modelPrefs.anthropic=d.modelPref;
       if(d.currentHints)S.currentHints={hermione:[],dumbledore:[],hagrid:[],snape:[],...d.currentHints};
-      if(d.lifetimePts)S.lifetimePts=d.lifetimePts;
+      if(d.lifetimePts!==undefined)S.lifetimePts=d.lifetimePts;
       if(d.achievements)S.achievements={streak:0,msgs:0,vocab:0,challenges:0,pts:0,...d.achievements};
       if(d.levelWindow)S.levelWindow=d.levelWindow;
       if(d.gameDifficulty)S.gameDifficulty=d.gameDifficulty;
       if(d.musicOff!==undefined)S.musicOff=d.musicOff;
       if(d.ttsOff!==undefined)S.ttsOff=d.ttsOff;
       if(d.repairProvider!==undefined)S.repairProvider=d.repairProvider;
-      if(d.lastChar)S.lastChar=d.lastChar;
+      if(d.lastChar!==undefined)S.lastChar=d.lastChar;
       // Persistent challenge counter (BUGFIX): the old metric counted
       // S.challengeDone, which is pruned to 14 days, so the achievement bar
       // slid backward over time. Seed the new counter from the best evidence
@@ -89,7 +88,7 @@ export async function loadS(){
       const doneNow=Object.values(S.challengeDone).filter(Boolean).length;
       S.challengesCompleted=Math.max(d.challengesCompleted||0,(S.achievements.challenges||0),doneNow);
     }
-  }catch(e){}
+  }catch(e){console.warn('loadS falló — estado corrupto o almacenamiento inaccesible',e);}
   S.version=2;
   const now=Date.now();
   S.vocab.forEach(v=>{if(!v.ts)v.ts=now;srsInit(v);});

@@ -27,7 +27,7 @@ export function addVocabWord(word,def){
 }
 async function lookupDefinition(word){
   try{
-    const txt=await callLLM('Eres un diccionario español-inglés. Responde SOLO con la traducción al inglés, 1-4 palabras, sin puntuación ni explicación.',[{role:'user',content:word}],20,'low');
+    const txt=await callLLM('Eres un diccionario español-inglés. Responde SOLO con la traducción al inglés, 1-4 palabras, sin puntuación ni explicación.',[{role:'user',content:word}],20);
     return txt.trim().replace(/^["']|["']$/g,'');
   }catch(e){return '';}
 }

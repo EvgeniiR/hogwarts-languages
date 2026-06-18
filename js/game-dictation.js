@@ -18,7 +18,7 @@ export async function genDictation(){
   const avoid=recentDictSentences.length?` No repitas ni te parezcas a estas oraciones recientes: ${recentDictSentences.map(s=>`"${s}"`).join('; ')}.`:'';
   const reqId=++dictReqId;
   try{
-    const txt=await callLLM(`Eres un profesor de español generando ejercicios de dictado para un estudiante de nivel ${LEVELS[S.level]}.`,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].prompt} Tema: ${topic}. Genera UNA oración en español sobre ese tema que dirías tú, para un ejercicio de dictado.${avoid} Refleja tu personalidad. Solo la oración, sin comillas ni explicaciones.`}],60,'low');
+    const txt=await callLLM(`Eres un profesor de español generando ejercicios de dictado para un estudiante de nivel ${LEVELS[S.level]}.`,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].prompt} Tema: ${topic}. Genera UNA oración en español sobre ese tema que dirías tú, para un ejercicio de dictado.${avoid} Refleja tu personalidad. Solo la oración, sin comillas ni explicaciones.`}],60);
     if(reqId!==dictReqId)return;
     round.sentence=txt.trim();rememberRecent(recentDictSentences,round.sentence);
   }catch(e){
