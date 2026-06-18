@@ -24,6 +24,17 @@ function fetchWithTimeout(url,opts,ms=30000){
 }
 
 export async function callLLM(systemPrompt, messages, maxTokens, effort){
+  const entry={
+    ts:Date.now(),
+    provider:R.provider,
+    systemPrompt:systemPrompt||'(sin prompt)',
+    messages,
+    maxTokens,
+    effort:effort||'',
+    status:'pending'
+  };
+  R.llmLog.push(entry);
+  if(R.llmLog.length>50)R.llmLog.shift();
   const fn=()=>{
     if(R.provider==='gemini')return callGemini(systemPrompt,messages,maxTokens);
     if(R.provider==='groq')return callGroq(systemPrompt,messages,maxTokens);
@@ -31,10 +42,19 @@ export async function callLLM(systemPrompt, messages, maxTokens, effort){
     return callAnthropic(systemPrompt,messages,maxTokens,effort);
   };
   const delays=[1000,2000];
+  let attempts=0;
   for(let attempt=0;;attempt++){
-    try{return await fn();}
+    attempts=attempt+1;
+    try{
+      const raw=await fn();
+      entry.status='ok';entry.responseRaw=raw;entry.latencyMs=Date.now()-entry.ts;entry.attempts=attempts;
+      return raw;
+    }
     catch(e){
-      if(attempt>=delays.length||!isRetryable(e))throw e;
+      if(attempt>=delays.length||!isRetryable(e)){
+        entry.status='error';entry.error=e.message;entry.latencyMs=Date.now()-entry.ts;entry.attempts=attempts;
+        throw e;
+      }
       await new Promise(r=>setTimeout(r,delays[attempt]));
     }
   }

@@ -59,9 +59,10 @@ function renderError() {
 
 function renderChat() {
   const el = document.getElementById('eeChat');
-  el.innerHTML = convHistory.map(msg =>
-    `<div class="ee-bubble ee-bubble-${msg.role}">${mdInline(esc(msg.content))}</div>`
-  ).join('');
+  el.innerHTML = convHistory.map(msg =>{
+    if(msg.loading)return `<div class="ee-bubble ee-bubble-assistant"><div class="ee-loading" style="padding:0"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>`;
+    return `<div class="ee-bubble ee-bubble-${msg.role}">${mdInline(esc(msg.content))}</div>`;
+  }).join('');
   el.scrollTop = el.scrollHeight;
 }
 
@@ -93,20 +94,27 @@ async function fetchAnswer(question) {
   const m = currentMistake;
   const context = `Wrong: "${m.wrong}" → Correct: "${m.right}"${m.note ? `\nNote: ${m.note}` : ''}`;
   const msgs = [
-    { role: 'user', content: context + '\nExplain this error.' },
     ...convHistory.slice(0, -1)
       .map(h => ({ role: h.role, content: h.content })),
     { role: 'user', content: question }
   ];
+  if (convHistory.length === 2) {
+    msgs.unshift({ role: 'user', content: context + '\nExplain this error.' });
+  }
   setSugg([]);
+  const loadIdx=convHistory.length;
+  convHistory.push({ role: 'assistant', content: '', loading: true });
+  renderChat();
   let raw;
   try {
     raw = await callLLM(SYS, msgs, 500, 'medium');
   } catch(e) {
+    convHistory.splice(loadIdx, 1);
     convHistory.push({ role: 'assistant', content: friendlyError(e) });
     renderChat();
     return;
   }
+  convHistory.splice(loadIdx, 1);
   let data;
   try {
     data = extractJSON(sanitizeJSON(raw));

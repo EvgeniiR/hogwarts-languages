@@ -26,7 +26,7 @@ export function addVocabWord(word,def){
 }
 async function lookupDefinition(word){
   try{
-    const txt=await callLLM(null,[{role:'user',content:`Da SOLO la traducción al inglés (1-4 palabras, sin comillas ni explicaciones) de esta palabra o frase en español: "${word}"`}],20,'low');
+    const txt=await callLLM('Eres un diccionario español-inglés. Responde SOLO con la traducción al inglés, 1-4 palabras, sin puntuación ni explicación.',[{role:'user',content:word}],20,'low');
     return txt.trim().replace(/^["']|["']$/g,'');
   }catch(e){return '';}
 }
@@ -42,7 +42,7 @@ export async function submitVAdd(btn){
   const wEl=document.getElementById('vAddWord');const dEl=document.getElementById('vAddDef');
   const word=wEl.value.trim();let def=dEl.value.trim();
   if(!word)return;
-  if(!def){btn.textContent='Traduciendo…';btn.disabled=true;def=await lookupDefinition(word);}
+  if(!def){btn.textContent='Traduciendo…';btn.classList.add('loading-btn');btn.disabled=true;def=await lookupDefinition(word);btn.classList.remove('loading-btn');}
   vAddOpen=false;
   addVocabWord(word,def);
 }
@@ -141,7 +141,7 @@ export function openFc(){
   fcCards=[...S.vocab].sort(()=>Math.random()-.5);fcIdx=0;fcFlipped=false;renderFc();
   document.getElementById('fcOv').style.display='flex';
 }
-export function closeFc(){document.getElementById('fcOv').style.display='none';}
+export function closeFc(){document.getElementById('fcOv').style.display='none';if(window.speechSynthesis)window.speechSynthesis.cancel();}
 function renderFc(){
   if(!fcCards.length){closeFc();return;}
   fcFlipped=false;const card=fcCards[fcIdx];
@@ -156,7 +156,7 @@ export function flipFc(){
   fcFlipped=!fcFlipped;
   const cardEl=document.querySelector('.fc-card');
   if(cardEl)cardEl.classList.toggle('flipped',fcFlipped);
-  if(fcFlipped&&window.speechSynthesis){const u=new SpeechSynthesisUtterance(fcCards[fcIdx].word);u.lang='es-ES';u.rate=.82;window.speechSynthesis.cancel();window.speechSynthesis.speak(u);}
+  if(fcFlipped&&window.speechSynthesis){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(fcCards[fcIdx].word);u.lang='es-ES';u.rate=.82;u.onerror=()=>{};window.speechSynthesis.speak(u);}
 }
 export function navFc(dir){fcIdx=(fcIdx+dir+fcCards.length)%fcCards.length;renderFc();}
 

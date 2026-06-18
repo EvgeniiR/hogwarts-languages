@@ -29,6 +29,15 @@ export function updHeaderAll(){
   updPtsUI();updStreakUI();
   document.getElementById('lvlBadge').textContent=LEVELS[S.level];
   Object.keys(S.moods).forEach(k=>updMood(k,S.moods[k]));
+  updProviderBadge();
+}
+
+export function updProviderBadge(){
+  const badge=document.getElementById('pvdBadge');
+  if(!badge)return;
+  const names={groq:'Groq',openai:'OpenAI',anthropic:'Anthropic',gemini:'Gemini'};
+  badge.textContent=names[R.provider]||R.provider;
+  badge.dataset.pvd=R.provider;
 }
 
 export function flyOwl(){
@@ -56,7 +65,8 @@ function createMsgEl(m,i,charKey){
     const ch=chars[charKey];div.className='msg a';
     const note=m.note?`<span class="note">${esc(m.note)}</span>`:'';
     const safe=(m.display||'').replace(/"/g,'&quot;');
-    div.innerHTML=`<div class="mav" style="border-color:${ch.ac};">${SVG[charKey]}</div><div class="bbl" id="b${i}">${mdInline(esc(m.display))}<button class="spk-btn" data-txt="${safe}" onclick="speakFromBtn(this)" aria-label="Escuchar"><i class="ti ti-volume" aria-hidden="true"></i></button>${note}</div>`;
+    const retry=m.error?`<div style="margin-top:6px;"><button class="retry-btn" onclick="retryLastMsg()" style="font-size:10px;padding:2px 8px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:'Cinzel',Georgia,serif;">Reintentar →</button></div>`:'';
+    div.innerHTML=`<div class="mav" style="border-color:${ch.ac};">${SVG[charKey]}</div><div class="bbl" id="b${i}">${mdInline(esc(m.display))}<button class="spk-btn" data-txt="${safe}" onclick="speakFromBtn(this)" aria-label="Escuchar"><i class="ti ti-volume" aria-hidden="true"></i></button>${note}${retry}</div>`;
     if(m.hasSpell){
       m.hasSpell=false;
       setTimeout(()=>{const b=document.getElementById('b'+i);if(b){b.classList.add('spell-flash');playSpell();}},120);
@@ -88,8 +98,21 @@ export function renderMsgs(){
 
 // ── Hints ─────────────────────────────────────────────────────────────────────
 export function showHints(){renderHints(chars[R.cur].hints);}
+export function retryLastMsg(){
+  const hist=S.hist[R.cur];
+  if(!hist.length||!hist.at(-1).error)return;
+  hist.pop();
+  const userMsg=hist.at(-1);
+  if(!userMsg||userMsg.role!=='user')return;
+  const ta=document.getElementById('ui');
+  ta.value=userMsg.content;aResize(ta);
+  renderMsgs();
+  sendMsg();
+}
 export function renderHints(hints){
-  document.getElementById('hintsR').innerHTML=hints.length?hints.map(h=>`<span class="hchip" onclick="useHint(this)">${esc(h)}</span>`).join(''):'';}
+  const el=document.getElementById('hintsR');
+  el.innerHTML=hints.length?hints.map(h=>`<span class="hchip" onclick="useHint(this)">${esc(h)}</span>`).join(''):'<span class="hints-empty">Las sugerencias aparecerán aquí…</span>';
+}
 export function useHint(el){
   const ta=document.getElementById('ui');ta.value=el.textContent;
   const {aResize}=window;if(aResize)aResize(ta);
@@ -100,6 +123,11 @@ export function useHint(el){
 function sanitizeOptions(o){
   if(!Array.isArray(o))return [];
   return o.filter(s=>typeof s==='string'&&s.trim()).map(s=>s.trim().slice(0,80)).slice(0,3);
+}
+
+function safeParse(raw){
+  try{return extractJSON(raw);}
+  catch(e){return{reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2,options:[]};}
 }
 
 // ── Character selection ───────────────────────────────────────────────────────
@@ -117,16 +145,29 @@ export function selCharByName(n){const t=document.querySelector(`[data-ch="${n}"
 
 // ── Conversation starters ────────────────────────────────────────────────────
 const starterLoading=new Set();
+const STARTER_SEEDS={
+  hermione:['un examen sorpresa de Pociones','un hechizo que salió mal en la biblioteca','una duda sobre un tema de Transformaciones','un problema con el giratiempo','un descubrimiento en la Sala de los Menesteres'],
+  dumbledore:['un recuerdo en el Pensadero','una profecía por descifrar','una decisión difícil sobre un alumno','el significado de un objeto misterioso','una lección sobre el amor y la magia'],
+  hagrid:['una criatura herida en el bosque','un huevo de dragón a punto de eclosionar','un nuevo animal llegado a la cabaña','algo peligroso suelto en los terrenos','una visita a la casa de Aragog'],
+  snape:['un ingrediente de pociones muy raro','un castigo que cumplir en el calabozo','una queja sobre un alumno problemático','una receta de pociones secreta','una inspección en la mazmorra']
+};
+const STARTER_FRAMING={
+  hermione:'Empieza con una pregunta académica o una observación erudita sobre:',
+  dumbledore:'Empieza con una reflexión sabia o una metáfora sobre:',
+  hagrid:'Empieza con una exclamación entusiasta sobre:',
+  snape:'Empieza con una queja sarcástica o una observación cortante sobre:'
+};
 export async function genStarter(k){
   if(starterLoading.has(k)||S.hist[k].length>0)return;
   starterLoading.add(k);
   if(k===R.cur){document.getElementById('msgs').innerHTML='';showTyping();}
   try{
-    const SEEDS=['una clase de Hogwarts','el Gran Comedor','una criatura mágica','un hechizo nuevo','la biblioteca','el bosque prohibido','una poción difícil','un partido de Quidditch','una carta inesperada','un misterio en el castillo','un objeto encantado','una visita a Hogsmeade'];
-    const seed=SEEDS[Math.floor(Math.random()*SEEDS.length)];
-    const raw=await callLLM(getSys(k),[{role:'user',content:`Inicia la conversación. Abre con una situación imaginativa o pregunta creativa en español, en personaje, inspirada en: ${seed}. Sé original y evita aperturas genéricas.`}],400,'low');
+    const seeds=STARTER_SEEDS[k]||STARTER_SEEDS.hermione;
+    const seed=seeds[Math.floor(Math.random()*seeds.length)];
+    const framing=STARTER_FRAMING[k]||STARTER_FRAMING.hermione;
+    const raw=await callLLM(getSys(k),[{role:'user',content:`${framing} ${seed}.`}],400,'low');
     if(S.hist[k].length===0){
-      let p;try{p=extractJSON(raw);}catch(e){p={reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2,options:[]};}
+      const p=safeParse(raw);
       const hasSpell=p.spells&&p.spells.length>0;
       S.hist[k].push({role:'assistant',content:p.reply,display:p.reply,note:p.note,hasSpell});
       if(p.vocab&&p.vocab.length)p.vocab.forEach(v=>{if(!vocabExists(v.word))S.vocab.push({...v,ts:Date.now()});});
@@ -156,7 +197,7 @@ export async function sendMsg(){
     msgs=msgs.filter((m,i)=>i===msgs.length-1||m.role!==msgs[i+1].role);
     const firstUser=msgs.findIndex(m=>m.role==='user');if(firstUser>0)msgs=msgs.slice(firstUser);
     const raw=await callLLM(getSys(R.cur),msgs,1000,effort);
-    let p;try{p=extractJSON(raw);}catch(e){p={reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2,options:[]};} suggestions=sanitizeOptions(p.options);
+    const p=safeParse(raw);suggestions=sanitizeOptions(p.options);
     const hasSpell=p.spells&&p.spells.length>0;
     S.hist[R.cur].push({role:'assistant',content:p.reply,display:p.reply,note:p.note,hasSpell});
     S.totalMsgs++;

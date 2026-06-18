@@ -11,10 +11,10 @@ import { tryPlayNow, stopMusic, tryAudio, syncAudioBtn, toggleAudio, skipSong } 
 import { speak, speakFromBtn, setVoicePref, testVoice } from './tts.js';
 import { processDateChanges, updPtsUI, updStreakUI, awardPoints, pushLevelOutcome } from './progress.js';
 import { genDailyChallenges } from './challenges.js';
-import { sendMsg, selChar, selCharByName, updHeaderAll, showHints, useHint, renderMsgs, genStarter } from './chat.js';
+import { sendMsg, selChar, selCharByName, updHeaderAll, showHints, useHint, renderMsgs, genStarter, retryLastMsg } from './chat.js';
 import { renderSide, setSTab, navWeek, toggleVAdd, submitVAdd, editVocab, cancelEditVocab, saveEditVocab, deleteVocab, editMistake, cancelEditMistake, saveEditMistake, deleteMistake, openFc, closeFc, flipFc, navFc, handleSelUp, hideSelBtn, addSelectionToVocab } from './sidepanel.js';
 import { openGames, closeGames, setGameTab, setGameDifficulty, genDictation, genTranslation, hintDictation, checkDictation, skipDictation, hintTranslation, checkTranslation, skipTranslation, genOrderGame, checkOrder, hintOrder, skipOrder, genMemory, skipMemory, flipMemCard, cleanupMemory, setRandomMode, renderMemoryLobby } from './games.js';
-import { openSettings, closeSettings, setSettingsTab, renderSettings, setModelPref, setTtsOff, openAchievements, closeAchievements, renderAchievements, validateProviderKey } from './settings.js';
+import { openSettings, closeSettings, setSettingsTab, renderSettings, setModelPref, setTtsOff, openAchievements, closeAchievements, renderAchievements, validateProviderKey, clearLog } from './settings.js';
 import { openErrExplain, closeErrExplain, askErrFollowUp, clickErrSuggestion } from './error-explain.js';
 import { showToast, aResize } from './helpers.js';
 
@@ -61,7 +61,13 @@ async function enterApp(skipValidation=false){
   // Prefetch starters for all 4 characters in parallel at init.
   // genStarter guards against re-fetching if history exists or already loading.
   // Only R.cur (hermione) shows typing dots; others load silently in background.
-  Object.keys(S.hist).forEach(k=>genStarter(k));
+  // Stagger by 400ms to avoid rate limits on free-tier providers.
+  const chars=Object.keys(S.hist);
+  for(let i=0;i<chars.length;i++){
+    const delay=i*400;
+    if(delay)setTimeout(()=>genStarter(chars[i]),delay);
+    else genStarter(chars[i]);
+  }
   setInterval(()=>{const t=new Date().toISOString().slice(0,10);if(S.lastActiveDate&&S.lastActiveDate!==t)processDateChanges();},60000);
   tryAudio();
   await saveS();
@@ -143,6 +149,21 @@ document.addEventListener('mouseup',handleSelUp);
 document.addEventListener('touchend',handleSelUp);
 document.getElementById('msgs').addEventListener('scroll',hideSelBtn);
 document.addEventListener('keydown',e=>{
+  if(e.key==='Tab'){
+    const overlays=['settingsOv','achievementsOv','gamesOv','errExplainOv','fcOv'];
+    for(const id of overlays){
+      const ov=document.getElementById(id);
+      if(ov&&ov.style.display==='flex'){
+        const focusable=ov.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+        if(!focusable.length)return;
+        const first=focusable[0],last=focusable[focusable.length-1];
+        if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+        else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+        return;
+      }
+    }
+    return;
+  }
   if(e.key!=='Escape')return;
   const pairs=[['settingsOv',closeSettings],['achievementsOv',closeAchievements],['gamesOv',closeGames],['errExplainOv',closeErrExplain],['fcOv',closeFc]];
   for(const [id,fn] of pairs){if(document.getElementById(id)?.style.display==='flex'){fn();break;}}
@@ -185,7 +206,7 @@ Object.assign(window,{
   // Character tabs
   selChar, selCharByName,
   // Chat input
-  sendMsg, showHints, useHint,
+  sendMsg, showHints, useHint, retryLastMsg,
   // Side panel tabs
   setSTab, navWeek,
   // Vocab add form
@@ -202,6 +223,7 @@ Object.assign(window,{
   // Settings overlay
   openSettings, closeSettings, setSettingsTab, setModelPref, setTtsOff,
   setVoicePref, testVoice,
+  clearLog,
   // Auth / splash management
   splashEditKey, splashDeleteKey, showSplashAuth, hideSplashAuth, saveSplashAuth,
   // Error explain overlay

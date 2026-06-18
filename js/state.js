@@ -26,7 +26,8 @@ export const R = {
   cur:'hermione',
   provider:'groq',            // 'anthropic' | 'gemini' | 'groq' | 'openai'
   keys:{anthropic:'',gemini:'',groq:'',openai:''},
-  cachedCreds:{}
+  cachedCreds:{},
+  llmLog:[]                   // session-only LLM query log (cleared on reload)
 };
 
 export function pruneOldDates(obj,days){

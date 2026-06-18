@@ -1,5 +1,6 @@
 import { S, R, saveS } from './state.js';
 import { esc, shuffleArray, extractJSON, showToast } from './helpers.js';
+import { LEVELS } from './characters.js';
 import { awardPoints, pushLevelOutcome } from './progress.js';
 import { playCorrect, playIncorrect } from './audio.js';
 import { game, diffSelectorHtml, award } from './game-core.js';
@@ -251,12 +252,13 @@ export function cleanupMemory() {
 
 async function llmVocab(count) {
   if (!R.keys.groq && !R.keys.gemini && !R.keys.anthropic) return null;
+  const exclude = recentVocab.size ? `\nNO uses ninguna de estas palabras: ${[...recentVocab].join(', ')}` : '';
   const prompt = `Genera ${count} pares de vocabulario español-inglés nivel A2/B1.
 Palabras útiles y naturales — temas cotidianos o del mundo de Harry Potter.
 Output ONLY un JSON array: [{"word":"tranquilo","def":"calm"},{"word":"escoba","def":"broom"}]
-Sin markdown, sin explicación.`;
+Sin markdown, sin explicación.${exclude}`;
   try {
-    const raw = await callLLM(null, [{ role: 'user', content: prompt }], 600, 'low');
+    const raw = await callLLM(`Eres un profesor de español generando pares de vocabulario para un juego de memoria de nivel ${LEVELS[S.level]}.`, [{ role: 'user', content: prompt }], 600, 'low');
     const arr = extractJSON(raw);
     if (Array.isArray(arr)) return arr.filter(v => v.word && v.def).map(v => ({ word: v.word, def: v.def, ts: Date.now() }));
   } catch (e) { /* silent */ }
@@ -271,7 +273,7 @@ Palabras útiles y naturales — temas cotidianos o del mundo de Harry Potter.
 Output ONLY un JSON array: [{"word":"tranquilo","def":"calm"},{"word":"escoba","def":"broom"}]
 Sin markdown, sin explicación.${exclude}`;
   try {
-    const raw = await callLLM(null, [{ role: 'user', content: prompt }], 800, 'low');
+    const raw = await callLLM(`Eres un profesor de español generando pares de vocabulario para un juego de memoria de nivel ${LEVELS[S.level]}.`, [{ role: 'user', content: prompt }], 800, 'low');
     const arr = extractJSON(raw);
     if (!Array.isArray(arr)) return null;
     const valid = arr.filter(v => v.word && v.def);

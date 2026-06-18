@@ -2,13 +2,13 @@
 // A wizarding news headline is scrambled (words out of order). Drag the word
 // chips into the correct order to restore the letter. An owl scrambled it!
 import { S, R, saveS } from './state.js';
-import { chars } from './characters.js';
+import { chars, LEVELS } from './characters.js';
 import { callLLM } from './llm.js';
 import { esc, friendlyError } from './helpers.js';
 import { awardPoints, pushLevelOutcome } from './progress.js';
 import { renderSide } from './sidepanel.js';
 import { playCorrect, playMinor, playIncorrect } from './audio.js';
-import { round, game, GAME_DIFF, diffSelectorHtml, award } from './game-core.js';
+import { round, game, GAME_DIFF, diffSelectorHtml, award, recentOrderSentences, rememberRecent } from './game-core.js';
 
 let sortableScrambled=null, sortableTarget=null;
 let orderReqId=0;
@@ -30,12 +30,14 @@ export async function genOrderGame(){
   round.sentence='';round.checked=false;round.orderWords=[];
   el.innerHTML=diffSelectorHtml()+'<div class="mem-loading">La lechuza está preparando tu carta</div>';
   const reqId=++orderReqId;
+  const avoid=recentOrderSentences.length?` No repitas ni te parezcas a estos titulares recientes: ${recentOrderSentences.map(s=>`"${s}"`).join('; ')}.`:'';
   try{
-    const txt=await callLLM(null,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].orderPrompt} Tema: una noticia del mundo mágico relacionada contigo. Genera UNA frase corta en español que sea un titular. Sin signos de puntuación. Solo la frase, sin comillas ni explicaciones.`}],60,'low');
+    const txt=await callLLM(`Eres un profesor de español generando titulares del mundo mágico para un ejercicio de ordenar palabras.`,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].orderPrompt} Tema: una noticia del mundo mágico relacionada contigo. Genera UNA frase corta en español que sea un titular. Sin signos de puntuación. Solo la frase, sin comillas ni explicaciones.${avoid}`}],60,'low');
     if(reqId!==orderReqId)return;
     const words=txt.trim().split(/\s+/).map(w=>w.replace(/^[¿¡"'(]+|[.,!?;:"')]+$/g,'')).filter(Boolean);
     if(words.length<3)throw new Error('too short');
     round.orderWords=words;
+    rememberRecent(recentOrderSentences,txt.trim());
   }catch(e){
     el.innerHTML=diffSelectorHtml()+`<div class="game-error">${esc(friendlyError(e))}</div><button class="fc-btn" style="width:100%;" onclick="genOrderGame()">Reintentar</button>`;
     return;

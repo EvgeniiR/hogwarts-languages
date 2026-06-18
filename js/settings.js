@@ -1,7 +1,7 @@
 // ── SETTINGS OVERLAY ───────────────────────────────────────────────────────
-// Two tabs: Voice, Model. Auth management moved to splash (via "Gestionar cuentas" button).
+// Three tabs: Voice, Model, Log. Auth management moved to splash (via "Gestionar cuentas" button).
 import { S, R, saveS } from './state.js';
-import { esc } from './helpers.js';
+import { esc, showToast } from './helpers.js';
 import { spanishVoices, setVoicePref, testVoice } from './tts.js';
 import { achievementMetrics, ACH_LABELS, ACH_X, HP_MILESTONES, nextMilestone } from './progress.js';
 
@@ -52,7 +52,49 @@ export function renderSettings(){
       el.innerHTML=`<div class="svc-row"><div class="svc-lbl">Modelo de OpenAI</div>
         <select onchange="setModelPref('openai',this.value)">${models.map(([v,l])=>`<option value="${v}" ${S.modelPrefs.openai===v?'selected':''}>${esc(l)}</option>`).join('')}</select></div>`;
     }
+  }else if(settingsTab==='log'){
+    renderLogTab(el);
   }
+}
+
+function renderLogTab(el){
+  const log=[...R.llmLog].reverse();
+  if(!log.length){
+    el.innerHTML='<div class="edim">No hay consultas registradas en esta sesión. El log se borra al recargar la página.</div>';
+    return;
+  }
+  const pvdNames={groq:'Groq',openai:'OpenAI',anthropic:'Anthropic',gemini:'Gemini'};
+  const rows=log.map((e,i)=>{
+    const time=new Date(e.ts).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const statusIcon=e.status==='ok'?'<span style="color:#4aa020;">✓</span>':'<span style="color:#d04040;">✗</span>';
+    const latency=e.latencyMs?`${e.latencyMs}ms`:'';
+    const detail=[];
+    detail.push(`[SYS] ${e.systemPrompt}`);
+    e.messages.forEach(m=>detail.push(`[${m.role.toUpperCase()}] ${m.content}`));
+    if(e.responseRaw)detail.push(`[RESP] ${e.responseRaw}`);
+    if(e.error)detail.push(`[ERROR] ${e.error}`);
+    const detailEsc=esc(detail.join('\n\n'));
+    return `<div class="log-entry" onclick="this.classList.toggle('open')">
+      <div class="log-summary">
+        <span class="log-time">${time}</span>
+        <span class="log-pvd ${e.provider}">${pvdNames[e.provider]||e.provider}</span>
+        ${e.effort?`<span class="log-effort">${e.effort}</span>`:''}
+        <span class="log-status">${statusIcon}${e.attempts>1?` ×${e.attempts}`:''}</span>
+        <span class="log-latency">${latency}</span>
+      </div>
+      <div class="log-detail">${detailEsc}</div>
+    </div>`;
+  }).join('');
+  el.innerHTML=`
+    <div style="font-size:10px;color:#8b6914;margin-bottom:6px;font-style:italic;">Solo esta sesión — se borra al recargar</div>
+    ${rows}
+    <button class="log-clear-btn" onclick="clearLog()">🗑 Limpiar log (${log.length})</button>`;
+}
+
+export function clearLog(){
+  R.llmLog.length=0;
+  if(document.getElementById('settingsOv').style.display==='flex')renderSettings();
+  showToast('Log eliminado','#2a5018','#7acc40');
 }
 
 export function renderAchievements(){

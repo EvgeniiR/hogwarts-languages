@@ -41,19 +41,23 @@ function buildSys(persona,shape){
 export const chars = {
   hermione:{name:'Hermione Granger',house:'Gryffindor',ac:'#ae0001',bbg:'#1a0400',btxt:'#c9a84c',bbd:'#8b6914',gender:'f',
     hints:['¿Puedes explicarme este hechizo?','Necesito estudiar más hoy.','¿Cuál es tu libro favorito?','¿Cómo se prepara esta poción?','¿Qué es la Sala de los Menesteres?'],
-    persona:`Eres Hermione Granger de Harry Potter. SIEMPRE en español. Inteligente, precisa, amigable y entusiasta del estudio. {{LV}}`,
+    persona:`Eres Hermione Granger de Harry Potter. SIEMPRE en español. Inteligente, precisa, amigable y entusiasta del estudio. {{LV}}
+Hablas con oraciones bien estructuradas; usas "Evidentemente..." y "Según Hogwarts: Una Historia..." como coletillas. Cuando el estudiante acierta, muestras orgullo académico; cuando falla, corriges con paciencia pero sin bajar el listón. Prefieres vocabulario académico, citas de libros y precisión técnica.`,
     shape:`{"reply":"2-4 oraciones en personaje","note":"💡 nota gramatical breve","vocab":[{"word":"palabra","def":"english"}],"mistakes":[{"wrong":"error","right":"correcto","note":"por qué"}],"spells":[],"options":["¿Qué hechizo me enseñas?","Cuéntame de ese libro","¿Buscamos otro libro?"],"points":5,"mood":2,"challengeDone":false}`},
   dumbledore:{name:'Albus Dumbledore',house:'Orden del Fénix',ac:'#2030a0',bbg:'#0a0a20',btxt:'#9090d0',bbd:'#2a2870',gender:'m',
     hints:['¿Cuál es el secreto de la felicidad?','¿Qué significa ser valiente?','El amor es la magia más poderosa.','¿Puedes darme un consejo?','¿Por qué es importante la amistad?'],
-    persona:`Eres Albus Dumbledore de Harry Potter. SIEMPRE en español. Sabio, poético, cálido. {{LV}}`,
+    persona:`Eres Albus Dumbledore de Harry Potter. SIEMPRE en español. Sabio, poético, cálido. {{LV}}
+Hablas con pausas reflexivas, metáforas y un tono sosegado. Cuando el estudiante duda, ofreces una parábola breve o un acertijo; cuando triunfa, celebras con serenidad. Prefieres estructuras elegantes, preguntas filosóficas y reflexiones sobre la magia y la vida.`,
     shape:`{"reply":"2-4 oraciones sabias","note":"✨ reflexión lingüística","vocab":[{"word":"palabra","def":"english"}],"mistakes":[{"wrong":"error","right":"correcto","note":"explicación"}],"spells":[],"options":["Explíqueme esa lección","Nunca pensé en eso","Cuénteme otra historia"],"points":7,"mood":2,"challengeDone":false}`},
   hagrid:{name:'Rubeus Hagrid',house:'Hogwarts',ac:'#2a5018',bbg:'#061006',btxt:'#7acc40',bbd:'#1a3a10',gender:'m',
     hints:['¡Me encantan los animales mágicos!','¿Tienes un animal favorito?','¡Hola! ¿Cómo estás hoy?','¿Puedo visitar el bosque prohibido?','¡Los hipogrifos son increíbles!'],
-    persona:`Eres Rubeus Hagrid de Harry Potter. SIEMPRE en español. Entusiasta, cálido y apasionado por las criaturas mágicas; hablas con energía y cariño. {{LV}}`,
+    persona:`Eres Rubeus Hagrid de Harry Potter. SIEMPRE en español. Entusiasta, cálido y apasionado por las criaturas mágicas; hablas con energía y cariño. {{LV}}
+Tus frases son cortas y expresivas, salpicadas de "¡Caramba!" y "¡Es precioso/a!". Tiendes a desviar cualquier tema hacia animales mágicos. Cuando el estudiante se equivoca, le animas con ternura; nunca corriges con dureza. Vocabulario sencillo pero muy emotivo.`,
     shape:`{"reply":"2-3 oraciones entusiastas","note":"🐉 vocabulario nuevo sobre criaturas","vocab":[{"word":"palabra","def":"english"}],"mistakes":[{"wrong":"error","right":"correcto","note":"nota"}],"spells":[],"options":["¿Es peligroso?","¡Quiero ver esa criatura!","¿Me enseñas otro animal?"],"points":4,"mood":2,"challengeDone":false}`},
   snape:{name:'Severus Snape',house:'Slytherin',ac:'#1a5030',bbg:'#040a06',btxt:'#b0d0b0',bbd:'#1a3020',gender:'m',
     hints:['Buenos días, profesor Snape.','No entiendo esta lección.','¿Puede repetir eso, por favor?','Intenté estudiar mucho.','¿Cuál es el ingrediente principal?'],
-    persona:`Eres Severus Snape de Harry Potter. SIEMPRE en español. Sarcástico, exigente, corriges TODO, pero sin crueldad gratuita. {{LV}}`,
+    persona:`Eres Severus Snape de Harry Potter. SIEMPRE en español. Sarcástico, exigente, corriges TODO, pero sin crueldad gratuita. {{LV}}
+Hablas con frases cortas y secas, pausas medidas y un desdén contenido. Usas "Evidentemente..." con ironía. Cuando el estudiante acierta, concedes un cumplido mínimo y de mala gana; cuando falla, corriges con precisión cortante. Registro formal, gramática impecable, preguntas inquisitivas.`,
     shape:`{"reply":"2-4 oraciones sarcásticas","note":"📋 corrección gramatical precisa","vocab":[{"word":"palabra","def":"english"}],"mistakes":[{"wrong":"error","right":"correcto","note":"explicación"}],"spells":[],"options":["¿Qué ingrediente falta?","Explíquelo otra vez","¿Repasamos otra poción?"],"points":6,"mood":1,"challengeDone":false}`}
 };
 
@@ -61,6 +65,8 @@ export function getSys(k){
   const c=chars[k];
   const persona=c.persona.replace('{{LV}}',LV_NOTE[S.level]);
   const today=new Date().toISOString().slice(0,10);
+  const ck=k+'_'+today;
+  if(S.challengeDone[ck])return buildSys(persona,c.shape);
   const ch=S.challenges[today]?.[k];
   const chalLine=ch?`\nThe user's daily challenge: "${ch.challenge}". Set challengeDone:true if their message(s) accomplish this mission.`:'';
   return buildSys(persona,c.shape)+chalLine;

@@ -38,6 +38,8 @@ Rules:
 export function renderChallengeUI(k){
   const ck=k+'_'+new Date().toISOString().slice(0,10);
   const done=!!S.challengeDone[ck];
+  const chal=document.querySelector('.chal');
+  if(chal)chal.style.display=done?'none':'';
   const lbl=document.querySelector('.chal-lbl');
   if(lbl)lbl.textContent=done?'✅ Desafío completado':'⭐ Desafío del día';
 }
@@ -57,9 +59,9 @@ export function updateChalTxt(k){
       opEl.onclick=c.exampleOpener?()=>{const ta=document.getElementById('ui');ta.value=c.exampleOpener;aResize(ta);ta.focus();opEl.classList.add('opener-flash');setTimeout(()=>opEl.classList.remove('opener-flash'),400);}:null;
     }
   }else{
-    document.getElementById('chalTxt').textContent=chars[k].hints[0];
+    document.getElementById('chalTxt').textContent='Cargando tu desafío…';
     if(focusEl)focusEl.textContent='';
-    if(opEl){opEl.textContent='';opEl.onclick=null;}
+    if(opEl){opEl.textContent='';opEl.onclick=null;opEl.style.cursor='';}
   }
 }
 
@@ -82,9 +84,13 @@ export async function genDailyChallenges(){
       if(Object.keys(map).length===4){S.challenges[today]=map;saveS();}
     }
   }catch(e){
-    showToast('No se pudo generar el desafío de hoy. Inténtalo más tarde.','#5a0000','#f5e5c0');
+    challengesLoading=false;
+    document.getElementById('chalTxt').textContent='No disponible';
+    const el=document.getElementById('chalFocus');if(el)el.textContent='';
     const op=document.getElementById('chalOpener');
-    if(op){op.textContent='🔄 Reintentar';op.style.cursor='pointer';op.onclick=()=>retryChallenges();}
+    if(op){op.textContent='🔄 Reintentar';op.style.cursor='pointer';op.onclick=()=>retryChallenges();op.style.textDecoration='underline dotted';}
+    const lbl=document.querySelector('.chal-lbl');if(lbl)lbl.textContent='⭐ Desafío del día';
+    return;
   }
   challengesLoading=false;
   updateChalTxt(R.cur);renderChallengeUI(R.cur);

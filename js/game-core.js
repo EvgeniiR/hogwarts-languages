@@ -17,6 +17,7 @@ export const game={combo:0};
 export const round={sentence:'',ref:'',phrase:'',checked:false,review:false,orderWords:[]};
 export const recentDictSentences=[];
 export const recentTranslPhrases=[];
+export const recentOrderSentences=[];
 
 export function randomTopic(){return GAME_TOPICS[Math.floor(Math.random()*GAME_TOPICS.length)];}
 export function rememberRecent(arr,val){arr.push(val);if(arr.length>8)arr.shift();}

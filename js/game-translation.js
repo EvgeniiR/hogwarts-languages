@@ -1,5 +1,5 @@
 import { S, R, saveS } from './state.js';
-import { chars } from './characters.js';
+import { chars, LEVELS } from './characters.js';
 import { callLLM } from './llm.js';
 import { esc, friendlyError, normWords, extractJSON } from './helpers.js';
 import { awardPoints, pushLevelOutcome } from './progress.js';
@@ -18,7 +18,7 @@ export async function genTranslation(){
   const avoid=recentTranslPhrases.length?` No repitas ni te parezcas a estas frases recientes: ${recentTranslPhrases.map(s=>`"${s}"`).join('; ')}.`:'';
   const reqId=++translReqId;
   try{
-    const raw=await callLLM(null,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].prompt} Tema: ${topic}. Genera UNA frase corta en INGLÉS sobre ese tema para que el estudiante la traduzca al español.${avoid} Refleja tu personalidad. RESPONDE SOLO con este JSON: {"phrase":"frase en inglés","refTranslation":"una traducción correcta al español"}`}],100,'low');
+    const raw=await callLLM(`Eres un profesor de español generando ejercicios de traducción inglés→español para un estudiante de nivel ${LEVELS[S.level]}.`,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].prompt} Tema: ${topic}. Genera UNA frase corta en INGLÉS sobre ese tema para que el estudiante la traduzca al español.${avoid} Refleja tu personalidad. RESPONDE SOLO con este JSON: {"phrase":"frase en inglés","refTranslation":"una traducción correcta al español"}`}],100,'low');
     if(reqId!==translReqId)return;
     const parsed=extractJSON(raw);
     round.phrase=parsed.phrase;round.ref=parsed.refTranslation||'';
@@ -62,7 +62,7 @@ export async function checkTranslation(btn){
   btn.textContent='⏳ Comprobando…';
   let verdict;
   try{
-    const raw=await callLLM(null,[{role:'user',content:`Frase en inglés: "${round.phrase}". El estudiante tradujo: "${input}". El estudiante no tiene teclado español, así que IGNORA tildes/acentos faltantes y "n" en vez de "ñ" — no los marques como error. Clasifica la traducción como "correct" (completamente correcta, acepta variantes válidas), "minor" (un error pequeño pero se entiende el significado, ej. una palabra equivocada o un pequeño fallo de concordancia), o "incorrect" (el significado está mal o falta algo importante). RESPONDE SOLO con este JSON: {"status":"correct","correction":"traducción correcta","note":"breve explicación en español"}`}],100,'low');
+    const raw=await callLLM(null,[{role:'user',content:`Frase en inglés: "${round.phrase}". El estudiante tradujo: "${input}". El estudiante no tiene teclado español, así que IGNORA tildes/acentos faltantes y "n" en vez de "ñ" — no los marques como error. Clasifica la traducción como "correct" (completamente correcta, acepta variantes válidas), "minor" (un error pequeño pero se entiende el significado, ej. una palabra equivocada o un pequeño fallo de concordancia), o "incorrect" (el significado está mal o falta algo importante). RESPONDE SOLO con este JSON: {"status":"correct","correction":"traducción correcta","note":"breve explicación en español"}`}],100,'medium');
     verdict={status:'incorrect',correction:round.ref||round.phrase,note:'',...extractJSON(raw)};
   }catch(e){
     document.querySelectorAll('#gamesContent .vadd-row button').forEach(b=>{b.disabled=false;});

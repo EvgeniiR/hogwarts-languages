@@ -3,6 +3,7 @@
 // Keys live in storage under `hp_creds` as {groq, gemini, anthropic, openai, last}.
 import { R } from './state.js';
 import { kvGet, kvSet } from './storage.js';
+import { updProviderBadge } from './chat.js';
 
 export const KEY_INPUT_ID={anthropic:'apiKeyInput',gemini:'geminiKeyInput',groq:'groqKeyInput',openai:'openaiKeyInput'};
 
@@ -69,6 +70,7 @@ export function setProvider(p){
   savedKeyIndicator(p);
   const rk=document.getElementById('rememberKey');
   if(rk)rk.checked=!!(R.cachedCreds&&R.cachedCreds[p]);
+  updProviderBadge();
 }
 
 // Show the input field for editing a saved key.

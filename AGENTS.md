@@ -8,6 +8,11 @@ A Spanish learning app with a Harry Potter theme. Users have conversations with 
 
 Built for a specific user (~A2/B1 Spanish, ~1.5 years Duolingo). Deployed on Cloudflare Pages.
 
+## Coding principles
+
+- **Fix the rule, not the instance.** Prefer systemic fixes (CSS rules, shared helpers, selector tightening) over point fixes (inline styles, one-off copy-paste, workarounds on single elements). If a bug can recur elsewhere, solve it at the source.
+- Run `bash scripts/check.sh` after every batch of JS changes.
+
 ## File layout
 
 ```
@@ -38,8 +43,9 @@ When editing a feature, load **only this file** — not the whole project.
 | Text-to-speech (speak, speakFromBtn with rate, voice picker) | `js/tts.js` |
 | Points, streak, level, achievements, HP milestones | `js/progress.js` |
 | Daily challenges (gen + render) | `js/challenges.js` |
-| sendMsg, message render, character select, hints, owl | `js/chat.js` |
-| Side panel: vocab/grammar/mistakes tabs, flashcards, vocab CRUD | `js/sidepanel.js` |
+| sendMsg, message render, character select, hints, owl, retryLastMsg, updProviderBadge | `js/chat.js` |
+| Side panel: vocab/grammar/mistakes tabs, flashcards, vocab CRUD, flashcard TTS | `js/sidepanel.js` |
+| Error explain overlay: grammar mistake Q&A, loading states | `js/error-explain.js` |
 | Minigame engine primitives (round, game, GAME_DIFF, award, wordDiffHtml, etc.) — leaf module | `js/game-core.js` |
 | Minigame overlay routing only (imports from game-core.js) | `js/games.js` |
 | Dictation game | `js/game-dictation.js` |
@@ -47,7 +53,7 @@ When editing a feature, load **only this file** — not the whole project.
 | Word-order game (drag-and-drop, requires SortableJS CDN) | `js/game-order.js` |
 | Pensieve Memory Match (card-flip, Canvas particle engine) | `js/game-memory.js` |
 | Canvas particle engine (ambient float + burst on match) | `js/particles.js` |
-| Settings overlay: voice, model, auth | `js/settings.js` |
+| Settings overlay: voice, model, llm log viewer | `js/settings.js` |
 | All CSS | `css/styles.css` |
 
 **Memory Match (game-memory.js) specifics:**
@@ -120,7 +126,8 @@ R = {
   provider: 'groq',            // 'anthropic'|'gemini'|'groq'|'openai'
   keys: {anthropic, gemini, groq, openai},  // in-memory API keys
   cachedCreds: {},             // saved creds from hp_creds storage
-  loading: false               // true while an LLM call is in flight
+  loading: false,              // true while an LLM call is in flight
+  llmLog: []                   // session-only query log (capped 50, cleared on reload)
 }
 ```
 
@@ -139,7 +146,7 @@ The HTML has ~50 `onclick="fnName()"` attributes. Module scope is not global, so
 | Hagrid    | Enthusiastic, warm, animal-obsessed (richer vocab) | 4 | `chars.hagrid` |
 | Snape     | Sarcastic, corrects everything, no mercy | 6 | `chars.snape` |
 
-System prompts are assembled at call time by `getSys(k)` in `characters.js`, which is **provider-aware** (branches on `R.provider`): Groq gets terse/directive framing, Gemini moderate, Anthropic the richest persona. Each character stores a `persona` (with a `{{LV}}` placeholder) and a JSON `shape`; the shared rules — `SPELL_RULE`, `SCORING_RULE` (anti-farming: `points:0` for non-effort but **no** mood punishment), `CONVO_RULE` (be proactive, end with a question), `OPTIONS_RULE`, and `VARIETY_RULE` (anti-repetition — applied in all three provider branches) — live **once** in `characters.js`. Each `shape` includes an `options` array (2-3 learner-POV reply suggestions); `getSys(k)` appends the daily-challenge line. Reply-suggestion chips are rendered via `renderHints()`/`#hintsR` UI from the LLM `options` field and are **persisted** in `S.currentHints` per character (saved in `sendMsg` and `genStarter`; restored on `selChar`/page reload). Static hints (`chars[k].hints`) are shown by `showHints()` as a fallback when no persisted hints exist for the character. `genStarter` seeds the user turn with a random HP scenario (`SEEDS` array in `chat.js`) so openers vary across resets.
+System prompts are assembled at call time by `getSys(k)` in `characters.js`, which is **provider-aware** (branches on `R.provider`): Groq gets terse/directive framing, Gemini moderate, Anthropic/OpenAI the richest persona. Each character stores a `persona` (with a `{{LV}}` placeholder) and a JSON `shape`; the shared rules — `SPELL_RULE`, `SCORING_RULE` (anti-farming: `points:0` for non-effort but **no** mood punishment), `CONVO_RULE` (be proactive, end with a question), `OPTIONS_RULE`, and `VARIETY_RULE` (anti-repetition — applied in all three provider branches) — live **once** in `characters.js`. Each `shape` includes an `options` array (2-3 learner-POV reply suggestions); `getSys(k)` appends the daily-challenge line **only if the challenge for that character is not yet completed** (saves tokens). Reply-suggestion chips are rendered via `renderHints()`/`#hintsR` UI from the LLM `options` field and are **persisted** in `S.currentHints` per character (saved in `sendMsg` and `genStarter`; restored on `selChar`/page reload). Static hints (`chars[k].hints`) are shown by `showHints()` as a fallback when no persisted hints exist for the character. `genStarter` seeds the user turn with a random HP scenario (`SEEDS` array in `chat.js`) so openers vary across resets.
 
 ## LLM providers
 
@@ -156,16 +163,18 @@ All three providers use `fetchWithTimeout` (30s) defined in `llm.js`. `AbortErro
 
 ## Daily challenges
 
-`CHALLENGE_PROMPT` in `challenges.js`: single batch LLM call → `S.challenges[today]` keyed by ISO date. Each challenge: `{challenge, focus, exampleOpener}`. Done: `S.challengeDone['charKey_YYYY-MM-DD']` (pruned 14d) + `S.challengesCompleted` (persistent, never pruned).
+`CHALLENGE_PROMPT` in `challenges.js`: single batch LLM call → `S.challenges[today]` keyed by ISO date. Each challenge: `{challenge, focus, exampleOpener}`. Done: `S.challengeDone['charKey_YYYY-MM-DD']` (pruned 14d) + `S.challengesCompleted` (persistent, never pruned). Challenge is only injected into the LLM system prompt via `getSys()` when **not yet completed** for that character (token saving). When a challenge is completed, the `.chal` div is hidden entirely (not just relabeled).
 
 ## Settings / overlays
 
 The app has **four separate overlays**, each with its own `<div class="settings-ov">` in the HTML:
 
-- **`settingsOv`** — 2-tab settings card + auth button:
+- **`settingsOv`** — 3-tab settings card + auth button:
   - **🔊 Voz** — TTS voice picker; male/female; test button
   - **🧠 Modelo** — per-provider model selector (reads `R.provider`)
+  - **📋 Log** — in-memory LLM query log viewer; click to expand prompt/response; clear button; dropped on reload
   - **🔑 Gestionar cuentas →** — opens splash overlay for full auth management (providers, keys, saved-key pattern with Cambiar/Eliminar)
+- **Header provider badge** — `#pvdBadge` element updated by `updProviderBadge()` (exported from `chat.js`, called by `setProvider` in `credentials.js` and `updHeaderAll`)
 - **`achievementsOv`** — HP milestones (top) + stat achievement bars (bottom); opened via header trophy icon
 - **`gamesOv`** — 4-tab minigames card: Dictado / Traducción / Orden / Pensieve
 - **`fcOv`** — flashcard overlay
@@ -237,7 +246,16 @@ Four games, each in its own file. All share engine state from `game-core.js`:
 - **Gemini message format** — role is `'model'` not `'assistant'`; handled in `callGeminiModel` in `llm.js`
 - **`window.storage` in artifacts** — must be checked first in all storage reads/writes; already handled by `storage.js` `kvGet`/`kvSet`
 - **`R.loading`** — set in `chat.js` `sendMsg()`; guards against double-submit; do not reset elsewhere
+- **Focus trap** — `main.js` keydown handler traps Tab within open overlays (settings, games, achievements, error explain, flashcards); add new overlays to the `overlays` array if needed
 - **`speakFromBtn` rate** — `tts.js` `speakFromBtn` reads `btn.dataset.rate` (optional float). Use `data-rate="0.55"` on slow-speak buttons instead of inline `speak(x, 0.55)` calls.
+
+## Verification
+
+After any JS change, run:
+```bash
+bash scripts/check.sh
+```
+This checks syntax (`node --check`) on every `js/*.js` file and verifies the ES module import graph resolves (excluding `main.js` which needs `window`).
 
 ## Deploy
 
