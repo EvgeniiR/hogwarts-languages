@@ -156,16 +156,16 @@
 
   <div class="ctabs">
     <div class="ctab active" data-ch="hermione" onclick="selChar(this)">
-      <div class="cport" id="p_hermione"></div><span class="cname">Hermione</span><div class="mdot" id="m_hermione"></div>
+      <div class="cport" id="p_hermione"></div><span class="cname">Hermione</span><div class="mdot" id="m_hermione"></div><i class="ti ti-arrow-back-up ct-reset" onclick="event.stopPropagation();resetConversation()" title="reiniciar charla"></i>
     </div>
     <div class="ctab" data-ch="dumbledore" onclick="selChar(this)">
-      <div class="cport" id="p_dumbledore"></div><span class="cname">Dumbledore</span><div class="mdot" id="m_dumbledore"></div>
+      <div class="cport" id="p_dumbledore"></div><span class="cname">Dumbledore</span><div class="mdot" id="m_dumbledore"></div><i class="ti ti-arrow-back-up ct-reset" onclick="event.stopPropagation();resetConversation()" title="reiniciar charla"></i>
     </div>
     <div class="ctab" data-ch="hagrid" onclick="selChar(this)">
-      <div class="cport" id="p_hagrid"></div><span class="cname">Hagrid</span><div class="mdot" id="m_hagrid"></div>
+      <div class="cport" id="p_hagrid"></div><span class="cname">Hagrid</span><div class="mdot" id="m_hagrid"></div><i class="ti ti-arrow-back-up ct-reset" onclick="event.stopPropagation();resetConversation()" title="reiniciar charla"></i>
     </div>
     <div class="ctab" data-ch="snape" onclick="selChar(this)">
-      <div class="cport" id="p_snape"></div><span class="cname">Snape</span><div class="mdot" id="m_snape"></div>
+      <div class="cport" id="p_snape"></div><span class="cname">Snape</span><div class="mdot" id="m_snape"></div><i class="ti ti-arrow-back-up ct-reset" onclick="event.stopPropagation();resetConversation()" title="reiniciar charla"></i>
     </div>
   </div>
 
@@ -187,7 +187,6 @@
         <textarea id="ui" placeholder="Escribe o habla en español…" rows="1" onkeydown="hKey(event)" oninput="aResize(this)"></textarea>
         <button class="ibtn" onclick="showHints()" aria-label="Frases sugeridas"><i class="ti ti-bulb"></i></button>
         <button class="ibtn send" id="sendB" onclick="sendMsg()" disabled aria-label="Enviar"><i class="ti ti-send"></i></button>
-        <button class="ibtn reset-chat" onclick="resetConversation()" aria-label="Reiniciar conversación" title="Reiniciar conversación"><i class="ti ti-arrow-back-up"></i></button>
       </div>
         <div class="hints" id="hintsR"></div>
       </div>
