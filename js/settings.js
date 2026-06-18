@@ -86,7 +86,7 @@ function renderLogTab(el){
     </div>`;
   }).join('');
   el.innerHTML=`
-    <div style="font-size:10px;color:#8b6914;margin-bottom:6px;font-style:italic;">Solo esta sesión — se borra al recargar</div>
+    <div style="font-size:11px;color:#8b6914;margin-bottom:6px;font-style:italic;">Solo esta sesión — se borra al recargar</div>
     ${rows}
     <button class="log-clear-btn" onclick="clearLog()">🗑 Limpiar log (${log.length})</button>`;
 }

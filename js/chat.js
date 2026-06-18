@@ -65,7 +65,7 @@ function createMsgEl(m,i,charKey){
     const ch=chars[charKey];div.className='msg a';
     const note=m.note?`<span class="note">${esc(m.note)}</span>`:'';
     const safe=(m.display||'').replace(/"/g,'&quot;');
-    const retry=m.error?`<div style="margin-top:6px;"><button class="retry-btn" onclick="retryLastMsg()" style="font-size:10px;padding:2px 8px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:'Cinzel',Georgia,serif;">Reintentar →</button></div>`:'';
+    const retry=m.error?`<div style="margin-top:6px;"><button class="retry-btn" onclick="retryLastMsg()">Reintentar →</button></div>`:'';
     div.innerHTML=`<div class="mav" style="border-color:${ch.ac};">${SVG[charKey]}</div><div class="bbl" id="b${i}">${mdInline(esc(m.display))}<button class="spk-btn" data-txt="${safe}" onclick="speakFromBtn(this)" aria-label="Escuchar"><i class="ti ti-volume" aria-hidden="true"></i></button>${note}${retry}</div>`;
     if(m.hasSpell){
       m.hasSpell=false;
