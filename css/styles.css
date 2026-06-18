@@ -38,7 +38,7 @@ body{font-family:'IM Fell English',Georgia,serif;background:var(--bg0);display:f
 .mdot{width:7px;height:7px;border-radius:50%;background:#666;transition:background .5s;}
 .main{display:flex;flex:1;overflow:hidden;position:relative;z-index:10;}
 .ccol{display:flex;flex-direction:column;flex:1;min-width:0;}
-.msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin;scrollbar-color:var(--bd) transparent;box-shadow:inset 0 14px 22px rgba(7,9,26,.55),inset 0 -10px 16px rgba(7,9,26,.35);position:relative;}
+.msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin;scrollbar-color:var(--bd) transparent;box-shadow:inset 0 14px 22px rgba(7,9,26,.55),inset 0 -10px 16px rgba(7,9,26,.35);}
 .msgs::-webkit-scrollbar{width:3px;}.msgs::-webkit-scrollbar-thumb{background:var(--bd);}
 .msg{display:flex;gap:8px;align-items:flex-start;}
 .msg.u{flex-direction:row-reverse;}
@@ -73,8 +73,6 @@ textarea#ui::placeholder{color:#8b9bb8;}
 .ct-reset{display:none;font-size:12px;color:var(--dim);cursor:pointer;margin-top:1px;transition:color .2s;}
 .ct-reset:hover{color:var(--lt);}
 .ctab.active .ct-reset{display:block;}
-.msg-reset-icon{position:absolute;bottom:10px;right:10px;z-index:2;cursor:pointer;color:var(--dim);font-size:13px;transition:color .2s;}
-.msg-reset-icon:hover{color:var(--lt);}
 .ibtn.mic.rec{border-color:var(--gold);background:rgba(201,168,76,.12);}.ibtn.mic.rec i{color:var(--gold);}
 .hints{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;min-height:20px;align-items:center;}
 .hchip{font-size:12px;color:var(--gold);background:rgba(201,168,76,.07);border:.5px solid var(--bdg);border-radius:99px;padding:3px 10px;cursor:pointer;font-style:italic;}
