@@ -143,3 +143,21 @@ async function callOpenAI(systemPrompt, messages, maxTokens){
   throwIfBad(res,data);
   return data.choices?.[0]?.message?.content||'';
 }
+
+// One-shot JSON repair — fires on safeParse failure. Uses Groq fast model.
+export async function repairJSON(raw){
+  try{
+    const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${R.keys.groq}`},
+      body:JSON.stringify({
+        model:'llama-3.1-8b-instant',
+        messages:[{role:'user',content:`Convierte este texto en un objeto JSON válido con los campos reply, note, vocab, mistakes, spells, options, points, mood, challengeDone. Responde SOLO con el JSON, sin explicaciones ni backticks:\n\n${raw.slice(0,2000)}`}],
+        max_tokens:300,
+        temperature:0
+      })
+    });
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content||'';
+  }catch(e){return '';}
+}

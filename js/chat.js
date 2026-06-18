@@ -5,6 +5,7 @@ import { S, R, saveS } from './state.js';
 import { chars, getSys, LEVELS } from './characters.js';
 import { SVG } from './portraits.js';
 import { callLLM } from './llm.js';
+import { repairJSON } from './llm.js';
 import { awardPoints, updPtsUI, updStreakUI, checkAchievements, checkLevelUp, pushLevelOutcome } from './progress.js';
 import { playRecv, playSend, playVocab, playSpell } from './audio.js';
 import { speak } from './tts.js';
@@ -126,14 +127,13 @@ function sanitizeOptions(o){
   return o.filter(s=>typeof s==='string'&&s.trim()).map(s=>s.trim().slice(0,80)).slice(0,3);
 }
 
-function safeParse(raw){
+async function safeParse(raw){
   try{return extractJSON(raw);}
   catch(e){
-    // Gemini sometimes outputs pseudo-JSON: bare keys, no surrounding braces.
     // Step 1: quote bare keys at line-start (note: → "note":)
     let repaired = raw.replace(/(^|[\n\r])\s*([a-zA-Z_]\w*)\s*:/gm, '$1"$2":');
     try{return extractJSON(repaired);}catch(e2){}
-    // Step 2: if still no braces, find the key:value block and wrap it
+    // Step 2: if no braces, find the key:value block and wrap it
     if (!repaired.includes('{')) {
       const knownKeys = ['"reply"','"note"','"vocab"','"mistakes"','"spells"','"options"','"points"','"mood"','"challengeDone"'];
       let firstAt = Infinity;
@@ -150,6 +150,11 @@ function safeParse(raw){
       }
     }
     try{return extractJSON(repaired);}catch(e3){}
+    // Step 3: LLM-powered repair for any remaining malformation
+    try{
+      const fixed = await repairJSON(raw);
+      if(fixed)return extractJSON(fixed);
+    }catch(e4){}
     return{reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2,options:[]};
   }
 }
@@ -191,7 +196,7 @@ export async function genStarter(k){
     const framing=STARTER_FRAMING[k]||STARTER_FRAMING.hermione;
     const raw=await callLLM(getSys(k),[{role:'user',content:`${framing} ${seed}.`}],400,'low');
     if(S.hist[k].length===0){
-      const p=safeParse(raw);
+      const p=await safeParse(raw);
       const hasSpell=p.spells&&p.spells.length>0;
       S.hist[k].push({role:'assistant',content:p.reply,display:p.reply,note:p.note,hasSpell});
       if(p.vocab&&p.vocab.length)p.vocab.forEach(v=>{if(!vocabExists(v.word))S.vocab.push({...v,ts:Date.now()});});
@@ -221,7 +226,7 @@ export async function sendMsg(){
     msgs=msgs.filter((m,i)=>i===msgs.length-1||m.role!==msgs[i+1].role);
     const firstUser=msgs.findIndex(m=>m.role==='user');if(firstUser>0)msgs=msgs.slice(firstUser);
     const raw=await callLLM(getSys(R.cur),msgs,1000,effort);
-    const p=safeParse(raw);suggestions=sanitizeOptions(p.options);
+    const p=await safeParse(raw);suggestions=sanitizeOptions(p.options);
     const hasSpell=p.spells&&p.spells.length>0;
     S.hist[R.cur].push({role:'assistant',content:p.reply,display:p.reply,note:p.note,hasSpell});
     S.totalMsgs++;

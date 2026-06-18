@@ -32,7 +32,7 @@ function buildSys(persona,shape){
     return `${persona}\nReglas:\n- ${SPELL_RULE}\n- ${SCORING_RULE}\n- ${CONVO_RULE}\n- ${VARIETY_RULE}\n- ${OPTIONS_RULE}\nRESPONDE ÚNICAMENTE con este JSON válido. Sin texto adicional, sin backticks, sin markdown:\n${shape}`;
   }
   if(R.provider==='gemini'){
-    return `${persona}\n${CONVO_RULE}\n${SPELL_RULE}\n${SCORING_RULE}\n${VARIETY_RULE}\n${OPTIONS_RULE}\nIMPORTANTE: responde solo con JSON estrictamente válido. Cada clave entre comillas dobles. Cada valor de texto entre comillas dobles. Sin excepciones, sin texto extra, sin backticks:\n${shape}`;
+    return `${persona}\n${CONVO_RULE}\n${SPELL_RULE}\n${SCORING_RULE}\n${VARIETY_RULE}\n${OPTIONS_RULE}\nIMPORTANTE: Tu respuesta conversacional va DENTRO del campo "reply" del JSON. No escribas NADA fuera del JSON — ni una palabra, ni un salto de línea. Solo el objeto JSON completo y válido, sin backticks:\n${shape}`;
   }
   // anthropic / openai (default branch): richest persona, most nuance.
   return `${persona}\n\nMantente siempre en personaje, con un español natural, vivo y expresivo.\n${CONVO_RULE}\n${SPELL_RULE}\n${SCORING_RULE}\n${VARIETY_RULE}\n${OPTIONS_RULE}\nResponde solo con este JSON, sin texto extra ni backticks:\n${shape}`;
