@@ -129,10 +129,32 @@ function sanitizeOptions(o){
 function safeParse(raw){
   try{return extractJSON(raw);}
   catch(e){
-    // Gemini sometimes outputs pseudo-JSON with bare keys (note: "text").
-    // Attempt a repair by quoting unquoted keys before retrying.
-    const repaired = raw.replace(/(^|[\n\r])\s*([a-zA-Z_]\w*)\s*:/gm, '$1"$2":');
+    // Gemini sometimes outputs pseudo-JSON: bare keys, no surrounding braces.
+    // Step 1: quote bare keys at line-start (note: → "note":)
+    let repaired = raw.replace(/(^|[\n\r])\s*([a-zA-Z_]\w*)\s*:/gm, '$1"$2":');
     try{return extractJSON(repaired);}catch(e2){}
+    // Step 2: if still no braces, find the key:value block and wrap it
+    if (!repaired.includes('{')) {
+      const knownKeys = ['"reply"','"note"','"vocab"','"mistakes"','"spells"','"options"','"points"','"mood"','"challengeDone"'];
+      let firstAt = Infinity;
+      for (const k of knownKeys) {
+        const rx = new RegExp('(?:^|\\n)\\s*' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ':', 'm');
+        const m = repaired.match(rx);
+        if (m && m.index < firstAt) firstAt = m.index + (repaired[m.index] === '\n' ? 1 : 0);
+      }
+      if (firstAt < Infinity) {
+        const textPart = repaired.slice(0, firstAt).trimEnd();
+        let jsonPart = repaired.slice(firstAt);
+        jsonPart = jsonPart.replace(/([}\]"\d])\s*\n\s*"/g, '$1,\n"');
+        repaired = (textPart ? textPart + '\n' : '') + '{' + jsonPart + '}';
+      }
+    }
+    try{return extractJSON(repaired);}catch(e3){}
+    return{reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2,options:[]};
+  }
+}
+    }
+    try{return extractJSON(repaired);}catch(e3){}
     return{reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2,options:[]};
   }
 }
