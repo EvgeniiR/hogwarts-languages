@@ -1,4 +1,4 @@
-const CACHE = 'hogwarts-es-v1';
+const CACHE = 'hogwarts-es-v2';
 const STATIC = [
   '/hogwarts-espanol.html',
   '/css/styles.css',
