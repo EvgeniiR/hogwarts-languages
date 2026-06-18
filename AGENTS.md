@@ -17,8 +17,8 @@ Built for a specific user (~A2/B1 Spanish, ~1.5 years Duolingo). Deployed on Clo
 
 ```
 hogwarts-espanol.html   ← HTML shell only. No JS, no CSS.
-css/styles.css          ← All styles (~348 lines, static)
-js/                     ← ES modules (23 files)
+css/styles.css          ← All styles (~357 lines, static)
+js/                     ← ES modules (24 files)
 audio/                  ← Ambient MP3s + manifest.json
 index.html              ← Redirects to hogwarts-espanol.html
 DEPLOY.md               ← Deploy instructions
@@ -176,7 +176,7 @@ The `.wrap` container no longer has `max-height:800px` — it uses the full view
 
 ## How ES modules + inline HTML work together
 
-The HTML has ~50 `onclick="fnName()"` attributes. Module scope is not global, so `main.js` assigns every HTML-referenced function to `window` in a documented block at the bottom. If you add a new `onclick` in the HTML, add the matching binding in `main.js`'s `Object.assign(window, {...})` block.
+The HTML has ~51 `onclick="fnName()"` attributes. Module scope is not global, so `main.js` assigns every HTML-referenced function to `window` in a documented block at the bottom. If you add a new `onclick` in the HTML, add the matching binding in `main.js`'s `Object.assign(window, {...})` block.
 
 ## Characters
 
