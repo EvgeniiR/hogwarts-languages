@@ -53,12 +53,6 @@ body{font-family:'IM Fell English',Georgia,serif;background:var(--bg0);display:f
 .spk-btn i{font-size:12px;}
 .retry-btn{font-size:11px;padding:3px 10px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:'Cinzel',Georgia,serif;}
 .retry-btn:hover{background:rgba(192,80,80,.1);}
-.spell-flash{animation:sflash 3s ease-out;}
-@keyframes sflash{
-  0%{box-shadow:0 0 0 3px rgba(232,200,96,.95),0 0 26px 8px rgba(232,200,96,.85);}
-  60%{box-shadow:0 0 0 3px rgba(232,200,96,.5),0 0 18px 5px rgba(232,200,96,.4);}
-  100%{box-shadow:0 0 0 0 rgba(232,200,96,0),0 0 0 0 rgba(232,200,96,0);}
-}
 .chal{margin:8px 12px 0;padding:9px 13px;background:var(--parch2);border:1px solid var(--bdg);border-radius:3px;flex-shrink:0;}
 .chal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
 .chal-lbl{font-size:12px;color:#7a5010;letter-spacing:.09em;font-family:'Cinzel',Georgia,serif;}

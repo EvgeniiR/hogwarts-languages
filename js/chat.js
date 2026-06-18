@@ -7,7 +7,7 @@ import { SVG } from './portraits.js';
 import { callLLM } from './llm.js';
 import { repairJSON } from './llm.js';
 import { awardPoints, updPtsUI, updStreakUI, checkAchievements, checkLevelUp, pushLevelOutcome } from './progress.js';
-import { playRecv, playSend, playVocab, playSpell } from './audio.js';
+import { playRecv, playSend, playVocab } from './audio.js';
 import { speak } from './tts.js';
 import { esc, mdInline, showToast, friendlyError, extractJSON } from './helpers.js';
 import { renderChallengeUI, genDailyChallenges } from './challenges.js';
@@ -69,10 +69,6 @@ function createMsgEl(m,i,charKey){
     const safe=(m.display||'').replace(/"/g,'&quot;');
     const retry=m.error?`<div style="margin-top:6px;"><button class="retry-btn" onclick="retryLastMsg()">Reintentar →</button></div>`:'';
     div.innerHTML=`<div class="mav" style="border-color:${ch.ac};">${SVG[charKey]}</div><div class="bbl" id="b${i}">${mdInline(esc(m.display))}<button class="spk-btn" data-txt="${safe}" onclick="speakFromBtn(this)" aria-label="Escuchar"><i class="ti ti-volume" aria-hidden="true"></i></button>${note}${retry}</div>`;
-    if(m.hasSpell){
-      m.hasSpell=false;
-      setTimeout(()=>{const b=document.getElementById('b'+i);if(b){b.classList.add('spell-flash');playSpell();}},120);
-    }
   }
   return div;
 }
@@ -151,7 +147,7 @@ async function safeParse(raw){
     try{return extractJSON(repaired);}catch(e2){}
     // Step 2: if no braces, find the key:value block and wrap it
     if (!repaired.includes('{')) {
-      const knownKeys = ['"reply"','"note"','"vocab"','"mistakes"','"spells"','"options"','"points"','"mood"','"challengeDone"'];
+      const knownKeys = ['"reply"','"note"','"vocab"','"mistakes"','"options"','"points"','"mood"','"challengeDone"'];
       let firstAt = Infinity;
       for (const k of knownKeys) {
         const rx = new RegExp('(?:^|\\n)\\s*' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ':', 'm');
@@ -171,7 +167,7 @@ async function safeParse(raw){
       const fixed = await repairJSON(raw);
       if(fixed)return extractJSON(fixed);
     }catch(e4){}
-    return{reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],spells:[],points:0,mood:2,options:[]};
+    return{reply:raw.replace(/\{.*\}/s,'').trim()||raw,note:'',vocab:[],mistakes:[],options:[],points:0,mood:2};
   }
 }
 
@@ -220,8 +216,7 @@ export async function genStarter(k){
     const raw=await callLLM(getSys(k),[{role:'user',content:`${framing} ${seed}.`}],400,'low');
     if(S.hist[k].length===0){
       const p=await safeParse(raw);
-      const hasSpell=p.spells&&p.spells.length>0;
-      S.hist[k].push({role:'assistant',content:p.reply,display:p.reply,note:p.note,hasSpell});
+      S.hist[k].push({role:'assistant',content:p.reply,display:p.reply,note:p.note});
       if(p.vocab&&p.vocab.length)p.vocab.forEach(v=>{if(!vocabExists(v.word))S.vocab.push({...v,ts:Date.now()});});
       if(p.note)S.grammar.push({ch:k,text:p.note,ts:Date.now()});
       if(typeof p.mood==='number')updMood(k,p.mood);
@@ -248,10 +243,9 @@ export async function sendMsg(){
     let msgs=hist.slice(-25).map(m=>({role:m.role,content:m.content}));
     msgs=msgs.filter((m,i)=>i===msgs.length-1||m.role!==msgs[i+1].role);
     const firstUser=msgs.findIndex(m=>m.role==='user');if(firstUser>0)msgs=msgs.slice(firstUser);
-    const raw=await callLLM(getSys(R.cur),msgs,1500,effort);
+    const raw=await callLLM(getSys(R.cur),msgs,2500,effort);
     const p=await safeParse(raw);suggestions=sanitizeOptions(p.options);
-    const hasSpell=p.spells&&p.spells.length>0;
-    S.hist[R.cur].push({role:'assistant',content:p.reply,display:p.reply,note:p.note,hasSpell});
+    S.hist[R.cur].push({role:'assistant',content:p.reply,display:p.reply,note:p.note});
     S.totalMsgs++;
     flyOwl();
     const today=new Date().toISOString().slice(0,10);
@@ -274,7 +268,7 @@ export async function sendMsg(){
     checkAchievements();
     playRecv();if(!S.ttsOff)setTimeout(()=>speak(p.reply),350);
     S.currentHints[R.cur]=suggestions;saveS();
-  }catch(e){const msg=friendlyError(e);S.hist[R.cur].push({role:'assistant',content:msg,display:msg,note:'',hasSpell:false,error:true});}
+  }catch(e){const msg=friendlyError(e);S.hist[R.cur].push({role:'assistant',content:msg,display:msg,note:'',error:true});}
   rmTyping();R.loading=false;document.getElementById('sendB').disabled=false;appendMsg(S.hist[R.cur].at(-1));renderHints(suggestions);document.getElementById('ui').focus();
 }
 

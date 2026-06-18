@@ -177,7 +177,7 @@ export async function repairJSON(raw){
 }
 
 async function _tryRepairProviders(raw, entry){
-  const msg = `Convierte este texto en un objeto JSON válido con los campos reply, note, vocab, mistakes, spells, options, points, mood, challengeDone. Responde SOLO con el JSON, sin explicaciones ni backticks:\n\n${raw.slice(0,2000)}`;
+  const msg = `Convierte este texto en un objeto JSON válido con los campos reply, note, vocab, mistakes, options, points, mood, challengeDone. Responde SOLO con el JSON, sin explicaciones ni backticks:\n\n${raw.slice(0,2000)}`;
   // Determine which providers to try based on user preference
   const useGroq = S.repairProvider !== '';  // '' = "use main provider only"
   const mainProvider = R.provider;
