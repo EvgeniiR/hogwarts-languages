@@ -25,10 +25,10 @@ Rules:
 - Mix scenarios: asking for help, persuading, recounting, apologising, describing, making plans
 - Use authentic Harry Potter lore
 - Challenges should feel like mini-quests, not classroom exercises
-- Output ONLY a clean JSON array — no markdown, no explanation`;
+- Output ONLY a clean JSON array — no text before or after, no markdown, no explanation`;
 
-const CHALLENGE_USER = `Today is {{DATE}}. Generate exactly 4 challenges for a {{LEVEL}} learner. Output ONLY this JSON array:
-[{"character":"hagrid","challenge":"Cuéntale a Hagrid cuál es tu criatura mágica favorita y por qué la encuentras fascinante.","focus":"el verbo 'gustar/encantar' y adjetivos básicos","exampleOpener":"Hagrid, me encantan los hipogrifos porque son muy valientes."},{"character":"snape","challenge":"Convence al Profesor Snape de que tu Poción Multijugos salió mal por culpa de los ingredientes, no por un error tuyo.","focus":"dar excusas y disculpas formales (condicional / imperfecto de subjuntivo)","exampleOpener":"Profesor, quisiera explicarle que los ingredientes estaban en mal estado."}]
+const CHALLENGE_USER = `Today is {{DATE}}. Generate exactly 4 challenges for a {{LEVEL}} learner. Output ONLY this JSON object:
+{"challenges":[{"character":"hagrid","challenge":"Cuéntale a Hagrid cuál es tu criatura mágica favorita y por qué la encuentras fascinante.","focus":"el verbo 'gustar/encantar' y adjetivos básicos","exampleOpener":"Hagrid, me encantan los hipogrifos porque son muy valientes."},{"character":"snape","challenge":"Convence al Profesor Snape de que tu Poción Multijugos salió mal por culpa de los ingredientes, no por un error tuyo.","focus":"dar excusas y disculpas formales (condicional / imperfecto de subjuntivo)","exampleOpener":"Profesor, quisiera explicarle que los ingredientes estaban en mal estado."}]}
 Make today's challenges fresh and different from a typical day.`;
 
 export function renderChallengeUI(k){
@@ -81,7 +81,8 @@ export async function genDailyChallenges(){
   chalEl.innerHTML='<span class="mem-loading">Generando desafíos de hoy</span>';
   try{
     const raw=await callLLM(CHALLENGE_SYS,[{role:'user',content:CHALLENGE_USER.replace(/\{\{LEVEL\}\}/g,LEVELS[S.level]).replace(/\{\{DATE\}\}/g,today)}],800,'low');
-    const arr=extractJSON(raw);
+    const parsed=extractJSON(raw);
+    const arr=parsed.challenges||parsed;
     if(Array.isArray(arr)&&arr.length>=4){
       const map={};
       arr.forEach(c=>{if(c.character&&c.challenge&&c.exampleOpener)map[c.character]={challenge:c.challenge,focus:c.focus||'',exampleOpener:c.exampleOpener};});

@@ -105,6 +105,7 @@
     <div class="sp-pvd-row" style="display:flex;gap:8px;justify-content:center;margin-bottom:10px;flex-wrap:wrap;">
       <button onclick="setProvider('groq')" id="pvd_groq" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">Groq ✦ Gratis</button>
       <button onclick="setProvider('openai')" id="pvd_openai" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">OpenAI ★ Recomendado</button>
+      <button onclick="setProvider('deepseek')" id="pvd_deepseek" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">DeepSeek ◆ Competitivo</button>
       <button onclick="setProvider('anthropic')" id="pvd_anthropic" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">Anthropic</button>
       <button onclick="setProvider('gemini')" id="pvd_gemini" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">Google Gemini ✦ Gratis</button>
     </div>
@@ -117,6 +118,11 @@
       <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">★ Recomendado · Mejor relación calidad/precio. GPT-4.1 Mini es rápido y preciso. · <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--gold);">conseguir clave →</a></div>
       <div id="openaiKeySaved" style="display:none;margin-bottom:6px;"><span style="color:#2a8018;font-size:11px;">✓ Clave guardada</span><button onclick="splashEditKey('openai')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:8px;">Cambiar</button><button onclick="splashDeleteKey('openai')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:4px;">Eliminar</button></div>
       <input type="password" id="openaiKeyInput" placeholder="sk-proj-..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;width:260px;font-family:monospace;">
+    </div>
+    <div id="keyInputDeepseek" style="display:none;">
+      <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">◆ Excelente relación calidad/precio. API OpenAI-compatible, JSON fiable. · <a href="https://platform.deepseek.com/api_keys" target="_blank" style="color:var(--gold);">conseguir clave →</a></div>
+      <div id="deepseekKeySaved" style="display:none;margin-bottom:6px;"><span style="color:#2a8018;font-size:11px;">✓ Clave guardada</span><button onclick="splashEditKey('deepseek')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:8px;">Cambiar</button><button onclick="splashDeleteKey('deepseek')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:4px;">Eliminar</button></div>
+      <input type="password" id="deepseekKeyInput" placeholder="sk-..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;width:260px;font-family:monospace;">
     </div>
     <div id="keyInputAnthropic" style="display:none;">
       <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">La mejor calidad, pero más caro. Probablemente no vale la pena para práctica diaria. · <a href="https://console.anthropic.com/keys" target="_blank" style="color:var(--gold);">conseguir clave →</a></div>
@@ -156,16 +162,16 @@
 
   <div class="ctabs">
     <div class="ctab active" data-ch="hermione" onclick="selChar(this)">
-      <div class="cport" id="p_hermione"></div><i class="ti ti-arrow-back-up ct-reset" onclick="event.stopPropagation();resetConversation()" title="reiniciar charla"></i><span class="cname">Hermione</span><div class="mdot" id="m_hermione"></div>
+      <div class="cport" id="p_hermione"></div><span class="cname">Hermione</span><div class="mdot" id="m_hermione"></div>
     </div>
     <div class="ctab" data-ch="dumbledore" onclick="selChar(this)">
-      <div class="cport" id="p_dumbledore"></div><i class="ti ti-arrow-back-up ct-reset" onclick="event.stopPropagation();resetConversation()" title="reiniciar charla"></i><span class="cname">Dumbledore</span><div class="mdot" id="m_dumbledore"></div>
+      <div class="cport" id="p_dumbledore"></div><span class="cname">Dumbledore</span><div class="mdot" id="m_dumbledore"></div>
     </div>
     <div class="ctab" data-ch="hagrid" onclick="selChar(this)">
-      <div class="cport" id="p_hagrid"></div><i class="ti ti-arrow-back-up ct-reset" onclick="event.stopPropagation();resetConversation()" title="reiniciar charla"></i><span class="cname">Hagrid</span><div class="mdot" id="m_hagrid"></div>
+      <div class="cport" id="p_hagrid"></div><span class="cname">Hagrid</span><div class="mdot" id="m_hagrid"></div>
     </div>
     <div class="ctab" data-ch="snape" onclick="selChar(this)">
-      <div class="cport" id="p_snape"></div><i class="ti ti-arrow-back-up ct-reset" onclick="event.stopPropagation();resetConversation()" title="reiniciar charla"></i><span class="cname">Snape</span><div class="mdot" id="m_snape"></div>
+      <div class="cport" id="p_snape"></div><span class="cname">Snape</span><div class="mdot" id="m_snape"></div>
     </div>
   </div>
 

@@ -90,11 +90,12 @@ export function renderMsgs(){
   const msgs=S.hist[R.cur];const c=document.getElementById('msgs');
   const ch=chars[R.cur];
   if(!msgs.length){
-    c.innerHTML=`<div class="empty-ch"><div style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid var(--dim);">${SVG[R.cur]}</div><div style="color:var(--gold);font-style:italic;">${ch.name}</div><div>Di "Hola" para empezar</div></div>`;
+    c.innerHTML=`<div class="empty-ch"><div style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid var(--dim);">${SVG[R.cur]}</div><div style="color:var(--gold);font-style:italic;">${ch.name}</div><div>Di "Hola" para empezar</div><i class="ti ti-arrow-back-up" onclick="resetConversation()" title="reiniciar charla" style="margin-top:8px;cursor:pointer;color:var(--mt);font-size:13px;opacity:.55;transition:opacity .2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.45'"></i></div>`;
     return;
   }
   c.innerHTML='';
   msgs.forEach((m,i)=>c.appendChild(createMsgEl(m,i,R.cur)));
+  c.insertAdjacentHTML('afterbegin',`<div style="position:sticky;top:0;z-index:2;text-align:right;margin-bottom:-18px;"><i class="ti ti-arrow-back-up" onclick="resetConversation()" title="reiniciar charla con ${esc(chars[R.cur].name)}" style="cursor:pointer;color:var(--mt);font-size:13px;opacity:.55;transition:opacity .2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.55'"></i></div>`);
   c.scrollTop=c.scrollHeight;
 }
 
@@ -128,7 +129,22 @@ function sanitizeOptions(o){
 }
 
 async function safeParse(raw){
-  try{return extractJSON(raw);}
+  try{
+    const parsed=extractJSON(raw);
+    // model "thought out loud" before outputting JSON — prefer the pre-JSON prose if it's substantially richer
+    const s=raw.replace(/```json|```/g,'').trim();
+    let jsonStart=s.indexOf('{');
+    const arrStart=s.indexOf('[');
+    if(arrStart!==-1&&(jsonStart===-1||arrStart<jsonStart))jsonStart=arrStart;
+    if(jsonStart>0&&typeof parsed.reply==='string'){
+      let preText=s.slice(0,jsonStart).trim();
+      if(preText.startsWith('"'))preText=preText.slice(1);
+      if(preText.endsWith('"'))preText=preText.slice(0,-1);
+      preText=preText.trim();
+      if(preText.length>parsed.reply.length*2)parsed.reply=preText;
+    }
+    return parsed;
+  }
   catch(e){
     // Step 1: quote bare keys at line-start (note: → "note":)
     let repaired = raw.replace(/(^|[\n\r])\s*([a-zA-Z_]\w*)\s*:/gm, '$1"$2":');
@@ -232,7 +248,7 @@ export async function sendMsg(){
     let msgs=hist.slice(-25).map(m=>({role:m.role,content:m.content}));
     msgs=msgs.filter((m,i)=>i===msgs.length-1||m.role!==msgs[i+1].role);
     const firstUser=msgs.findIndex(m=>m.role==='user');if(firstUser>0)msgs=msgs.slice(firstUser);
-    const raw=await callLLM(getSys(R.cur),msgs,1000,effort);
+    const raw=await callLLM(getSys(R.cur),msgs,1500,effort);
     const p=await safeParse(raw);suggestions=sanitizeOptions(p.options);
     const hasSpell=p.spells&&p.spells.length>0;
     S.hist[R.cur].push({role:'assistant',content:p.reply,display:p.reply,note:p.note,hasSpell});

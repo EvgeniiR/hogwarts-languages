@@ -39,6 +39,7 @@ export async function callLLM(systemPrompt, messages, maxTokens, effort){
     if(R.provider==='gemini')return callGemini(systemPrompt,messages,maxTokens);
     if(R.provider==='groq')return callGroq(systemPrompt,messages,maxTokens);
     if(R.provider==='openai')return callOpenAI(systemPrompt,messages,maxTokens);
+    if(R.provider==='deepseek')return callDeepseek(systemPrompt,messages,maxTokens);
     return callAnthropic(systemPrompt,messages,maxTokens,effort);
   };
   const delays=[1000,2000];
@@ -46,9 +47,9 @@ export async function callLLM(systemPrompt, messages, maxTokens, effort){
   for(let attempt=0;;attempt++){
     attempts=attempt+1;
     try{
-      const raw=await fn();
-      entry.status='ok';entry.responseRaw=raw;entry.latencyMs=Date.now()-entry.ts;entry.attempts=attempts;
-      return raw;
+      const result=await fn();
+      entry.status='ok';entry.responseRaw=result.text;entry.tokensIn=result.usage.in;entry.tokensOut=result.usage.out;entry.latencyMs=Date.now()-entry.ts;entry.attempts=attempts;
+      return result.text;
     }
     catch(e){
       if(attempt>=delays.length||!isRetryable(e)){
@@ -79,7 +80,7 @@ async function callAnthropic(systemPrompt, messages, maxTokens, effort){
   const res=await fetchWithTimeout('https://api.anthropic.com/v1/messages',{method:'POST',headers,body:JSON.stringify(body)});
   const data=await res.json();
   throwIfBad(res,data);
-  return data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+  return {text:data.content.filter(b=>b.type==='text').map(b=>b.text).join(''),usage:{in:data.usage?.input_tokens||0,out:data.usage?.output_tokens||0}};
 }
 
 async function callGeminiModel(systemPrompt, messages, maxTokens, model){
@@ -94,7 +95,7 @@ async function callGeminiModel(systemPrompt, messages, maxTokens, model){
   });
   const data=await res.json();
   throwIfBad(res,data);
-  return data.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||'';
+  return {text:data.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||'',usage:{in:data.usageMetadata?.promptTokenCount||0,out:data.usageMetadata?.candidatesTokenCount||0}};
 }
 let geminiFlashDownUntil=0, geminiFlashFailCount=0;
 async function callGemini(systemPrompt, messages, maxTokens){
@@ -123,11 +124,11 @@ async function callGroq(systemPrompt, messages, maxTokens){
   const res=await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':`Bearer ${R.keys.groq}`},
-    body:JSON.stringify({model:S.modelPrefs.groq||'llama-3.3-70b-versatile',messages:msgs,max_tokens:maxTokens,temperature:0.9})
+    body:JSON.stringify({model:S.modelPrefs.groq||'llama-3.3-70b-versatile',messages:msgs,max_tokens:maxTokens,temperature:0.9,response_format:{type:'json_object'}})
   });
   const data=await res.json();
   throwIfBad(res,data);
-  return data.choices?.[0]?.message?.content||'';
+  return {text:data.choices?.[0]?.message?.content||'',usage:{in:data.usage?.prompt_tokens||0,out:data.usage?.completion_tokens||0}};
 }
 
 async function callOpenAI(systemPrompt, messages, maxTokens){
@@ -141,7 +142,21 @@ async function callOpenAI(systemPrompt, messages, maxTokens){
   });
   const data=await res.json();
   throwIfBad(res,data);
-  return data.choices?.[0]?.message?.content||'';
+  return {text:data.choices?.[0]?.message?.content||'',usage:{in:data.usage?.prompt_tokens||0,out:data.usage?.completion_tokens||0}};
+}
+
+async function callDeepseek(systemPrompt, messages, maxTokens){
+  const msgs=[];
+  if(systemPrompt)msgs.push({role:'system',content:systemPrompt});
+  msgs.push(...messages);
+  const res=await fetchWithTimeout('https://api.deepseek.com/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${R.keys.deepseek}`},
+    body:JSON.stringify({model:S.modelPrefs.deepseek||'deepseek-v4-flash',messages:msgs,max_tokens:maxTokens,temperature:0.9,thinking:{type:'disabled'},response_format:{type:'json_object'}})
+  });
+  const data=await res.json();
+  throwIfBad(res,data);
+  return {text:data.choices?.[0]?.message?.content||'',usage:{in:data.usage?.prompt_tokens||0,out:data.usage?.completion_tokens||0}};
 }
 
 // One-shot JSON repair — fires on safeParse failure. Tries Groq first,
@@ -184,12 +199,14 @@ async function _tryRepairProviders(raw, entry){
 }
 
 async function _repairWith(provider, msg){
-  if (provider === 'groq' || provider === 'openai'){
-    const endpoint = provider === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' : 'https://api.openai.com/v1/chat/completions';
-    const model = provider === 'groq' ? 'llama-3.1-8b-instant' : (S.modelPrefs.openai||'gpt-4.1-mini');
+  if (provider === 'groq' || provider === 'openai' || provider === 'deepseek'){
+    const endpoint = provider === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' : provider === 'deepseek' ? 'https://api.deepseek.com/chat/completions' : 'https://api.openai.com/v1/chat/completions';
+    const model = provider === 'groq' ? 'llama-3.1-8b-instant' : provider === 'deepseek' ? 'deepseek-v4-flash' : (S.modelPrefs.openai||'gpt-4.1-mini');
+    const body={model, max_tokens:300, temperature:0, messages:[{role:'user',content:msg}]};
+    if(provider==='deepseek')body.thinking={type:'disabled'};
     const res = await fetchWithTimeout(endpoint,{
       method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${R.keys[provider]}`},
-      body:JSON.stringify({model, messages:[{role:'user',content:msg}], max_tokens:300, temperature:0})
+      body:JSON.stringify(body)
     });
     const data = await res.json();
     return data.choices?.[0]?.message?.content||'';

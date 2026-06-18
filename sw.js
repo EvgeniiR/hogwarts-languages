@@ -1,4 +1,4 @@
-const CACHE = 'hogwarts-es-v2';
+const CACHE = 'hogwarts-es-v3';
 const STATIC = [
   '/hogwarts-espanol.html',
   '/css/styles.css',
@@ -48,10 +48,19 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  // Let API calls passthrough — only cache local static assets.
   const url = new URL(e.request.url);
   if (url.hostname !== self.location.hostname) return;
+  // Stale-while-revalidate: serve cached instantly, fetch network in
+  // background to update cache for the next page load. Offline falls back.
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    caches.open(CACHE).then(cache =>
+      cache.match(e.request).then(cached => {
+        const network = fetch(e.request).then(res => {
+          if (res.ok) cache.put(e.request, res.clone());
+          return res;
+        }).catch(() => cached);
+        return cached || network;
+      })
+    )
   );
 });

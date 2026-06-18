@@ -5,7 +5,7 @@ import { R } from './state.js';
 import { kvGet, kvSet } from './storage.js';
 import { updProviderBadge } from './chat.js';
 
-export const KEY_INPUT_ID={anthropic:'apiKeyInput',gemini:'geminiKeyInput',groq:'groqKeyInput',openai:'openaiKeyInput'};
+export const KEY_INPUT_ID={anthropic:'apiKeyInput',gemini:'geminiKeyInput',groq:'groqKeyInput',openai:'openaiKeyInput',deepseek:'deepseekKeyInput'};
 
 async function loadCreds(){
   try{const str=await kvGet('hp_creds');if(str)return JSON.parse(str);}catch(e){}
@@ -58,7 +58,7 @@ export function savedKeyIndicator(p){
 
 export function setProvider(p){
   R.provider=p;
-  ['groq','openai','anthropic','gemini'].forEach(k=>{
+  ['groq','openai','anthropic','gemini','deepseek'].forEach(k=>{
     const btn=document.getElementById('pvd_'+k);
     if(btn){
       btn.style.background=p===k?'var(--bg3)':'var(--bg2)';
@@ -71,6 +71,10 @@ export function setProvider(p){
   const rk=document.getElementById('rememberKey');
   if(rk)rk.checked=!!(R.cachedCreds&&R.cachedCreds[p]);
   updProviderBadge();
+  setTimeout(()=>{
+    const el=document.getElementById(KEY_INPUT_ID[p]);
+    if(el&&el.style.display!=='none')el.focus();
+  },50);
 }
 
 // Show the input field for editing a saved key.

@@ -6,7 +6,7 @@ let convHistory = [];
 let currentMistake = null;
 
 const SYS = `You are a Spanish language tutor. The learner made a mistake in Spanish. Write the explanation IN SPANISH.
-Respond ONLY with a JSON object:
+CRITICAL: Respond ONLY with a JSON object — no text before or after, no markdown, no backticks.
 {"explanation":"...","suggestions":["...","...","..."]}
 - explanation: 2-4 short paragraphs in Spanish, **bold** key grammar terms, include example sentences.
 - suggestions: 3 concise follow-up questions in Spanish the learner might ask.`;

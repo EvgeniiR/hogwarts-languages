@@ -275,11 +275,12 @@ async function llmVocab(count, fresh = false) {
   const exclude = recentVocab.size ? `\nNO uses ninguna de estas palabras: ${[...recentVocab].join(', ')}` : '';
   const prompt = `Genera${fresh?' exactamente':''} ${count} pares de vocabulario español-inglés nivel A2/B1.
 Palabras útiles y naturales — temas cotidianos o del mundo de Harry Potter.
-Output ONLY un JSON array: [{"word":"tranquilo","def":"calm"},{"word":"escoba","def":"broom"}]
+Output ONLY un JSON object: {"pairs":[{"word":"tranquilo","def":"calm"},{"word":"escoba","def":"broom"}]}
 Sin markdown, sin explicación.${exclude}`;
   try {
     const raw = await callLLM(`Eres un profesor de español generando pares de vocabulario para un juego de memoria de nivel ${LEVELS[S.level]}.`, [{ role: 'user', content: prompt }], fresh ? 800 : 600, 'low');
-    const arr = extractJSON(raw);
+    const parsed = extractJSON(raw);
+    const arr = parsed.pairs || parsed;
     if (!Array.isArray(arr)) return null;
     const valid = arr.filter(v => v.word && v.def);
     if (fresh) {

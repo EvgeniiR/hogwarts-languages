@@ -51,6 +51,9 @@ export function renderSettings(){
       const models=[['','GPT-4.1 Mini (buena calidad)'],['gpt-4.1','GPT-4.1 (mejor calidad, más lento)']];
       el.innerHTML=`<div class="svc-row"><div class="svc-lbl">Modelo de OpenAI</div>
         <select onchange="setModelPref('openai',this.value)">${models.map(([v,l])=>`<option value="${v}" ${S.modelPrefs.openai===v?'selected':''}>${esc(l)}</option>`).join('')}</select></div>`;
+    }else if(R.provider==='deepseek'){
+      el.innerHTML=`<div class="svc-row"><div class="svc-lbl">Modelo de DeepSeek</div>
+        <div style="font-size:12px;color:var(--ink);">DeepSeek V4 Flash</div></div>`;
     }
     const repairOpts=[['groq','Groq (gratis, rápido)'],['','Proveedor principal']];
     el.innerHTML+=`<div class="svc-row" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--bdg);"><div class="svc-lbl">Reparar JSON (si falla el parseo)</div>
@@ -67,26 +70,28 @@ function renderLogTab(el){
     el.innerHTML='<div class="edim">No hay consultas registradas en esta sesión. El log se borra al recargar la página.</div>';
     return;
   }
-  const pvdNames={groq:'Groq',openai:'OpenAI',anthropic:'Anthropic',gemini:'Gemini'};
+  const pvdNames={groq:'Groq',openai:'OpenAI',anthropic:'Anthropic',gemini:'Gemini',deepseek:'DeepSeek'};
   const rows=log.map((e,i)=>{
     const time=new Date(e.ts).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
     const statusIcon=e.status==='ok'?'<span style="color:#4aa020;">✓</span>':'<span style="color:#d04040;">✗</span>';
     const latency=e.latencyMs?`${e.latencyMs}ms`:'';
+    const tokens=(e.tokensIn||e.tokensOut)?`<span class="log-tokens">${e.tokensIn||0}/${e.tokensOut||0}</span>`:'';
     const detail=[];
     detail.push(`[SYS] ${e.systemPrompt}`);
     e.messages.forEach(m=>detail.push(`[${m.role.toUpperCase()}] ${m.content}`));
     if(e.responseRaw)detail.push(`[RESP] ${e.responseRaw}`);
     if(e.error)detail.push(`[ERROR] ${e.error}`);
     const detailEsc=esc(detail.join('\n\n'));
-    return `<div class="log-entry" onclick="this.classList.toggle('open')">
-      <div class="log-summary">
+    return `<div class="log-entry">
+      <div class="log-summary" onclick="this.parentElement.classList.toggle('open')">
         <span class="log-time">${time}</span>
         <span class="log-pvd ${e.provider}">${pvdNames[e.provider]||e.provider}</span>
         ${e.effort?`<span class="log-effort">${e.effort}</span>`:''}
         <span class="log-status">${statusIcon}${e.attempts>1?` ×${e.attempts}`:''}</span>
         <span class="log-latency">${latency}</span>
+        ${tokens}
       </div>
-      <div class="log-detail">${detailEsc}</div>
+      <div class="log-detail" onclick="event.stopPropagation()">${detailEsc}</div>
     </div>`;
   }).join('');
   el.innerHTML=`
@@ -140,6 +145,8 @@ export async function validateProviderKey(provider,key){
       res=await fetch('https://generativelanguage.googleapis.com/v1beta/models',{headers:{'x-goog-api-key':key}});
     }else if(provider==='openai'){
       res=await fetch('https://api.openai.com/v1/models',{headers:{'Authorization':`Bearer ${key}`}});
+    }else if(provider==='deepseek'){
+      res=await fetch('https://api.deepseek.com/v1/models',{headers:{'Authorization':`Bearer ${key}`}});
     }else{
       res=await fetch('https://api.anthropic.com/v1/models',{headers:{'x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}});
     }

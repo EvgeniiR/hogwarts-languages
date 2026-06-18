@@ -10,6 +10,7 @@ Built for a specific user (~A2/B1 Spanish, ~1.5 years Duolingo). Deployed on Clo
 
 ## Coding principles
 
+- **Ask, don't assume.** Before implementing a decision about defaults, labels, ordering, or user-facing choices, ask the user for their preference. Don't assume you know what they want.
 - **Fix the rule, not the instance.** Prefer systemic fixes (CSS rules, shared helpers, selector tightening) over point fixes (inline styles, one-off copy-paste, workarounds on single elements). If a bug can recur elsewhere, solve it at the source.
 - Run `bash scripts/check.sh` after every batch of JS changes.
 

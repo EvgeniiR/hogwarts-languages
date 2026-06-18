@@ -63,7 +63,7 @@ export async function checkTranslation(btn){
   btn.textContent='⏳ Comprobando…';
   let verdict;
   try{
-    const raw=await callLLM(null,[{role:'user',content:`Evalúa esta traducción inglés→español:
+    const raw=await callLLM('Evalúa traducciones inglés→español. Responde SOLO con JSON.',[{role:'user',content:`Evalúa esta traducción inglés→español:
 
 Frase en inglés: "${round.phrase}"
 El estudiante tradujo: "${input}"

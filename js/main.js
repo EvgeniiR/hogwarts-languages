@@ -42,12 +42,14 @@ async function enterApp(skipValidation=false){
   if(R.provider==='anthropic')R.keys.anthropic=keyVal;
   else if(R.provider==='gemini')R.keys.gemini=keyVal;
   else if(R.provider==='openai')R.keys.openai=keyVal;
+  else if(R.provider==='deepseek')R.keys.deepseek=keyVal;
   else R.keys.groq=keyVal;
   // Restore all other providers' saved keys so settings tab stays correct.
   if(R.cachedCreds.anthropic&&!R.keys.anthropic)R.keys.anthropic=R.cachedCreds.anthropic;
   if(R.cachedCreds.gemini&&!R.keys.gemini)R.keys.gemini=R.cachedCreds.gemini;
   if(R.cachedCreds.groq&&!R.keys.groq)R.keys.groq=R.cachedCreds.groq;
   if(R.cachedCreds.openai&&!R.keys.openai)R.keys.openai=R.cachedCreds.openai;
+  if(R.cachedCreds.deepseek&&!R.keys.deepseek)R.keys.deepseek=R.cachedCreds.deepseek;
   const remember=document.getElementById('rememberKey').checked;
   if(remember&&keyVal)await saveCreds(R.provider,keyVal);
   else if(!remember)await clearCreds(R.provider);
@@ -96,6 +98,10 @@ function showSplashAuth(){
   });
   setProvider(R.provider);
   document.getElementById('rememberKey').checked=!!(R.cachedCreds&&R.cachedCreds[R.provider]);
+  setTimeout(()=>{
+    const el=document.getElementById(KEY_INPUT_ID[R.provider]);
+    if(el&&el.style.display!=='none')el.focus();
+  },50);
 }
 
 function hideSplashAuth(){
@@ -146,6 +152,10 @@ if('speechSynthesis' in window)window.speechSynthesis.onvoiceschanged=()=>{
 onSaveError(()=>showToast('⚠ Error al guardar tu progreso (almacenamiento lleno)','#740001','#f5e5c0'));
 
 const hasAutologin=await prefillCreds();
+setTimeout(()=>{
+  const el=document.getElementById(KEY_INPUT_ID[R.provider]);
+  if(el&&el.style.display!=='none')el.focus();
+},50);
 if(hasAutologin){
   document.querySelector('.sp-key').style.display='none';
   const btn=document.getElementById('splashBtn');
@@ -171,6 +181,16 @@ document.addEventListener('keydown',e=>{
       }
     }
     return;
+  }
+  if(e.key==='Enter'&&!e.shiftKey){
+    const splash=document.getElementById('splash');
+    if(splash&&splash.offsetParent!==null){
+      const active=document.activeElement;
+      if(!active||active.tagName==='BODY'||active.closest('.sp-key')||active.id==='splashBtn'){
+        e.preventDefault();
+        document.getElementById('splashBtn').click();
+      }
+    }
   }
   if(e.key!=='Escape')return;
   const pairs=[['settingsOv',closeSettings],['achievementsOv',closeAchievements],['gamesOv',closeGames],['errExplainOv',closeErrExplain],['fcOv',closeFc]];

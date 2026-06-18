@@ -16,7 +16,7 @@ export let S = {
   moods:{hermione:2,dumbledore:2,hagrid:2,snape:2},
   hist:{hermione:[],dumbledore:[],hagrid:[],snape:[]},
   challenges:{},challengeDone:{},challengesCompleted:0,
-  voicePrefs:{f:'',m:''},modelPrefs:{anthropic:'',gemini:'',groq:'',openai:''},
+  voicePrefs:{f:'',m:''},modelPrefs:{anthropic:'',gemini:'',groq:'',openai:'',deepseek:''},
   achievements:{streak:0,msgs:0,vocab:0,challenges:0,pts:0},
   levelWindow:[],gameDifficulty:'medium',musicOff:false,ttsOff:false,
   repairProvider:'groq',
@@ -27,8 +27,8 @@ export let S = {
 
 export const R = {
   cur:'hermione',
-  provider:'groq',            // 'anthropic' | 'gemini' | 'groq' | 'openai'
-  keys:{anthropic:'',gemini:'',groq:'',openai:''},
+  provider:'groq',            // 'anthropic' | 'gemini' | 'groq' | 'openai' | 'deepseek'
+  keys:{anthropic:'',gemini:'',groq:'',openai:'',deepseek:''},
   cachedCreds:{},
   llmLog:[]                   // session-only LLM query log (cleared on reload)
 };

@@ -22,20 +22,22 @@ const CONVO_RULE=`CONVERSACIÓN: sé proactivo/a y dirige la conversación. Prop
 
 const OPTIONS_RULE=`OPCIONES: el array "options" contiene exactamente 3 frases literales (5–15 palabras) que el ESTUDIANTE podría decirte a continuación, en primera persona y español sencillo. REQUISITO: cada opción debe incluir un detalle concreto sacado de tu respuesta (un hechizo, libro, criatura, lugar, personaje o idea específica que hayas mencionado). NUNCA uses frases genéricas o comodín como "Preguntar algo", "Proponer otra idea", "Buscar otra cosa". Las 3 opciones deben SER DIFERENTES ENTRE SÍ: una debe ser hacer una pregunta de seguimiento sobre un detalle que mencionaste, otra debe ser aceptar o desarrollar tu propuesta, y la tercera debe ser CAMBIAR DE TEMA hacia otra actividad, lugar o idea del mundo mágico (ej: ir a otro sitio, buscar otro libro, preguntar sobre otra criatura).`;
 
-const VARIETY_RULE=`VARIEDAD: no repitas frases, aperturas ni estructuras que ya hayas usado en esta conversación; cambia el vocabulario, los ejemplos y la forma de tus preguntas en cada respuesta.`;
+const VARIETY_RULE=`VARIEDAD: no repitas frases, aperturas ni estructuras que ya hayas usado en esta conversación. Revisa tus mensajes anteriores y asegúrate de no repetir vocabulario, ejemplos ni la forma de tus preguntas en cada respuesta.`;
 
 // Provider-aware assembly. persona/shape come from chars[k]; only the surrounding
 // framing/verbosity varies by R.provider (the "tune all three separately" decision).
+// Every branch now leads with a CRITICAL JSON-only guard before the persona so the
+// model never starts roleplaying before absorbing the output-format constraint.
 function buildSys(persona,shape){
   if(R.provider==='groq'){
     // Llama 3.3 follows short, rule-style, directive prompts best.
-    return `IMPORTANTE: Responde SOLO con el objeto JSON de abajo. Reemplaza cada [PLACEHOLDER] con tu contenido real. Sin texto adicional, sin markdown, sin backticks.\n${persona}\nReglas:\n- ${SPELL_RULE}\n- ${SCORING_RULE}\n- ${CONVO_RULE}\n- ${VARIETY_RULE}\n- ${OPTIONS_RULE}\n${shape}`;
+    return `CRITICAL: Responde EXCLUSIVAMENTE con el JSON de abajo. Todo tu contenido conversacional debe ir DENTRO del campo "reply". Prohibido escribir cualquier texto antes o después del JSON. Sin markdown ni backticks.\n${persona}\nReglas:\n- ${SPELL_RULE}\n- ${SCORING_RULE}\n- ${CONVO_RULE}\n- ${VARIETY_RULE}\n- ${OPTIONS_RULE}\n${shape}`;
   }
   if(R.provider==='gemini'){
-    return `IMPORTANTE: Responde ÚNICAMENTE con un objeto JSON válido. Reemplaza cada [PLACEHOLDER] con tu contenido real. El campo "reply" contiene tu respuesta conversacional completa. No escribas NADA fuera del JSON — ni una palabra antes ni después. Sin backticks.\n\n${persona}\n${CONVO_RULE}\n${SPELL_RULE}\n${SCORING_RULE}\n${VARIETY_RULE}\n${OPTIONS_RULE}\n${shape}`;
+    return `CRITICAL: Responde EXCLUSIVAMENTE con el JSON de abajo. El campo "reply" debe contener tu respuesta conversacional COMPLETA — toda la conversación, incluyendo la pregunta final, va DENTRO de "reply". Prohibido escribir cualquier texto antes o después del JSON. Sin markdown ni backticks.\n\n${persona}\n${CONVO_RULE}\n${SPELL_RULE}\n${SCORING_RULE}\n${VARIETY_RULE}\n${OPTIONS_RULE}\n${shape}`;
   }
   // anthropic / openai (default branch): richest persona, most nuance.
-  return `${persona}\n\nMantente siempre en personaje, con un español natural, vivo y expresivo.\n${CONVO_RULE}\n${SPELL_RULE}\n${SCORING_RULE}\n${VARIETY_RULE}\n${OPTIONS_RULE}\nReemplaza cada [PLACEHOLDER] con tu contenido real. Responde solo con este JSON, sin texto extra ni backticks:\n${shape}`;
+  return `CRITICAL: Responde EXCLUSIVAMENTE con el JSON de abajo. Todo tu contenido conversacional debe ir DENTRO del campo "reply". Prohibido escribir cualquier texto antes o después del JSON. Sin markdown ni backticks.\n\n${persona}\n\nMantente siempre en personaje, con un español natural, vivo y expresivo.\n${CONVO_RULE}\n${SPELL_RULE}\n${SCORING_RULE}\n${VARIETY_RULE}\n${OPTIONS_RULE}\n\nReemplaza cada [PLACEHOLDER] con tu contenido real:\n${shape}`;
 }
 
 export const chars = {
