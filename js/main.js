@@ -11,7 +11,7 @@ import { tryPlayNow, stopMusic, tryAudio, syncAudioBtn, toggleAudio, skipSong } 
 import { speak, speakFromBtn, setVoicePref, testVoice } from './tts.js';
 import { processDateChanges, updPtsUI, updStreakUI, awardPoints, pushLevelOutcome } from './progress.js';
 import { genDailyChallenges } from './challenges.js';
-import { sendMsg, selChar, selCharByName, updHeaderAll, showHints, useHint, renderMsgs, genStarter, retryLastMsg } from './chat.js';
+import { sendMsg, selChar, selCharByName, updHeaderAll, showHints, useHint, renderMsgs, genStarter, retryLastMsg, resetConversation } from './chat.js';
 import { renderSide, setSTab, navWeek, toggleVAdd, submitVAdd, editVocab, cancelEditVocab, saveEditVocab, deleteVocab, editMistake, cancelEditMistake, saveEditMistake, deleteMistake, openFc, closeFc, flipFc, navFc, toggleFcReverse, handleSelUp, hideSelBtn, addSelectionToVocab, startSrsReview, srsReveal, srsAnswer, closeSrsReview } from './sidepanel.js';
 import { openGames, closeGames, setGameTab, setGameDifficulty, genDictation, genTranslation, hintDictation, checkDictation, skipDictation, hintTranslation, checkTranslation, skipTranslation, genOrderGame, checkOrder, hintOrder, skipOrder, genMemory, skipMemory, flipMemCard, cleanupMemory, setRandomMode, renderMemoryLobby } from './games.js';
 import { openSettings, closeSettings, setSettingsTab, renderSettings, setModelPref, setRepairProvider, setTtsOff, openAchievements, closeAchievements, renderAchievements, validateProviderKey, clearLog } from './settings.js';
@@ -57,7 +57,7 @@ async function enterApp(skipValidation=false){
   syncAudioBtn();
   document.getElementById('splash').style.display='none';
   document.getElementById('mainApp').style.display='flex';
-  buildPortraits();updHeaderAll();selCharByName('hermione');
+  buildPortraits();updHeaderAll();selCharByName(S.lastChar||'hermione');
   // Prefetch starters for all 4 characters in parallel at init.
   // genStarter guards against re-fetching if history exists or already loading.
   // Only R.cur (hermione) shows typing dots; others load silently in background.
@@ -214,7 +214,7 @@ Object.assign(window,{
   // Character tabs
   selChar, selCharByName,
   // Chat input
-  sendMsg, showHints, useHint, retryLastMsg,
+  sendMsg, showHints, useHint, retryLastMsg, resetConversation,
   // Side panel tabs
   setSTab, navWeek,
   // Vocab add form

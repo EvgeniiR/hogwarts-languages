@@ -20,6 +20,7 @@ export let S = {
   achievements:{streak:0,msgs:0,vocab:0,challenges:0,pts:0},
   levelWindow:[],gameDifficulty:'medium',musicOff:false,ttsOff:false,
   repairProvider:'groq',
+  lastChar:'hermione',
   currentHints:{},
   version:2
 };
@@ -80,6 +81,7 @@ export async function loadS(){
       if(d.musicOff!==undefined)S.musicOff=d.musicOff;
       if(d.ttsOff!==undefined)S.ttsOff=d.ttsOff;
       if(d.repairProvider!==undefined)S.repairProvider=d.repairProvider;
+      if(d.lastChar)S.lastChar=d.lastChar;
       // Persistent challenge counter (BUGFIX): the old metric counted
       // S.challengeDone, which is pruned to 14 days, so the achievement bar
       // slid backward over time. Seed the new counter from the best evidence

@@ -163,6 +163,7 @@ async function safeParse(raw){
 export function selChar(tab){
   document.querySelectorAll('.ctab').forEach(t=>{t.classList.remove('active');t.style.borderBottomColor='transparent';});
   tab.classList.add('active');R.cur=tab.dataset.ch;
+  S.lastChar=R.cur;saveS();
   const ch=chars[R.cur];tab.style.borderBottomColor=ch.ac;
   const b=document.getElementById('hbadge');b.textContent=ch.house;b.style.background=ch.bbg;b.style.color=ch.btxt;b.style.borderColor=ch.bbd;
   document.getElementById('mainApp').style.setProperty('--char-ac',ch.ac);
@@ -171,6 +172,12 @@ export function selChar(tab){
   genDailyChallenges();
 }
 export function selCharByName(n){const t=document.querySelector(`[data-ch="${n}"]`);if(t)selChar(t);}
+
+export function resetConversation(){
+  S.hist[R.cur]=[];S.currentHints[R.cur]=undefined;
+  renderMsgs();renderHints([]);
+  saveS();genStarter(R.cur);
+}
 
 // ── Conversation starters ────────────────────────────────────────────────────
 const starterLoading=new Set();
