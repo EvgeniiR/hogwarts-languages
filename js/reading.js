@@ -515,7 +515,7 @@ export async function submitRecap() {
 
   try {
     const sys = 'Eres un profesor de español. Evalúas la comprensión lectora de un estudiante basándote en su resumen. Sé justo pero exigente. Responde SOLO con JSON.';
-    const user = `Artículo:\n${article.text.substring(0, 4000)}\n\nResumen del estudiante:\n${text}\n\nEvalúa el resumen. Responde SOLO con JSON: {"score":0.85,"feedback":"breve comentario en español (2-3 frases)","missedKeyPoints":["punto clave no mencionado"]}`;
+    const user = `Artículo:\n${article.text.substring(0, 4000)}\n\nResumen del estudiante:\n${text}\n\nIgnora tildes, acentos o "n" en lugar de "ñ" — escribir sin ellos no es un error. Evalúa el resumen. Responde SOLO con JSON: {"score":0.85,"feedback":"breve comentario en español (2-3 frases)","missedKeyPoints":["punto clave no mencionado"]}`;
     const raw = await callLLM(sys, [{ role: 'user', content: user }], 1000, { temperature: 0.2 });
     if (reqId !== readingReqId) return;
     const parsed = extractJSON(raw);
