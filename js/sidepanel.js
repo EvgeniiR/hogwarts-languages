@@ -100,7 +100,7 @@ export function srsAnswer(known) {
   if (srsReviewIdx >= srsReviewCards.length) { srsReviewing = false; saveS(); renderSide(); return; }
   renderSide();
 }
-export function closeSrsReview() { srsReviewing = false; renderSide(); }
+export function closeSrsReview() { srsReviewing = false; saveS(); renderSide(); }
 
 // ── Week navigation ────────────────────────────────────────────────────────────
 let viewWeek=weekStart(Date.now());

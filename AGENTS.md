@@ -26,7 +26,7 @@ Built for a specific user (~A2/B1 Spanish, ~1.5 years Duolingo). Deployed on Clo
 
 ```
 hogwarts-espanol.html   ← HTML shell only. No JS, no CSS.
-css/styles.css          ← All styles (~362 lines, static)
+css/styles.css          ← All styles (~430 lines, static)
 js/                     ← ES modules (26 files)
 audio/                  ← Ambient MP3s + manifest.json
 index.html              ← Redirects to hogwarts-espanol.html
@@ -138,7 +138,7 @@ S = {
   challengesCompleted: number,  // PERSISTENT lifetime counter (not pruned)
   voicePrefs: {f:'', m:''},
   modelPrefs: {groq:'', openai:'', deepseek:''},
-  achievements: {streak:0, msgs:0, vocab:0, challenges:0, pts:0},
+  achievements: {streak:0, msgs:0, vocab:0, challenges:0, pts:0, reading:0},
   levelWindow: bool[],       // last 30 correct/incorrect outcomes
   gameDifficulty: 'easy'|'medium'|'hard',
   readingDifficulty: 'easy'|'medium'|'hard',  // persisted reading difficulty, defaults to medium
@@ -166,7 +166,7 @@ R = {
   provider: 'groq',            // 'groq' | 'openai' | 'deepseek'
   keys: {groq:'', openai:'', deepseek:''},  // in-memory API keys
   cachedCreds: {},             // saved creds from hp_creds storage
-  loading: false,              // true while an LLM call is in flight
+  loading: false,              // true while an LLM call is in flight (set dynamically by sendMsg, not init in state.js)
   llmLog: []                   // session-only query log (capped 50, cleared on reload)
 }
 ```
@@ -222,7 +222,7 @@ All three providers use `fetchWithTimeout` (30s) defined in `llm.js`. `AbortErro
 
 ## Settings / overlays
 
-The app has **five separate overlays**, each with its own `<div class="settings-ov">` in the HTML:
+The app has **six separate overlays**, each with its own `<div class="settings-ov">` in the HTML:
 
 - **`settingsOv`** — 3-tab settings card + auth button + model comparison:
   - **🔊 Voz** — TTS voice picker; male/female; test button
@@ -279,7 +279,6 @@ Four games, each in its own file. All share engine state from `game-core.js`:
 - **`S.musicOff` not restored on reload** — `if(d.field)` silently skips `false`. Boolean state must use `if(d.field!==undefined)S.field=d.field`. Fixed in `state.js` `loadS()`.
 - **Challenge-achievement counter decaying** — `achievementMetrics().challenges` was counting `S.challengeDone` (pruned to 14 days), making the progress bar slide back. Fixed with persistent `S.challengesCompleted` counter in `state.js`/`chat.js`.
 - **Case-sensitive vocab dedup** — `sendMsg` used `===` while `addVocabWord` used `toLowerCase`. Unified in `vocabExists()` in `sidepanel.js`, imported by `chat.js`.
-- **Anthropic `thinking` param wrong shape** — `{type:'enabled',effort}` returns 400 on Opus 4.8. Correct: use `output_config:{effort}` at request top level.
 - **`extractJSON` array branch dead** — object branch (`{`) ran first for array-of-objects responses (daily challenges), slicing from `{` to `}` and dropping the `[]` wrapper. Fixed: check which delimiter appears first; array wins if `[` comes before `{`. Also strips trailing commas before parsing.
 - **No fetch timeout** — hung TCP connection kept `R.loading=true` forever, locking the send button. Fixed: `fetchWithTimeout` (30s `AbortController`) in `llm.js`; `AbortError` is non-retryable.
 - **Autologin audio** — music starts on the first user interaction (any click or keypress) via a persistent global listener. `tryPlayNow()` attaches the listener; `_ensurePlayback()` resumes the `AudioContext` and plays if not muted.

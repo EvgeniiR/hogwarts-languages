@@ -40,7 +40,7 @@ export function renderChallengeUI(k){
   if(lbl)lbl.textContent=done?'✅ Desafío completado':'⭐ Desafío del día';
 }
 
-export function updateChalTxt(k){
+function updateChalTxt(k){
   const today=new Date().toISOString().slice(0,10);
   const c=S.challenges[today]?.[k];
   const chalEl=document.getElementById('chalTxt');
@@ -103,4 +103,4 @@ export async function genDailyChallenges(){
   updateChalTxt(R.cur);renderChallengeUI(R.cur);
 }
 
-export function retryChallenges(){genDailyChallenges();}
+function retryChallenges(){genDailyChallenges();}

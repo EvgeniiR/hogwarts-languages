@@ -26,7 +26,6 @@ export function pickReviewItem(predicate){
   return pool.length?pool[Math.floor(Math.random()*pool.length)]:null;
 }
 
-export const TIER_COLORS={correct:'#5ab030',minor:'#c08020',incorrect:'#d04040'};
 
 export function diffSelectorHtml(){
   return `<div class="vadd-row" style="margin-bottom:10px;">${Object.keys(GAME_DIFF).map(k=>

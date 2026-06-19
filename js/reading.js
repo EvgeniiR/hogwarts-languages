@@ -56,6 +56,7 @@ const DIFF_MULT = { easy:1, medium:1.5, hard:2 };
 export function setReadingDiff(diff) {
   S.readingDifficulty = diff;
   document.querySelectorAll('.reading-diff-btn').forEach(b => b.classList.toggle('active', b.dataset.diff === diff));
+  saveS();
 }
 
 // ── overlay open/close ──────────────────────────────────────────────────────
@@ -573,8 +574,6 @@ export function readingListen(btn) {
 }
 
 export function returnToLobby() {
-
-// ── back to lobby (original) ─────────────────────────────────────────────────
   readingSession.view = 'lobby'; readingSession.source = null; readingSession.articleId = null; readingSession.quizIdx = 0; readingSession.quizScore = 0; readingSession.mode = null;
   renderReadingLobby();
 }

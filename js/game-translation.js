@@ -51,7 +51,7 @@ export function hintTranslation(){
   document.getElementById('translResult').innerHTML=hint?`<div class="edim">💡 ${hint}</div>`:'<div class="edim">Sin pista disponible para esta frase.</div>';
 }
 
-export function skipTranslation(){game.combo=0;awardPoints(-1);genTranslation();}
+export function skipTranslation(){game.combo=0;awardPoints(-1);saveS();genTranslation();}
 
 export async function checkTranslation(btn){
   if(round.checked)return;

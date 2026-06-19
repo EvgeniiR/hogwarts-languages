@@ -61,7 +61,7 @@ export function updStreakUI(){
 }
 
 // ── Date changes: daily streak + weekly points reset ────────────────────────
-export function getISOWeek(d){
+function getISOWeek(d){
   const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
   const day=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-day);
   const yr=t.getUTCFullYear();

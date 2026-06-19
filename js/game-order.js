@@ -109,8 +109,9 @@ export function hintOrder(){
   if(nextIdx>=correct.length)return;
   const nextWord=correct[nextIdx];
   const chip=[...scEl.querySelectorAll('.word-chip')].find(el=>el.dataset.word===nextWord);
+  if(!chip)return;
   if(chip){chip.classList.add('hint-glow');setTimeout(()=>chip.classList.remove('hint-glow'),2000);}
-  awardPoints(-1);
+  awardPoints(-1);saveS();
   document.getElementById('orderResult').innerHTML=`<div class="game-hint-msg">💡 Pista usada. Busca la palabra "${esc(nextWord)}"</div>`;
 }
 
@@ -144,4 +145,4 @@ export function checkOrder(){
   document.getElementById('orderResult').innerHTML=`<div class="order-result"><div class="tier-${tier}">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div><div class="restored-sentence">${esc(restored)}</div>${userLine}</div><button class="game-next" onclick="genOrderGame()">Siguiente →</button>`;
 }
 
-export function skipOrder(){destroySortable();game.combo=0;awardPoints(-1);genOrderGame();}
+export function skipOrder(){destroySortable();game.combo=0;awardPoints(-1);saveS();genOrderGame();}

@@ -31,6 +31,7 @@ export const R = {
   provider:'groq',            // 'groq' | 'openai' | 'deepseek'
   keys:{groq:'',openai:'',deepseek:''},
   cachedCreds:{},
+  loading:false,
   llmLog:[]                   // session-only LLM query log (cleared on reload)
 };
 

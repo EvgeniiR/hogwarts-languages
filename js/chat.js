@@ -96,7 +96,7 @@ export function renderMsgs(){
 }
 
 // ── Hints ─────────────────────────────────────────────────────────────────────
-export function showHints(){renderHints(chars[R.cur].hints);}
+export function showHints(){renderHints((S.currentHints[R.cur]&&S.currentHints[R.cur].length)?S.currentHints[R.cur]:chars[R.cur].hints);}
 export function retryLastMsg(){
   const hist=S.hist[R.cur];
   if(!hist.length||!hist.at(-1).error)return;
@@ -268,7 +268,7 @@ export async function sendMsg(){
   playRecv();if(!S.ttsOff)setTimeout(()=>speak(p.reply),350);
   S.currentHints[R.cur]=suggestions;saveS();
   if(leveledUp)saveS();
-  }catch(e){const msg=friendlyError(e);S.hist[R.cur].push({role:'assistant',content:msg,display:msg,note:'',error:true});}
+  }catch(e){const msg=friendlyError(e);S.hist[R.cur].push({role:'assistant',content:msg,display:msg,note:'',error:true});saveS();}
   rmTyping();R.loading=false;document.getElementById('sendB').disabled=false;appendMsg(S.hist[R.cur].at(-1));renderHints(suggestions);document.getElementById('ui').focus();
 }
 

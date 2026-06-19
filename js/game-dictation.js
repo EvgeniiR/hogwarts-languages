@@ -48,7 +48,7 @@ export function renderDictationRound(){
 
 export function hintDictation(){document.getElementById('dictResult').innerHTML=`<div class="edim">💡 ${wordMaskHint(round.sentence)}</div>`;}
 
-export function skipDictation(){game.combo=0;awardPoints(-1);genDictation();}
+export function skipDictation(){game.combo=0;awardPoints(-1);saveS();genDictation();}
 
 export function checkDictation(){
   if(round.checked)return;

@@ -1,6 +1,9 @@
 # IDE
 .idea/
 
+# Claude
+.claude/
+
 # Cloudflare Wrangler
 .wrangler/
 
