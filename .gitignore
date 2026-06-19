@@ -6,3 +6,6 @@
 
 # Audio assets (large binaries, served externally)
 audio/*.mp3
+
+# opencode (tool-generated files)
+.opencode/

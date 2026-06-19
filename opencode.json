@@ -1,0 +1,82 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "deepseek/deepseek-v4-pro",
+  "small_model": "deepseek/deepseek-v4-flash",
+  "instructions": ["AGENTS.md"],
+  "agent": {
+    "plan": {
+      "model": "deepseek/deepseek-v4-pro",
+      "description": "Plans implementation strategy before any code is written. Breaks tasks into steps, identifies affected files, and determines the right approach using AGENTS.md context."
+    },
+    "build": {
+      "model": "deepseek/deepseek-v4-pro",
+      "description": "Primary build agent. Orchestrates the plan→coder→reviewer cycle for all code changes."
+    },
+    "clarify": {
+      "mode": "subagent",
+      "model": "deepseek/deepseek-v4-pro",
+      "description": "Interviews a feature request to produce a detailed requirements specification. Identifies ambiguities, missing details, edge cases, and generates clarifying questions. Use ONLY as Phase 0 before any design or coding begins.",
+      "prompt": "{file:./opencode-agents/clarify.md}",
+      "permission": {
+        "edit": "deny",
+        "bash": "deny",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "webfetch": "allow"
+      }
+    },
+    "designer": {
+      "mode": "subagent",
+      "model": "deepseek/deepseek-v4-pro",
+      "description": "Takes an approved requirements spec and produces a concrete design document with file-by-file changes, edit order, and risk assessment. Use ONLY after @clarify has produced a finalized spec.",
+      "prompt": "{file:./opencode-agents/designer.md}",
+      "permission": {
+        "edit": "deny",
+        "bash": "deny",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow"
+      }
+    },
+    "design-reviewer": {
+      "mode": "subagent",
+      "model": "deepseek/deepseek-v4-flash",
+      "description": "Reviews a design document from @designer. Checks for missed edge cases, codebase violations, state/persistence issues, and module dependency problems. Produces a verdict: approved, needs revision, or needs user input.",
+      "prompt": "{file:./opencode-agents/design-reviewer.md}",
+      "permission": {
+        "edit": "deny",
+        "bash": "allow",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow"
+      }
+    },
+    "coder": {
+      "mode": "subagent",
+      "model": "deepseek/deepseek-v4-flash",
+      "description": "Writes code following the plan. Uses Edit tool for targeted changes, never rewrites entire files. Runs check.sh after each batch of JS changes.",
+      "prompt": "{file:./opencode-agents/coder.md}",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow"
+      }
+    },
+    "reviewer": {
+      "mode": "subagent",
+      "model": "deepseek/deepseek-v4-flash",
+      "description": "Checks git diffs and runs verification after code changes. Reports every issue found and auto-fixes simple problems (syntax errors, import issues, lint violations).",
+      "prompt": "{file:./opencode-agents/reviewer.md}",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow"
+      }
+    }
+  }
+}
