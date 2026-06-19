@@ -13,12 +13,35 @@ import { processDateChanges, updPtsUI, updStreakUI, awardPoints, pushLevelOutcom
 import { genDailyChallenges } from './challenges.js';
 import { sendMsg, selChar, selCharByName, updHeaderAll, showHints, useHint, renderMsgs, genStarter, retryLastMsg, resetConversation } from './chat.js';
 import { renderSide, setSTab, navWeek, toggleVAdd, submitVAdd, editVocab, cancelEditVocab, saveEditVocab, deleteVocab, editMistake, cancelEditMistake, saveEditMistake, deleteMistake, openFc, closeFc, flipFc, navFc, toggleFcReverse, handleSelUp, hideSelBtn, addSelectionToVocab, startSrsReview, srsReveal, srsAnswer, closeSrsReview } from './sidepanel.js';
-import { openGames, closeGames, setGameTab, setGameDifficulty, genDictation, genTranslation, hintDictation, checkDictation, skipDictation, hintTranslation, checkTranslation, skipTranslation, genOrderGame, checkOrder, hintOrder, skipOrder, genMemory, skipMemory, flipMemCard, cleanupMemory, setRandomMode, renderMemoryLobby } from './games.js';
 import { openSettings, closeSettings, setSettingsTab, renderSettings, setModelPref, setTtsOff, openAchievements, closeAchievements, renderAchievements, validateProviderKey, clearLog } from './settings.js';
 import { openErrExplain, closeErrExplain, askErrFollowUp, clickErrSuggestion } from './error-explain.js';
 import { compareModels } from './model-compare.js';
-import { openReading, closeReading, selectReadingSource, selectArticle, startQuiz, startRecap, answerQuiz, submitRecap, returnToLobby, setReadingDiff, refreshSource, readingListen } from './reading.js';
 import { showToast, aResize } from './helpers.js';
+
+// ── Lazy-load overlays — deferred to remove ~65KB from startup critical path ───
+let _readingM, _readingLoad, _gamesM, _gamesLoad;
+async function _loadReading() {
+  if (_readingLoad) return _readingLoad;
+  if (_readingM) return;
+  _readingLoad = import('./reading.js').then(m => {
+    _readingM = m;
+    const fns = ['openReading','closeReading','selectReadingSource','selectArticle','startQuiz','startRecap','answerQuiz','submitRecap','returnToLobby','setReadingDiff','refreshSource','readingListen'];
+    fns.forEach(k => { window[k] = m[k]; });
+    _readingLoad = null;
+  });
+  return _readingLoad;
+}
+async function _loadGames() {
+  if (_gamesLoad) return _gamesLoad;
+  if (_gamesM) return;
+  _gamesLoad = import('./games.js').then(m => {
+    _gamesM = m;
+    const fns = ['openGames','closeGames','setGameTab','setGameDifficulty','genDictation','genTranslation','hintDictation','checkDictation','skipDictation','hintTranslation','checkTranslation','skipTranslation','genOrderGame','checkOrder','hintOrder','skipOrder','genMemory','skipMemory','flipMemCard','cleanupMemory','setRandomMode','renderMemoryLobby'];
+    fns.forEach(k => { window[k] = m[k]; });
+    _gamesLoad = null;
+  });
+  return _gamesLoad;
+}
 
 // Portrait injection
 export function buildPortraits(){Object.keys(SVG).forEach(k=>{const el=document.getElementById('p_'+k);if(el)el.innerHTML=SVG[k];});}
@@ -159,6 +182,8 @@ if(hasAutologin){
   const btn=document.getElementById('splashBtn');
   btn.textContent='Continuar →';
   btn.onclick=()=>enterApp(true);
+} else {
+  document.querySelector('.sp-key').style.display='';
 }
 
 document.addEventListener('mouseup',handleSelUp);
@@ -258,13 +283,29 @@ Object.assign(window,{
   splashEditKey, splashDeleteKey, showSplashAuth, hideSplashAuth, saveSplashAuth,
   // Error explain overlay
   openErrExplain, closeErrExplain, askErrFollowUp, clickErrSuggestion,
-  // Games overlay
-  openGames, closeGames, setGameTab, setGameDifficulty,
-  genDictation, genTranslation,
-  hintDictation, checkDictation, skipDictation,
-  hintTranslation, checkTranslation, skipTranslation,
-  genOrderGame, checkOrder, hintOrder, skipOrder,
-  genMemory, skipMemory, flipMemCard, cleanupMemory, setRandomMode, renderMemoryLobby,
+  // Games overlay (lazy)
+  openGames() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.openGames()); },
+  closeGames() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.closeGames()); },
+  setGameTab(t) { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.setGameTab(t)); },
+  setGameDifficulty(d) { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.setGameDifficulty(d)); },
+  genDictation() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.genDictation()); },
+  genTranslation() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.genTranslation()); },
+  hintDictation() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.hintDictation()); },
+  checkDictation() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.checkDictation()); },
+  skipDictation() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.skipDictation()); },
+  hintTranslation() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.hintTranslation()); },
+  checkTranslation() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.checkTranslation()); },
+  skipTranslation() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.skipTranslation()); },
+  genOrderGame() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.genOrderGame()); },
+  checkOrder() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.checkOrder()); },
+  hintOrder() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.hintOrder()); },
+  skipOrder() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.skipOrder()); },
+  genMemory() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.genMemory()); },
+  skipMemory() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.skipMemory()); },
+  flipMemCard(i) { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.flipMemCard(i)); },
+  cleanupMemory() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.cleanupMemory()); },
+  setRandomMode(v) { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.setRandomMode(v)); },
+  renderMemoryLobby() { (_gamesM ? Promise.resolve() : _loadGames()).then(() => _gamesM.renderMemoryLobby()); },
   // TTS
   speak, speakFromBtn,
   // Side panel (mobile)
@@ -274,8 +315,17 @@ Object.assign(window,{
   // Textarea keyboard handler
   hKey: (e)=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}},
   aResize,
-  // Reading comprehension (El Profeta)
-  openReading, closeReading, selectReadingSource, selectArticle,
-  startQuiz, startRecap, answerQuiz, submitRecap, returnToLobby,
-  setReadingDiff, refreshSource, readingListen,
+  // Reading comprehension (lazy)
+  openReading() { (_readingM ? Promise.resolve() : _loadReading()).then(() => _readingM.openReading()); },
+  closeReading() { (_readingM ? Promise.resolve() : _loadReading()).then(() => _readingM.closeReading()); },
+  selectReadingSource(s) { (_readingM ? Promise.resolve() : _loadReading()).then(() => _readingM.selectReadingSource(s)); },
+  selectArticle(id) { (_readingM ? Promise.resolve() : _loadReading()).then(() => _readingM.selectArticle(id)); },
+  startQuiz() { (_readingM ? Promise.resolve() : _loadReading()).then(() => _readingM.startQuiz()); },
+  startRecap() { (_readingM ? Promise.resolve() : _loadReading()).then(() => _readingM.startRecap()); },
+  answerQuiz(i) { (_readingM ? Promise.resolve() : _loadReading()).then(() => _readingM.answerQuiz(i)); },
+  submitRecap() { (_readingM ? Promise.resolve() : _loadReading()).then(() => _readingM.submitRecap()); },
+  returnToLobby() { (_readingM ? Promise.resolve() : _loadReading()).then(() => _readingM.returnToLobby()); },
+  setReadingDiff(d) { (_readingM ? Promise.resolve() : _loadReading()).then(() => _readingM.setReadingDiff(d)); },
+  refreshSource(s) { (_readingM ? Promise.resolve() : _loadReading()).then(() => _readingM.refreshSource(s)); },
+  readingListen(btn) { (_readingM ? Promise.resolve() : _loadReading()).then(() => _readingM.readingListen(btn)); },
 });
