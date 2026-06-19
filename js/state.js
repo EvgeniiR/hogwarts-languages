@@ -17,8 +17,8 @@ export let S = {
   hist:{hermione:[],dumbledore:[],hagrid:[],snape:[]},
   challenges:{},challengeDone:{},challengesCompleted:0,
   voicePrefs:{f:'',m:''},modelPrefs:{groq:'',openai:'',deepseek:''},
-  achievements:{streak:0,msgs:0,vocab:0,challenges:0,pts:0},
-  levelWindow:[],gameDifficulty:'medium',musicOff:false,ttsOff:false,
+  achievements:{streak:0,msgs:0,vocab:0,challenges:0,pts:0,reading:0},
+  levelWindow:[],gameDifficulty:'medium',readingDifficulty:'medium',musicOff:false,ttsOff:false,
   repairProvider:'groq',
   lastChar:'hermione',
   currentHints:{},
@@ -79,6 +79,7 @@ export async function loadS(){
       if(d.achievements)S.achievements={streak:0,msgs:0,vocab:0,challenges:0,pts:0,...d.achievements};
       if(d.levelWindow)S.levelWindow=d.levelWindow;
       if(d.gameDifficulty)S.gameDifficulty=d.gameDifficulty;
+      if(d.readingDifficulty)S.readingDifficulty=d.readingDifficulty;
       if(d.musicOff!==undefined)S.musicOff=d.musicOff;
       if(d.ttsOff!==undefined)S.ttsOff=d.ttsOff;
       if(d.repairProvider!==undefined)S.repairProvider=d.repairProvider;

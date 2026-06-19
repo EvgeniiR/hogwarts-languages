@@ -122,7 +122,7 @@ Built for a specific user (~A2/B1 Spanish, ~1.5 years Duolingo). Deployed on Clo
 ```
 hogwarts-espanol.html   ← HTML shell only. No JS, no CSS.
 css/styles.css          ← All styles (~362 lines, static)
-js/                     ← ES modules (25 files)
+js/                     ← ES modules (26 files)
 audio/                  ← Ambient MP3s + manifest.json
 index.html              ← Redirects to hogwarts-espanol.html
 DEPLOY.md               ← Deploy instructions
@@ -164,6 +164,7 @@ When editing a feature, load **only this file** — not the whole project.
 | Spaced repetition (vocab SRS — Leitner levels 0-4) | `js/srs.js` |
 | Settings overlay: voice, model, llm log viewer, model comparison | `js/settings.js` |
 | Model comparison debug tool (compareModels) | `js/model-compare.js` |
+| Reading comprehension (El Profeta): RSS + LLM articles, quiz, recap | `js/reading.js` |
 | All CSS | `css/styles.css` |
 
 **Memory Match (game-memory.js) specifics:**
@@ -235,9 +236,13 @@ S = {
   achievements: {streak:0, msgs:0, vocab:0, challenges:0, pts:0},
   levelWindow: bool[],       // last 30 correct/incorrect outcomes
   gameDifficulty: 'easy'|'medium'|'hard',
+  readingDifficulty: 'easy'|'medium'|'hard',  // persisted reading difficulty, defaults to medium
   musicOff: false,           // persisted music on/off state
   ttsOff: false,             // persisted TTS mute state (use !==undefined check in loadS)
   currentHints: {hermione:[], dumbledore:[], hagrid:[], snape:[]},  // persisted reply-suggestion hints per character
+  readingArticles: [],          // pruned to last 10 on save; [{id,source,title,text,quiz,ts,completed,difficulty}]
+  readingCompleted: 0,          // lifetime count of completed articles
+  readingCompletedIds: {},      // article IDs that have been completed (prevents double points)
   repairProvider: 'groq',    // provider used for JSON repair (Groq always, or '' = main provider)
   lastChar: 'hermione',      // last active character, restored on reload
   version: 2                 // schema version stamp
@@ -323,6 +328,7 @@ The app has **five separate overlays**, each with its own `<div class="settings-
 - **Header provider badge** — `#pvdBadge` element updated by `updProviderBadge()` (exported from `chat.js`, called by `setProvider` in `credentials.js` and `updHeaderAll`)
 - **`achievementsOv`** — HP milestones (top) + stat achievement bars (bottom); opened via header trophy icon
 - **`gamesOv`** — 4-tab minigames card: Dictado / Traducción / Orden / Pensieve
+- **`readingOv`** — Reading comprehension: articles from 8 RSS feeds + 1 LLM-generated HP lore source, with 4-question quiz or written recap
 - **`errExplainOv`** — grammar mistake Q&A overlay; opened from side-panel mistake list
 - **`fcOv`** — flashcard overlay
 

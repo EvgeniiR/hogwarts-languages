@@ -19,58 +19,124 @@ const RSS_FEEDS = {
 };
 const RSS2JSON_URL = 'https://api.rss2json.com/v1/api.json';
 const SOURCE_ICONS = { noticias:'📰', ciencia:'🔬', arte:'🎨', naturaleza:'🦁', tecnologia:'💻', viajes:'✈️', sociedad:'🏛', diseno:'🎭', magico:'⚡' };
-const SOURCE_LABELS = { noticias:'20minutos · RSS', ciencia:'Hipertextual · RSS', arte:'ABC Cultura · RSS', naturaleza:'ABC Natural · RSS', tecnologia:'ABC Tecnología · RSS', viajes:'Descubrir.com · RSS', sociedad:'ElDiario.es · RSS', diseno:'Yorokobu · RSS', magico:'IA · Harry Potter' };
+const SOURCE_LABELS = { noticias:'20minutos · RSS', ciencia:'Hipertextual · RSS', arte:'ABC Cultura · RSS', naturaleza:'ABC Natural · RSS', tecnologia:'ABC Tecnología · RSS', viajes:'Descubrir.com · RSS', sociedad:'ElDiario.es · RSS', diseno:'Yorokobu · RSS', magico:'⚡ IA · Harry Potter' };
 const BTN_LABELS = { noticias:'Actualidad', ciencia:'Ciencia', arte:'Arte', naturaleza:'Naturaleza', tecnologia:'Tecnología', viajes:'Viajes', sociedad:'Sociedad', diseno:'Diseño', magico:'Mundo mágico' };
+
+function timeAgo(ts) {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'ahora';
+  if (mins < 60) return `hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `hace ${hrs} hora${hrs!==1?'s':''}`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `hace ${days} día${days!==1?'s':''}`;
+  return `hace ${Math.floor(days/30)} mes${Math.floor(days/30)!==1?'es':''}`;
+}
 
 let currentArticleId = null;
 let readingMode = null;   // 'quiz' | 'recap' | null
 let quizIdx = 0;
 let quizScore = 0;
 let quizAnswered = false;
+let quizPendingTimer = null;
+let quizKeyHandler = null;
+let quizAnswers = [];
 let readingReqId = 0;
-let readingDifficulty = 'medium';
 let sessionHeadlines = {};
+const readingSession = { view:'lobby', source:null, articleId:null, quizIdx:0, quizScore:0, mode:null };
 
 const DIFF_CONFIG = {
   easy:   { count:1, words:'250-350', vocab:'Vocabulario: sencillo y natural, frases cortas, presente e indefinido.', tokens:2000, quizInstr:'preguntas de comprensión literal, opciones con vocabulario básico', icon:'📗', label:'Fácil' },
   medium: { count:1, words:'500-600', vocab:'Vocabulario: intermedio y natural, subjuntivo ocasional, estructuras variadas.', tokens:3000, quizInstr:'preguntas de comprensión literal e inferencia simple, opciones con vocabulario intermedio', icon:'📙', label:'Medio' },
   hard:   { count:1, words:'750-850', vocab:'Vocabulario: rico y natural, con subjuntivo, condicional y modismos cuando resulten apropiados, evitando palabras innecesariamente rebuscadas.', tokens:4000, quizInstr:'preguntas de inferencia, tono del autor y matices, opciones con vocabulario avanzado', icon:'📕', label:'Difícil' }
 };
+const DIFF_MULT = { easy:1, medium:1.5, hard:2 };
 
 export function setReadingDiff(diff) {
-  readingDifficulty = diff;
+  S.readingDifficulty = diff;
   document.querySelectorAll('.reading-diff-btn').forEach(b => b.classList.toggle('active', b.dataset.diff === diff));
 }
 
 // ── overlay open/close ──────────────────────────────────────────────────────
 export function openReading() {
   document.getElementById('readingOv').style.display = 'flex';
-  renderReadingLobby();
+  if (!quizKeyHandler) {
+    quizKeyHandler = e => {
+      if (readingMode !== 'quiz' || quizAnswered) return;
+      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+      const num = parseInt(e.key);
+      if (num >= 1 && num <= 4) { e.preventDefault(); answerQuiz(num - 1); }
+    };
+    document.addEventListener('keydown', quizKeyHandler);
+  }
+  if (readingSession.view === 'lobby' || !readingSession.view) {
+    renderReadingLobby();
+  } else {
+    restoreSession();
+  }
+}
+
+function restoreSession() {
+  currentArticleId = readingSession.articleId;
+  readingMode = readingSession.mode;
+  quizIdx = readingSession.quizIdx;
+  quizScore = readingSession.quizScore;
+  if (readingSession.view === 'headlines' && readingSession.source) {
+    const cached = sessionHeadlines[readingSession.source];
+    if (cached && cached.length) {
+      renderHeadlines(cached, readingSession.source);
+    } else {
+      renderReadingLobby();
+    }
+    return;
+  }
+  const article = S.readingArticles.find(a => a.id === readingSession.articleId);
+  if (!article) { renderReadingLobby(); return; }
+  if (readingSession.view === 'article') {
+    renderArticleView(article);
+  } else if (readingSession.view === 'quiz') {
+    if (article.quiz && quizIdx < article.quiz.length) {
+      renderQuizQuestion(article);
+    } else {
+      renderArticleView(article);
+    }
+  } else if (readingSession.view === 'recap') {
+    startRecap();
+  } else {
+    renderReadingLobby();
+  }
 }
 
 export function closeReading() {
   window.speechSynthesis.cancel();
   document.getElementById('readingOv').style.display = 'none';
+  readingSession.view = readingMode === 'quiz' ? 'quiz' : readingMode === 'recap' ? 'recap' : currentArticleId ? 'article' : readingSession.source ? 'headlines' : 'lobby';
+  readingSession.articleId = currentArticleId;
+  readingSession.quizIdx = quizIdx;
+  readingSession.quizScore = quizScore;
+  readingSession.mode = readingMode;
 }
 
 // ── lobby ───────────────────────────────────────────────────────────────────
 export function renderReadingLobby() {
   currentArticleId = null;
   readingMode = null;
-  quizIdx = 0; quizScore = 0; quizAnswered = false;
+  quizIdx = 0; quizScore = 0; quizAnswered = false; quizAnswers = [];
+  if (quizPendingTimer) { clearTimeout(quizPendingTimer); quizPendingTimer = null; }
   const el = document.getElementById('readingCard');
-  const sources = ['noticias','ciencia','arte','naturaleza','viajes','tecnologia','sociedad','diseno','magico'];
+  const sources = ['magico','noticias','ciencia','arte','naturaleza','tecnologia','viajes','sociedad','diseno'];
   el.innerHTML = `<div class="reading-lobby">
     <div class="reading-lobby-title">📰 EL PROFETA</div>
     <div class="reading-lobby-sub">Lee artículos en español y demuestra tu comprensión</div>
     ${S.readingCompleted > 0 ? `<div style="font-size:11px;color:var(--gold);margin-bottom:6px;">📚 ${S.readingCompleted} artículo${S.readingCompleted!==1?'s':''} completado${S.readingCompleted!==1?'s':''}</div>` : ''}
     <div class="reading-diff-row">
-      <button class="reading-diff-btn ${readingDifficulty==='easy'?'active':''}" data-diff="easy" onclick="setReadingDiff('easy')">📗 Fácil</button>
-      <button class="reading-diff-btn ${readingDifficulty==='medium'?'active':''}" data-diff="medium" onclick="setReadingDiff('medium')">📙 Medio</button>
-      <button class="reading-diff-btn ${readingDifficulty==='hard'?'active':''}" data-diff="hard" onclick="setReadingDiff('hard')">📕 Difícil</button>
+      <button class="reading-diff-btn ${S.readingDifficulty==='easy'?'active':''}" data-diff="easy" onclick="setReadingDiff('easy')">📗 Fácil</button>
+      <button class="reading-diff-btn ${S.readingDifficulty==='medium'?'active':''}" data-diff="medium" onclick="setReadingDiff('medium')">📙 Medio</button>
+      <button class="reading-diff-btn ${S.readingDifficulty==='hard'?'active':''}" data-diff="hard" onclick="setReadingDiff('hard')">📕 Difícil</button>
     </div>
     <div class="reading-source-grid">
-      ${sources.map(s => `<button class="reading-source-btn" onclick="selectReadingSource('${s}')">
+      ${sources.map(s => `<button class="reading-source-btn${s==='magico'?' reading-source-btn--magic':''}" onclick="selectReadingSource('${s}')">
         <span class="src-icon">${SOURCE_ICONS[s]||''}</span>${BTN_LABELS[s]}<span class="src-label">${SOURCE_LABELS[s]}</span>
       </button>`).join('')}
     </div>
@@ -85,15 +151,16 @@ export async function selectReadingSource(source) {
   // Session cache — reuse already-fetched headlines
   if (sessionHeadlines[source] && sessionHeadlines[source].length) {
     // For LLM articles, invalidate cache if difficulty changed
-    if (source === 'magico' && sessionHeadlines._magicoDiff !== readingDifficulty) {
+    if (source === 'magico' && sessionHeadlines._magicoDiff !== S.readingDifficulty) {
       delete sessionHeadlines[source];
     } else {
+      readingSession.source = source;
       renderHeadlines(sessionHeadlines[source], source);
       return;
     }
   }
 
-  el.innerHTML = '<div class="mem-loading" style="text-align:center;padding:40px;">Cargando artículos…</div>';
+  el.innerHTML = '<div class="mem-loading" style="text-align:center;padding:40px;">Cargando artículos…</div><button class="reading-back-btn" onclick="returnToLobby()">← Cancelar</button>';
 
   try {
     let headlines;
@@ -107,14 +174,17 @@ export async function selectReadingSource(source) {
       el.innerHTML = `<div style="text-align:center;padding:30px;color:var(--ink);">
         <div style="font-size:14px;margin-bottom:8px;">No se pudieron cargar los artículos</div>
         <div style="font-size:11px;color:#7a5520;margin-bottom:12px;">El servicio no está disponible ahora. Intenta con otra fuente.</div>
-        <button class="reading-back-btn" onclick="returnToLobby()">← Volver al menú</button>
+        <div style="display:flex;gap:6px;justify-content:center;">
+          <button class="reading-back-btn" onclick="refreshSource('${source}')">🔄 Reintentar</button>
+          <button class="reading-back-btn" onclick="returnToLobby()">← Volver al menú</button>
+        </div>
       </div>`;
       return;
     }
     if (reqId !== readingReqId) return;
 
     sessionHeadlines[source] = headlines;
-    if (source === 'magico') sessionHeadlines._magicoDiff = readingDifficulty;
+    if (source === 'magico') sessionHeadlines._magicoDiff = S.readingDifficulty;
 
     S.readingArticles = S.readingArticles || [];
     headlines.forEach(h => {
@@ -125,6 +195,7 @@ export async function selectReadingSource(source) {
     S.readingArticles = S.readingArticles.slice(-10);
     saveS();
 
+    readingSession.source = source;
     renderHeadlines(headlines, source);
   } catch (e) {
     if (reqId !== readingReqId) return;
@@ -163,16 +234,16 @@ async function fetchRSSHeadlines(rssUrl, source, reqId) {
       quiz: null,
       ts: Date.now(),
       completed: false,
-      difficulty: readingDifficulty
+      difficulty: S.readingDifficulty
     };
   });
 }
 
 // ── LLM article generation ──────────────────────────────────────────────────
 async function generateLLMArticles() {
-  const dc = DIFF_CONFIG[readingDifficulty];
+  const dc = DIFF_CONFIG[S.readingDifficulty];
   const el = document.getElementById('readingCard');
-  el.innerHTML = '<div class="mem-loading" style="text-align:center;padding:40px;">Generando artículo…</div>';
+  el.innerHTML = '<div class="mem-loading" style="text-align:center;padding:40px;">Generando artículo…</div><button class="reading-back-btn" onclick="returnToLobby()">← Cancelar</button>';
 
   const sys = `Eres Rita Skeeter, reportera estrella del diario "El Profeta". Tu estilo: sensacionalista, vívido y adictivo. Escribes historias que atrapan, jamás entradas de enciclopedia. MUESTRAS escenas concretas, diálogos breves y detalles específicos; EVITAS afirmaciones generales o resúmenes abstractos. Exageras dramáticamente, pero NO inventas hechos que contradigan el canon de Harry Potter: si introduces rumores o especulación, los presentas claramente como tales. ${dc.vocab}. Registro: periodístico natural de revista dominical, con párrafos cortos (3-5 frases) para lectura fluida.
 REGLAS DEL CUESTIONARIO: 4 preguntas que evalúen comprensión de matices y detalles concretos, no lo obvio. Opciones incorrectas plausibles pero distinguibles para un lector atento. El campo "correct" es el índice entero basado en CERO (0, 1, 2 o 3) de la opción correcta.`;
@@ -189,7 +260,7 @@ REGLAS DEL CUESTIONARIO: 4 preguntas que evalúen comprensión de matices y deta
     quiz: a.quiz || null,
     ts: Date.now(),
     completed: false,
-    difficulty: readingDifficulty
+    difficulty: S.readingDifficulty
   }];
 }
 
@@ -201,7 +272,7 @@ function renderHeadlines(headlines, source) {
       const wc = h.text ? h.text.split(/\s+/).length : 0;
       return `<div class="reading-headline-item" onclick="selectArticle('${esc(h.id)}')">
         <span class="hl-icon">${SOURCE_ICONS[h.source]||''}</span>
-        <span>${esc(h.title)}<span style="font-size:10px;color:#7a5520;display:block;">~${wc} palabras</span></span>
+        <span>${esc(h.title)}<span style="font-size:10px;color:#7a5520;display:block;">~${wc} palabras · ${timeAgo(h.ts)}</span></span>
       </div>`;
     }).join('')}
   </div>
@@ -226,9 +297,9 @@ export async function selectArticle(articleId) {
 
 // ── quiz generation ─────────────────────────────────────────────────────────
 async function generateQuizForArticle(article) {
-  const dc = DIFF_CONFIG[article.difficulty || readingDifficulty];
+  const dc = DIFF_CONFIG[article.difficulty || S.readingDifficulty];
   const sys = `Eres un profesor de español. Generas preguntas de comprensión lectora. ${dc.quizInstr}.`;
-  const user = `Basado en este artículo en español, genera 4 preguntas de opción múltiple con 4 opciones cada una. La opción correcta debe estar claramente basada en el texto. Responde SOLO con JSON: {"quiz":[{"q":"pregunta","options":["A","B","C","D"],"correct":0}]}. Artículo:\n\n${article.text.substring(0, 2500)}`;
+  const user = `Basado en este artículo en español, genera 4 preguntas de opción múltiple con 4 opciones cada una. La opción correcta debe estar claramente basada en el texto. Responde SOLO con JSON: {"quiz":[{"q":"pregunta","options":["A","B","C","D"],"correct":0}]}. Artículo:\n\n${article.text.substring(0, 4000)}`;
   const raw = await callLLM(sys, [{ role: 'user', content: user }], 1500);
   const parsed = extractJSON(raw);
   if (parsed.quiz && parsed.quiz.length) {
@@ -243,7 +314,7 @@ function renderArticleView(article) {
   const escText = esc(article.text);
   const sourceLabel = SOURCE_LABELS[article.source] || article.source;
   // Escape text for data-txt attribute (no double quotes that break attribute)
-  const txtAttr = article.text.substring(0, 2000).replace(/"/g, '&quot;').replace(/\n/g, ' ');
+  const txtAttr = article.text.substring(0, 4000).replace(/"/g, '&quot;').replace(/\n/g, ' ');
   el.innerHTML = `<div class="reading-article-wrap">
     <div class="reading-article-title">${esc(article.title)}</div>
     <div class="reading-article-meta">
@@ -251,7 +322,7 @@ function renderArticleView(article) {
       ${isCompleted ? '<span style="color:#2a8018;">✓ Completado</span>' : '<span>Nuevo</span>'}
       ${article.ts ? '<span>'+new Date(article.ts).toLocaleDateString('es-ES')+'</span>' : ''}
       ${article.link && article.source!=='magico' ? `<a href="${esc(article.link)}" target="_blank" style="color:var(--gold);font-size:10px;text-decoration:none;" title="Abrir artículo original">🔗 Fuente</a>` : ''}
-      <button class="reading-listen-btn" data-txt="${txtAttr}" data-rate="0.75" onclick="speakFromBtn(this)"><i class="ti ti-volume"></i> Leer en voz alta</button>
+      <button class="reading-listen-btn" data-txt="${txtAttr}" data-rate="0.75" onclick="readingListen(this)"><i class="ti ti-volume"></i> Leer en voz alta</button>
     </div>
     <div class="reading-article-text">${escText}</div>
   </div>
@@ -268,13 +339,13 @@ export async function startQuiz() {
   const article = S.readingArticles.find(a => a.id === currentArticleId);
   if (!article) return;
   readingMode = 'quiz';
-  quizIdx = 0; quizScore = 0;
+  quizIdx = 0; quizScore = 0; quizAnswers = [];
 
   // Generate quiz on demand if needed
   if (!article.quiz || !article.quiz.length) {
     const reqId = ++readingReqId;
     const el = document.getElementById('readingCard');
-    el.innerHTML = '<div class="mem-loading" style="text-align:center;padding:40px;">Generando preguntas…</div>';
+    el.innerHTML = '<div class="mem-loading" style="text-align:center;padding:40px;">Generando preguntas…</div><button class="reading-back-btn" onclick="selectArticle(\'' + esc(article.id) + '\')">← Cancelar</button>';
     try {
       await generateQuizForArticle(article);
       if (reqId !== readingReqId) return;
@@ -301,32 +372,51 @@ function renderQuizQuestion(article) {
       ${q.options.map((opt, i) => `<button class="reading-quiz-opt" data-idx="${i}" onclick="answerQuiz(${i})">${esc(opt)}</button>`).join('')}
     </div>
   </div>
+  <details class="reading-article-toggle">
+    <summary style="cursor:pointer;font-size:11px;color:#7a5520;font-family:'Cinzel',Georgia,serif;padding:4px 8px;">📖 Ver artículo</summary>
+    <div class="reading-article-toggle-text">${esc(article.text)}</div>
+  </details>
   <button class="reading-back-btn" onclick="selectArticle('${esc(article.id)}')">← Volver al artículo</button>`;
 }
 
 export function answerQuiz(optIdx) {
   if (quizAnswered) return;
-  quizAnswered = true;
   const article = S.readingArticles.find(a => a.id === currentArticleId);
   if (!article) return;
 
-  const correct = article.quiz[quizIdx].correct;
   const opts = document.querySelectorAll('.reading-quiz-opt');
-  opts.forEach((btn, i) => {
-    btn.disabled = true;
-    if (i === correct) btn.classList.add('correct');
-    if (i === optIdx && i !== correct) btn.classList.add('wrong');
-  });
-  if (optIdx === correct) quizScore++;
+  // Clear previous pending highlight
+  opts.forEach(b => b.classList.remove('quiz-pending'));
 
-  setTimeout(() => {
-    quizIdx++;
-    if (quizIdx < article.quiz.length) {
-      renderQuizQuestion(article);
-    } else {
-      renderQuizResults(article);
-    }
-  }, 1500);
+  if (quizPendingTimer) {
+    clearTimeout(quizPendingTimer);
+  }
+
+  // Highlight pending selection
+  if (opts[optIdx]) opts[optIdx].classList.add('quiz-pending');
+
+  // Lock in after 800ms — user can change selection within window
+  quizPendingTimer = setTimeout(() => {
+    quizAnswered = true;
+    const correct = article.quiz[quizIdx].correct;
+    opts.forEach((btn, i) => {
+      btn.classList.remove('quiz-pending');
+      btn.disabled = true;
+      if (i === correct) btn.classList.add('correct');
+      if (i === optIdx && i !== correct) btn.classList.add('wrong');
+    });
+    if (optIdx === correct) quizScore++;
+    quizAnswers[quizIdx] = optIdx;
+
+    setTimeout(() => {
+      quizIdx++;
+      if (quizIdx < article.quiz.length) {
+        renderQuizQuestion(article);
+      } else {
+        renderQuizResults(article);
+      }
+    }, 900);
+  }, 800);
 }
 
 function renderQuizResults(article) {
@@ -336,11 +426,11 @@ function renderQuizResults(article) {
 
   let pointsAwarded = 0;
   if (!S.readingCompletedIds[article.id]) {
-    pointsAwarded = Math.round(3 + ratio * 5);
-    awardPoints(pointsAwarded);
-    S.readingCompletedIds[article.id] = true;
     S.readingCompleted = (S.readingCompleted || 0) + 1;
+    S.readingCompletedIds[article.id] = true;
     article.completed = true;
+    pointsAwarded = Math.round((3 + ratio * 5) * DIFF_MULT[article.difficulty || 'medium']);
+    awardPoints(pointsAwarded);
     saveS();
   }
 
@@ -357,6 +447,18 @@ function renderQuizResults(article) {
     <div class="reading-result-label">${pct}% correcto</div>
     <div style="font-size:12px;color:var(--ink);font-style:italic;line-height:1.6;margin-bottom:8px;">${feedback}</div>
     ${pointsAwarded > 0 ? `<div class="reading-result-label" style="color:#2a8018;">+${pointsAwarded} puntos</div>` : `<div class="reading-result-label" style="color:#7a5520;">Ya completado — sin puntos extra</div>`}
+    <div class="reading-quiz-review">
+      ${article.quiz.map((q, i) => {
+        const chosen = quizAnswers[i] !== undefined ? quizAnswers[i] : -1;
+        const isCorrect = chosen === q.correct;
+        return `<div class="reading-quiz-review-item ${isCorrect ? 'review-correct' : 'review-wrong'}">
+          <span>${isCorrect ? '✓' : '✗'}</span>
+          <span>${esc(q.q)}</span>
+          ${!isCorrect && chosen >= 0 ? `<span style="font-size:10px;display:block;color:#5ab030;">Respuesta correcta: ${esc(q.options[q.correct])}</span>` : ''}
+          ${chosen < 0 ? `<span style="font-size:10px;display:block;color:#7a5520;">Sin responder</span>` : ''}
+        </div>`;
+      }).join('')}
+    </div>
     <div class="reading-actions">
       <button onclick="startQuiz()">🔄 Reintentar</button>
       <button onclick="selectArticle('${esc(article.id)}')">← Volver al artículo</button>
@@ -373,6 +475,10 @@ export function startRecap() {
   const el = document.getElementById('readingCard');
   el.innerHTML = `<div class="reading-recap-wrap">
     <div style="font-size:11px;color:#7a5520;margin-bottom:6px;">Escribe un resumen en español (3-5 frases) de lo que has leído:</div>
+    <details class="reading-article-toggle">
+      <summary style="cursor:pointer;font-size:11px;color:#7a5520;font-family:'Cinzel',Georgia,serif;padding:4px 8px;">📖 Ver artículo</summary>
+      <div class="reading-article-toggle-text">${esc(article.text)}</div>
+    </details>
     <textarea class="reading-recap-ta" id="recapTa" placeholder="El artículo trata sobre..."></textarea>
     <div class="reading-actions" style="margin-top:10px;">
       <button onclick="submitRecap()">✉️ Enviar</button>
@@ -396,11 +502,11 @@ export async function submitRecap() {
   if (!article) return;
 
   const el = document.getElementById('readingCard');
-  el.innerHTML = '<div class="mem-loading" style="text-align:center;padding:40px;">Evaluando tu resumen…</div>';
+  el.innerHTML = '<div class="mem-loading" style="text-align:center;padding:40px;">Evaluando tu resumen…</div><button class="reading-back-btn" onclick="selectArticle(\'' + esc(article.id) + '\')">← Cancelar</button>';
 
   try {
     const sys = 'Eres un profesor de español. Evalúas la comprensión lectora de un estudiante basándote en su resumen. Sé justo pero exigente. Responde SOLO con JSON.';
-    const user = `Artículo:\n${article.text.substring(0, 2000)}\n\nResumen del estudiante:\n${text}\n\nEvalúa el resumen. Responde SOLO con JSON: {"score":0-1,"feedback":"breve comentario en español (2-3 frases)","missedKeyPoints":["punto clave no mencionado"]}`;
+    const user = `Artículo:\n${article.text.substring(0, 4000)}\n\nResumen del estudiante:\n${text}\n\nEvalúa el resumen. Responde SOLO con JSON: {"score":0-1,"feedback":"breve comentario en español (2-3 frases)","missedKeyPoints":["punto clave no mencionado"]}`;
     const raw = await callLLM(sys, [{ role: 'user', content: user }], 1000);
     if (reqId !== readingReqId) return;
     const parsed = extractJSON(raw);
@@ -408,11 +514,11 @@ export async function submitRecap() {
 
     let pointsAwarded = 0;
     if (!S.readingCompletedIds[article.id]) {
-      pointsAwarded = Math.round(3 + score * 5);
-      awardPoints(pointsAwarded);
-      S.readingCompletedIds[article.id] = true;
       S.readingCompleted = (S.readingCompleted || 0) + 1;
+      S.readingCompletedIds[article.id] = true;
       article.completed = true;
+      pointsAwarded = Math.round((3 + score * 5) * DIFF_MULT[article.difficulty || 'medium']);
+      awardPoints(pointsAwarded);
       saveS();
     }
 
@@ -445,6 +551,30 @@ function renderRecapResults(article, score, feedback, missedPoints, pointsAwarde
 }
 
 // ── back to lobby ───────────────────────────────────────────────────────────
+export function readingListen(btn) {
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    btn.classList.remove('active');
+    return;
+  }
+  btn.classList.add('active');
+  const t = btn.dataset.txt;
+  const rate = btn.dataset.rate ? parseFloat(btn.dataset.rate) : undefined;
+  if (t) {
+    const u = new SpeechSynthesisUtterance(t);
+    if (rate) u.rate = rate;
+    u.lang = 'es-ES';
+    u.onend = () => btn.classList.remove('active');
+    u.onerror = () => btn.classList.remove('active');
+    window.speechSynthesis.speak(u);
+  } else {
+    btn.classList.remove('active');
+  }
+}
+
 export function returnToLobby() {
+
+// ── back to lobby (original) ─────────────────────────────────────────────────
+  readingSession.view = 'lobby'; readingSession.source = null; readingSession.articleId = null; readingSession.quizIdx = 0; readingSession.quizScore = 0; readingSession.mode = null;
   renderReadingLobby();
 }

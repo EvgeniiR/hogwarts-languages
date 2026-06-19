@@ -103,8 +103,9 @@ export const ACH_LABELS={
   msgs:{icon:'💬',name:'mensajes enviados',name1:'mensaje enviado'},
   vocab:{icon:'📖',name:'palabras aprendidas',name1:'palabra aprendida'},
   challenges:{icon:'⭐',name:'desafíos completados',name1:'desafío completado'},
+  reading:{icon:'📰',name:'artículos leídos',name1:'artículo leído'},
 };
-export const ACH_X={streak:10,vocab:10,challenges:10,msgs:100};
+export const ACH_X={streak:10,vocab:10,challenges:10,msgs:100,reading:10};
 export const HP_MILESTONES=[
   {pts:500,  key:'hp_firstYear',icon:'🎓',label:'Estudiante de Primer Año'},
   {pts:1000, key:'hp_quidditch',icon:'🏆',label:'Copa de Quidditch'},
@@ -134,9 +135,8 @@ export function achievementMetrics(){
     streak:S.streak.count,
     msgs:S.totalMsgs,
     vocab:S.vocab.length,
-    // BUGFIX: use the persistent lifetime counter, not the 14-day-pruned
-    // S.challengeDone map (which made this metric slide backward over time).
     challenges:S.challengesCompleted||0,
+    reading:S.readingCompleted||0,
     pts:S.lifetimePts||0
   };
 }
