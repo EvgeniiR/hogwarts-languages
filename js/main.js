@@ -17,7 +17,7 @@ import { openGames, closeGames, setGameTab, setGameDifficulty, genDictation, gen
 import { openSettings, closeSettings, setSettingsTab, renderSettings, setModelPref, setTtsOff, openAchievements, closeAchievements, renderAchievements, validateProviderKey, clearLog } from './settings.js';
 import { openErrExplain, closeErrExplain, askErrFollowUp, clickErrSuggestion } from './error-explain.js';
 import { compareModels } from './model-compare.js';
-import { openReading, closeReading, selectReadingSource, selectArticle, startQuiz, startRecap, answerQuiz, submitRecap, returnToLobby, setReadingDiff } from './reading.js';
+import { openReading, closeReading, selectReadingSource, selectArticle, startQuiz, startRecap, answerQuiz, submitRecap, returnToLobby, setReadingDiff, refreshSource } from './reading.js';
 import { showToast, aResize } from './helpers.js';
 
 // Portrait injection
@@ -277,5 +277,5 @@ Object.assign(window,{
   // Reading comprehension (El Profeta)
   openReading, closeReading, selectReadingSource, selectArticle,
   startQuiz, startRecap, answerQuiz, submitRecap, returnToLobby,
-  setReadingDiff,
+  setReadingDiff, refreshSource,
 });

@@ -1,21 +1,26 @@
 // ── EL PROFETA ─────────────────────────────────────────────────────────────
-// Reading comprehension overlay. Three content sources: real Spanish news via
-// rss2json.com (El País), culture articles (NatGeo RSS fallback to LLM), and
-// LLM-generated Harry Potter lore. User reads an article then takes a quiz or
-// writes a recap verified by one LLM call.
+// Reading comprehension overlay. Nine content sources: eight human-written RSS
+// feeds + LLM-generated Harry Potter lore. User reads an article then takes a
+// quiz or writes a recap verified by one LLM call.
 import { S, saveS } from './state.js';
 import { esc, showToast, extractJSON } from './helpers.js';
 import { callLLM } from './llm.js';
 import { awardPoints } from './progress.js';
 
 const RSS_FEEDS = {
-  noticias: 'https://www.20minutos.es/rss',
-  cultura: 'https://www.hipertextual.com/feed'
+  noticias:    'https://www.20minutos.es/rss',
+  ciencia:     'https://www.hipertextual.com/feed',
+  arte:        'https://www.abc.es/rss/feeds/abc_Cultura.xml',
+  naturaleza:  'https://www.abc.es/rss/feeds/abc_Natural.xml',
+  tecnologia:  'https://www.abc.es/rss/feeds/abc_Tecnologia.xml',
+  viajes:      'https://www.descubrir.com/rss',
+  sociedad:    'https://www.eldiario.es/rss',
+  diseno:      'https://www.yorokobu.es/feed'
 };
 const RSS2JSON_URL = 'https://api.rss2json.com/v1/api.json';
-const SOURCE_ICONS = { noticias:'📰', cultura:'🎭', magico:'⚡' };
-const SOURCE_LABELS = { noticias:'20minutos · RSS', cultura:'Hipertextual · RSS', magico:'IA · Harry Potter' };
-const SOURCE_LABELS_LLM = { cultura:'IA · Cultura' };
+const SOURCE_ICONS = { noticias:'📰', ciencia:'🔬', arte:'🎨', naturaleza:'🦁', tecnologia:'💻', viajes:'✈️', sociedad:'🏛', diseno:'🎭', magico:'⚡' };
+const SOURCE_LABELS = { noticias:'20minutos · RSS', ciencia:'Hipertextual · RSS', arte:'ABC Cultura · RSS', naturaleza:'ABC Natural · RSS', tecnologia:'ABC Tecnología · RSS', viajes:'Descubrir.com · RSS', sociedad:'ElDiario.es · RSS', diseno:'Yorokobu · RSS', magico:'IA · Harry Potter' };
+const BTN_LABELS = { noticias:'Actualidad', ciencia:'Ciencia', arte:'Arte', naturaleza:'Naturaleza', tecnologia:'Tecnología', viajes:'Viajes', sociedad:'Sociedad', diseno:'Diseño', magico:'Mundo mágico' };
 
 let currentArticleId = null;
 let readingMode = null;   // 'quiz' | 'recap' | null
@@ -24,11 +29,12 @@ let quizScore = 0;
 let quizAnswered = false;
 let readingReqId = 0;
 let readingDifficulty = 'medium';
+let sessionHeadlines = {};
 
 const DIFF_CONFIG = {
-  easy:   { count:5, words:'500-700', vocab:'vocabulario básico, frases cortas, presente e indefinido', tokens:3000, quizInstr:'preguntas de comprensión literal, opciones con vocabulario básico', icon:'📗', label:'Fácil' },
-  medium: { count:4, words:'1000-1200', vocab:'vocabulario intermedio, subjuntivo ocasional, estructuras variadas', tokens:5000, quizInstr:'preguntas de comprensión literal e inferencia simple, opciones con vocabulario intermedio', icon:'📙', label:'Medio' },
-  hard:   { count:3, words:'1500-1700', vocab:'vocabulario avanzado, subjuntivo, condicional, modismos', tokens:7000, quizInstr:'preguntas de inferencia, tono del autor y matices, opciones con vocabulario avanzado', icon:'📕', label:'Difícil' }
+  easy:   { count:1, words:'250-350', vocab:'Vocabulario: sencillo y natural, frases cortas, presente e indefinido.', tokens:2000, quizInstr:'preguntas de comprensión literal, opciones con vocabulario básico', icon:'📗', label:'Fácil' },
+  medium: { count:1, words:'500-600', vocab:'Vocabulario: intermedio y natural, subjuntivo ocasional, estructuras variadas.', tokens:3000, quizInstr:'preguntas de comprensión literal e inferencia simple, opciones con vocabulario intermedio', icon:'📙', label:'Medio' },
+  hard:   { count:1, words:'750-850', vocab:'Vocabulario: rico y natural, con subjuntivo, condicional y modismos cuando resulten apropiados, evitando palabras innecesariamente rebuscadas.', tokens:4000, quizInstr:'preguntas de inferencia, tono del autor y matices, opciones con vocabulario avanzado', icon:'📕', label:'Difícil' }
 };
 
 export function setReadingDiff(diff) {
@@ -53,24 +59,20 @@ export function renderReadingLobby() {
   readingMode = null;
   quizIdx = 0; quizScore = 0; quizAnswered = false;
   const el = document.getElementById('readingCard');
+  const sources = ['noticias','ciencia','arte','naturaleza','viajes','tecnologia','sociedad','diseno','magico'];
   el.innerHTML = `<div class="reading-lobby">
     <div class="reading-lobby-title">📰 EL PROFETA</div>
     <div class="reading-lobby-sub">Lee artículos en español y demuestra tu comprensión</div>
+    ${S.readingCompleted > 0 ? `<div style="font-size:11px;color:var(--gold);margin-bottom:6px;">📚 ${S.readingCompleted} artículo${S.readingCompleted!==1?'s':''} completado${S.readingCompleted!==1?'s':''}</div>` : ''}
     <div class="reading-diff-row">
       <button class="reading-diff-btn ${readingDifficulty==='easy'?'active':''}" data-diff="easy" onclick="setReadingDiff('easy')">📗 Fácil</button>
       <button class="reading-diff-btn ${readingDifficulty==='medium'?'active':''}" data-diff="medium" onclick="setReadingDiff('medium')">📙 Medio</button>
       <button class="reading-diff-btn ${readingDifficulty==='hard'?'active':''}" data-diff="hard" onclick="setReadingDiff('hard')">📕 Difícil</button>
     </div>
-    <div class="reading-source-row">
-      <button class="reading-source-btn" onclick="selectReadingSource('noticias')">
-        <span class="src-icon">📰</span>Noticias<span class="src-label">20minutos · RSS</span>
-      </button>
-      <button class="reading-source-btn" onclick="selectReadingSource('cultura')">
-        <span class="src-icon">🎭</span>Cultura y vida<span class="src-label">Hipertextual · RSS</span>
-      </button>
-      <button class="reading-source-btn" onclick="selectReadingSource('magico')">
-        <span class="src-icon">⚡</span>Mundo mágico<span class="src-label">IA · Harry Potter</span>
-      </button>
+    <div class="reading-source-grid">
+      ${sources.map(s => `<button class="reading-source-btn" onclick="selectReadingSource('${s}')">
+        <span class="src-icon">${SOURCE_ICONS[s]||''}</span>${BTN_LABELS[s]}<span class="src-label">${SOURCE_LABELS[s]}</span>
+      </button>`).join('')}
     </div>
   </div>`;
 }
@@ -79,32 +81,41 @@ export function renderReadingLobby() {
 export async function selectReadingSource(source) {
   const reqId = ++readingReqId;
   const el = document.getElementById('readingCard');
+
+  // Session cache — reuse already-fetched headlines
+  if (sessionHeadlines[source] && sessionHeadlines[source].length) {
+    // For LLM articles, invalidate cache if difficulty changed
+    if (source === 'magico' && sessionHeadlines._magicoDiff !== readingDifficulty) {
+      delete sessionHeadlines[source];
+    } else {
+      renderHeadlines(sessionHeadlines[source], source);
+      return;
+    }
+  }
+
   el.innerHTML = '<div class="mem-loading" style="text-align:center;padding:40px;">Cargando artículos…</div>';
 
   try {
     let headlines;
     if (source === 'magico') {
-      headlines = await generateLLMArticles('magico');
+      headlines = await generateLLMArticles();
     } else {
       headlines = await fetchRSSHeadlines(RSS_FEEDS[source], source, reqId);
-      if (reqId !== readingReqId) return;
-      if (!headlines || !headlines.length) {
-        if (source === 'cultura') {
-          headlines = await generateLLMArticles('cultura');
-          headlines.forEach(h => h.rssFallback = true);
-        } else {
-          el.innerHTML = `<div style="text-align:center;padding:30px;color:var(--ink);">
-            <div style="font-size:14px;margin-bottom:8px;">No se pudieron cargar las noticias</div>
-            <div style="font-size:11px;color:#7a5520;margin-bottom:12px;">El servicio RSS no está disponible ahora.</div>
-            <button class="reading-back-btn" onclick="returnToLobby()">← Volver al menú</button>
-          </div>`;
-          return;
-        }
-      }
+    }
+    if (reqId !== readingReqId) return;
+    if (!headlines || !headlines.length) {
+      el.innerHTML = `<div style="text-align:center;padding:30px;color:var(--ink);">
+        <div style="font-size:14px;margin-bottom:8px;">No se pudieron cargar los artículos</div>
+        <div style="font-size:11px;color:#7a5520;margin-bottom:12px;">El servicio no está disponible ahora. Intenta con otra fuente.</div>
+        <button class="reading-back-btn" onclick="returnToLobby()">← Volver al menú</button>
+      </div>`;
+      return;
     }
     if (reqId !== readingReqId) return;
 
-    // Cache stubs in state
+    sessionHeadlines[source] = headlines;
+    if (source === 'magico') sessionHeadlines._magicoDiff = readingDifficulty;
+
     S.readingArticles = S.readingArticles || [];
     headlines.forEach(h => {
       if (!S.readingArticles.find(a => a.id === h.id)) {
@@ -114,8 +125,7 @@ export async function selectReadingSource(source) {
     S.readingArticles = S.readingArticles.slice(-10);
     saveS();
 
-    const isFallback = headlines.length > 0 && headlines[0].rssFallback;
-    renderHeadlines(headlines, isFallback);
+    renderHeadlines(headlines, source);
   } catch (e) {
     if (reqId !== readingReqId) return;
     el.innerHTML = `<div style="text-align:center;padding:30px;color:var(--ink);">
@@ -126,6 +136,11 @@ export async function selectReadingSource(source) {
   }
 }
 
+export function refreshSource(source) {
+  delete sessionHeadlines[source];
+  selectReadingSource(source);
+}
+
 // ── RSS fetching ────────────────────────────────────────────────────────────
 async function fetchRSSHeadlines(rssUrl, source, reqId) {
   const url = `${RSS2JSON_URL}?rss_url=${encodeURIComponent(rssUrl)}`;
@@ -134,12 +149,17 @@ async function fetchRSSHeadlines(rssUrl, source, reqId) {
   const data = await res.json();
   if (data.status !== 'ok' || !data.items) return null;
   return data.items.slice(0, 8).map(item => {
-    const text = (item.content || item.description || '').replace(/<[^>]*>/g, '').trim();
+    const text = (item.content || item.description || '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/<[^>]*>/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
     return {
       id: 'r_' + source + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
       source,
-      title: (item.title || '').replace(/<[^>]*>/g, '').trim(),
+      title: (item.title || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(),
       text,
+      link: item.link || '',
       quiz: null,
       ts: Date.now(),
       completed: false,
@@ -149,42 +169,46 @@ async function fetchRSSHeadlines(rssUrl, source, reqId) {
 }
 
 // ── LLM article generation ──────────────────────────────────────────────────
-async function generateLLMArticles(source) {
+async function generateLLMArticles() {
   const dc = DIFF_CONFIG[readingDifficulty];
-  const topicPrompt = source === 'magico'
-    ? `sobre diferentes temas del mundo mágico de Harry Potter (personajes, hechizos, criaturas, lugares, eventos históricos, clases de Hogwarts)`
-    : `sobre cultura, naturaleza, ciencia, arquitectura, diseño, vida cotidiana en España y Latinoamérica`;
+  const el = document.getElementById('readingCard');
+  el.innerHTML = '<div class="mem-loading" style="text-align:center;padding:40px;">Generando artículo…</div>';
 
-  const sys = `Eres un redactor del periódico "El Profeta" del mundo mágico. Escribes artículos atractivos en español auténtico. ${dc.vocab}`;
-  const user = `Escribe ${dc.count} artículos (${dc.words} palabras cada uno) ${topicPrompt}. Para cada artículo, incluye 4 preguntas de comprensión con 4 opciones cada una. Responde SOLO con JSON: {"articles":[{"title":"...","text":"...","quiz":[{"q":"...","options":["A","B","C","D"],"correct":0}]}]}. Varía los temas.`;
+  const sys = `Eres Rita Skeeter, reportera estrella del diario "El Profeta". Tu estilo: sensacionalista, vívido y adictivo. Escribes historias que atrapan, jamás entradas de enciclopedia. MUESTRAS escenas concretas, diálogos breves y detalles específicos; EVITAS afirmaciones generales o resúmenes abstractos. Exageras dramáticamente, pero NO inventas hechos que contradigan el canon de Harry Potter: si introduces rumores o especulación, los presentas claramente como tales. ${dc.vocab}. Registro: periodístico natural de revista dominical, con párrafos cortos (3-5 frases) para lectura fluida.
+REGLAS DEL CUESTIONARIO: 4 preguntas que evalúen comprensión de matices y detalles concretos, no lo obvio. Opciones incorrectas plausibles pero distinguibles para un lector atento. El campo "correct" es el índice entero basado en CERO (0, 1, 2 o 3) de la opción correcta.`;
+  const user = `Generas UN SOLO artículo para "El Profeta". No escribas introducciones, listas ni múltiples historias — uno solo. EXTENSIÓN EXACTA: ${dc.words} palabras. Título: provocador, estilo tabloide mágico (nunca descriptivo-académico). Estructura narrativa: gancho inicial potente → desarrollo con tensión creciente → cierre memorable. Respeta el canon de Harry Potter. Elige UN tema: personajes emblemáticos, hechizos legendarios, criaturas fascinantes, lugares ocultos de Hogwarts, eventos históricos del mundo mágico, clases memorables, pociones célebres, objetos encantados, duelos épicos, secretos del Ministerio, historias de las casas o misterios jamás resueltos. Responde SOLO con JSON sin texto adicional: {"article":{"title":"...","text":"...","quiz":[{"q":"...","options":["A","B","C","D"],"correct":0}]}}`;
 
   const raw = await callLLM(sys, [{ role: 'user', content: user }], dc.tokens);
   const parsed = extractJSON(raw);
-  return (parsed.articles || []).map(a => ({
-    id: 'r_' + source + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
-    source,
+  const a = parsed.article || {};
+  return [{
+    id: 'r_magico_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    source: 'magico',
     title: a.title || '',
     text: a.text || '',
     quiz: a.quiz || null,
     ts: Date.now(),
     completed: false,
     difficulty: readingDifficulty
-  }));
+  }];
 }
 
 // ── headline list ───────────────────────────────────────────────────────────
-function renderHeadlines(headlines, isFallback) {
+function renderHeadlines(headlines, source) {
   const el = document.getElementById('readingCard');
-  const banner = isFallback
-    ? `<div style="text-align:center;padding:6px 10px;font-size:10px;color:#7a5520;background:rgba(201,168,76,.06);border-bottom:1px solid var(--bdg);">⚠️ RSS de Hipertextual no disponible. Mostrando artículos generados por IA.</div>`
-    : '';
-  el.innerHTML = banner + `<div class="reading-headlines">
-    ${headlines.map(h => `<div class="reading-headline-item" onclick="selectArticle('${esc(h.id)}')">
-      <span class="hl-icon">${SOURCE_ICONS[h.source]||''}</span>
-      <span>${esc(h.title)}</span>
-    </div>`).join('')}
+  el.innerHTML = `<div class="reading-headlines">
+    ${headlines.map(h => {
+      const wc = h.text ? h.text.split(/\s+/).length : 0;
+      return `<div class="reading-headline-item" onclick="selectArticle('${esc(h.id)}')">
+        <span class="hl-icon">${SOURCE_ICONS[h.source]||''}</span>
+        <span>${esc(h.title)}<span style="font-size:10px;color:#7a5520;display:block;">~${wc} palabras</span></span>
+      </div>`;
+    }).join('')}
   </div>
-  <button class="reading-back-btn" onclick="returnToLobby()">← Elegir otra fuente</button>`;
+  <div style="display:flex;gap:6px;justify-content:center;">
+    <button class="reading-back-btn" onclick="returnToLobby()">← Elegir otra fuente</button>
+    <button class="reading-back-btn" onclick="refreshSource('${source}')">🔄 Actualizar</button>
+  </div>`;
 }
 
 // ── article selection ───────────────────────────────────────────────────────
@@ -196,20 +220,6 @@ export async function selectArticle(articleId) {
 
   const article = S.readingArticles.find(a => a.id === articleId);
   if (!article) { renderReadingLobby(); return; }
-
-  // If no quiz yet, generate one
-  if (!article.quiz || !article.quiz.length) {
-    const el = document.getElementById('readingCard');
-    el.innerHTML = '<div class="mem-loading" style="text-align:center;padding:40px;">Generando preguntas…</div>';
-    try {
-      await generateQuizForArticle(article);
-      if (reqId !== readingReqId) return;
-      saveS();
-    } catch (e) {
-      if (reqId !== readingReqId) return;
-      article.quiz = null;
-    }
-  }
 
   renderArticleView(article);
 }
@@ -230,38 +240,53 @@ async function generateQuizForArticle(article) {
 function renderArticleView(article) {
   const isCompleted = S.readingCompletedIds[article.id];
   const el = document.getElementById('readingCard');
-  const hasQuiz = article.quiz && article.quiz.length;
   const escText = esc(article.text);
-  const sourceLabel = article.rssFallback
-    ? (SOURCE_LABELS_LLM[article.source] || 'IA · ' + article.source)
-    : (SOURCE_LABELS[article.source] || article.source);
+  const sourceLabel = SOURCE_LABELS[article.source] || article.source;
   // Escape text for data-txt attribute (no double quotes that break attribute)
-  const txtAttr = article.text.substring(0, 300).replace(/"/g, '&quot;').replace(/\n/g, ' ');
+  const txtAttr = article.text.substring(0, 2000).replace(/"/g, '&quot;').replace(/\n/g, ' ');
   el.innerHTML = `<div class="reading-article-wrap">
     <div class="reading-article-title">${esc(article.title)}</div>
     <div class="reading-article-meta">
       <span>${SOURCE_ICONS[article.source]||''} ${sourceLabel}</span>
       ${isCompleted ? '<span style="color:#2a8018;">✓ Completado</span>' : '<span>Nuevo</span>'}
       ${article.ts ? '<span>'+new Date(article.ts).toLocaleDateString('es-ES')+'</span>' : ''}
+      ${article.link && article.source!=='magico' ? `<a href="${esc(article.link)}" target="_blank" style="color:var(--gold);font-size:10px;text-decoration:none;" title="Abrir artículo original">🔗 Fuente</a>` : ''}
       <button class="reading-listen-btn" data-txt="${txtAttr}" data-rate="0.75" onclick="speakFromBtn(this)"><i class="ti ti-volume"></i> Leer en voz alta</button>
     </div>
     <div class="reading-article-text">${escText}</div>
   </div>
   ${isCompleted ? '<div style="text-align:center;font-size:10px;color:#7a5520;margin-bottom:4px;">Ya completado — puedes repetir sin puntos extra</div>' : ''}
   <div class="reading-actions">
-    <button onclick="startQuiz()" ${!hasQuiz ? 'disabled style="opacity:.4;"' : ''}>📝 Cuestionario</button>
+    <button onclick="startQuiz()">📝 Cuestionario</button>
     <button onclick="startRecap()">✍️ Resumen</button>
   </div>
   <button class="reading-back-btn" onclick="selectReadingSource('${esc(article.source)}')">← Más artículos</button>`;
 }
 
 // ── quiz ────────────────────────────────────────────────────────────────────
-export function startQuiz() {
+export async function startQuiz() {
   const article = S.readingArticles.find(a => a.id === currentArticleId);
-  if (!article || !article.quiz || !article.quiz.length) return;
+  if (!article) return;
   readingMode = 'quiz';
-  quizIdx = 0;
-  quizScore = 0;
+  quizIdx = 0; quizScore = 0;
+
+  // Generate quiz on demand if needed
+  if (!article.quiz || !article.quiz.length) {
+    const reqId = ++readingReqId;
+    const el = document.getElementById('readingCard');
+    el.innerHTML = '<div class="mem-loading" style="text-align:center;padding:40px;">Generando preguntas…</div>';
+    try {
+      await generateQuizForArticle(article);
+      if (reqId !== readingReqId) return;
+      saveS();
+    } catch (e) {
+      if (reqId !== readingReqId) return;
+      renderArticleView(article);
+      showToast('No se pudieron generar las preguntas. Inténtalo de nuevo.');
+      return;
+    }
+  }
+
   renderQuizQuestion(article);
 }
 

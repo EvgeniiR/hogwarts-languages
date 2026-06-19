@@ -58,10 +58,13 @@ export function handleSelUp(e){
     const sel=window.getSelection();
     const text=sel.toString().trim();
     const msgsEl=document.getElementById('msgs');
-    if(!text||sel.rangeCount===0||!msgsEl||!msgsEl.contains(sel.anchorNode)){hideSelBtn();return;}
+    const readingCard=document.getElementById('readingCard');
+    const inReading=readingCard && readingCard.contains(sel.anchorNode);
+    if(!text||sel.rangeCount===0||(!msgsEl||!msgsEl.contains(sel.anchorNode))&&!inReading){hideSelBtn();return;}
     pendingSelection=text;
     const rect=sel.getRangeAt(0).getBoundingClientRect();
-    const parentRect=document.querySelector('.main').getBoundingClientRect();
+    const parentEl=inReading ? readingCard.querySelector('.reading-article-wrap')||readingCard : document.querySelector('.main');
+    const parentRect=parentEl.getBoundingClientRect();
     btn.style.left=Math.max(4,rect.left-parentRect.left)+'px';
     btn.style.top=Math.max(4,rect.top-parentRect.top-30)+'px';
     btn.style.display='block';

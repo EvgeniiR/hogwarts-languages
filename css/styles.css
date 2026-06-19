@@ -341,11 +341,11 @@ textarea#ui::placeholder{color:#8b9bb8;}
 .reading-diff-btn{font-size:11px;padding:4px 12px;border-radius:99px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:'Cinzel',Georgia,serif;transition:all .2s;}
 .reading-diff-btn:hover{border-color:var(--gold);color:var(--gold);}
 .reading-diff-btn.active{background:rgba(201,168,76,.12);color:var(--gold);border-color:var(--gold);}
-.reading-source-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;}
-.reading-source-btn{flex:1;min-width:120px;max-width:180px;padding:14px 10px;border-radius:4px;border:1px solid var(--bdg);background:var(--parch2);color:var(--ink);cursor:pointer;font-family:'Cinzel',Georgia,serif;font-size:12px;text-align:center;transition:background .2s;}
+.reading-source-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;}
+.reading-source-btn{padding:10px 6px;border-radius:4px;border:1px solid var(--bdg);background:var(--parch2);color:var(--ink);cursor:pointer;font-family:'Cinzel',Georgia,serif;font-size:11px;text-align:center;transition:background .2s;}
 .reading-source-btn:hover{background:var(--gold2);}
-.reading-source-btn .src-icon{display:block;font-size:24px;margin-bottom:4px;}
-.reading-source-btn .src-label{font-size:10px;color:#7a5520;display:block;}
+.reading-source-btn .src-icon{display:block;font-size:20px;margin-bottom:2px;}
+.reading-source-btn .src-label{font-size:9px;color:#7a5520;display:block;}
 .reading-headlines{padding:8px 16px;}
 .reading-headline-item{padding:8px 10px;border-bottom:.5px solid var(--bdg);cursor:pointer;font-size:12px;color:var(--ink);line-height:1.5;display:flex;align-items:center;gap:8px;}
 .reading-headline-item:hover{background:rgba(139,105,20,.08);}
@@ -406,4 +406,10 @@ textarea#ui::placeholder{color:#8b9bb8;}
   .memory-card-front::after{font-size:26px;}
   .memory-card[data-type="es"] .memory-card-back{font-size:13px;}
   .memory-card[data-type="en"] .memory-card-back{font-size:13px;}
+}
+@media(max-width:600px){
+  .reading-source-grid{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:380px){
+  .reading-source-grid{grid-template-columns:1fr;}
 }
