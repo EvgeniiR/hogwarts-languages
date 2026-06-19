@@ -1,0 +1,25 @@
+@font-face {
+  font-family: 'tabler-icons';
+  src: url('../fonts/tabler-icons.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+.ti{font-family:"tabler-icons"!important;speak:none;font-style:normal;font-weight:normal;font-variant:normal;text-transform:none;line-height:1;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.ti-send:before{content:"\eb1e"}
+.ti-star:before{content:"\eb2e"}
+.ti-volume:before{content:"\eb51"}
+.ti-volume-off:before{content:"\f1c3"}
+.ti-player-skip-forward:before{content:"\ed49"}
+.ti-target-arrow:before{content:"\f51a"}
+.ti-book:before{content:"\ea39"}
+.ti-book-2:before{content:"\efc5"}
+.ti-trophy:before{content:"\eb45"}
+.ti-settings:before{content:"\eb20"}
+.ti-layout-sidebar-right:before{content:"\ead9"}
+.ti-microphone:before{content:"\eaf0"}
+.ti-microphone-off:before{content:"\ed16"}
+.ti-bulb:before{content:"\ea51"}
+.ti-pencil:before{content:"\eb04"}
+.ti-trash:before{content:"\eb41"}
+.ti-arrow-back-up:before{content:"\eb77"}
