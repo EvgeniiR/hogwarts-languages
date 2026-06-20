@@ -4,12 +4,6 @@
 
 ---
 
-## Multi-mode agent loop (autonomous)
-
-Every non-trivial task follows a structured 6-phase cycle (Clarify → Design → Design-Review → Plan → Code → Review) with dedicated subagents. See [opencode-agents/README.md](opencode-agents/README.md) for the full workflow process, phase descriptions, and model assignments.
-
----
-
 ## What this is
 
 A Spanish learning app with a Harry Potter theme. Users have conversations with Hermione, Dumbledore, Hagrid, and Snape, powered by LLM APIs. Tracks vocabulary, grammar mistakes, streaks, and house points.
