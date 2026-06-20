@@ -1,0 +1,17 @@
+name = "hogwarts-espanol-sync"
+main = "index.js"
+compatibility_date = "2026-06-20"
+
+# ── KV namespace for user state ────────────────────────────────────────────
+[[kv_namespaces]]
+binding = "HOGWARTS_KV"
+id = "23c32c27aca3438498e0bf3ba87b5331"
+preview_id = "hogwarts-kv-dev"
+
+# ── Environment variables & secrets ────────────────────────────────────────
+# [vars] are plain-text, visible in Cloudflare dashboard. Safe for non-secrets.
+# Secrets are set via: npx wrangler secret put <NAME>
+# Required secrets: JWT_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+# Deploy with: bash scripts/deploy-worker.sh (validates secrets first)
+[vars]
+ALLOWED_ORIGIN = "https://hogwarts-espanol.pages.dev"

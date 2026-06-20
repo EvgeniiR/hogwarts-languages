@@ -90,7 +90,6 @@ export function renderMsgs(){
 }
 
 // ── Hints ─────────────────────────────────────────────────────────────────────
-export function showHints(){renderHints((S.currentHints[R.cur]&&S.currentHints[R.cur].length)?S.currentHints[R.cur]:chars[R.cur].hints);}
 export function retryLastMsg(){
   const hist=S.hist[R.cur];
   if(!hist.length||!hist.at(-1).error)return;

@@ -21,9 +21,16 @@ Built for a specific user (~A2/B1 Spanish, ~1.5 years Duolingo). Deployed on Clo
 ```
 hogwarts-espanol.html   ← HTML shell only. No JS, no CSS.
 css/styles.css          ← All styles (~430 lines, static)
-js/                     ← ES modules (26 files)
+js/                     ← ES modules (28 files)
+worker/                 ← Cloudflare Worker (sync backend)
+  index.js              ← Worker entry: /auth/google, /auth/google/code, /state
+  wrangler.toml         ← Worker config: KV binding, ALLOWED_ORIGIN
+  .dev.vars             ← Local dev secrets (JWT_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
+scripts/                ← Deployment & verification tools
+  check.sh              ← JS syntax + import graph validation
+  deploy-worker.sh      ← Worker deploy guard (validates secrets before deploy)
 audio/                  ← Ambient MP3s + manifest.json
-index.html              ← Redirects to hogwarts-espanol.html
+index.html              ← App shell (was redirect to hogwarts-espanol.html)
 DEPLOY.md               ← Deploy instructions
 AGENTS.md               ← This file
 manifest.json           ← PWA manifest
@@ -64,6 +71,9 @@ When editing a feature, load **only this file** — not the whole project.
 | Settings overlay: voice, model, llm log viewer, model comparison | `js/settings.js` |
 | Model comparison debug tool (compareModels) | `js/model-compare.js` |
 | Reading comprehension (El Profeta): RSS + LLM articles, quiz, recap | `js/reading.js` |
+| Google OAuth sign-in: One Tap (passive page-load) + OAuth2 popup (button), session token, sign-out | `js/auth.js` |
+| Cloud sync: fetchRemoteState, pushState, mergeAndSync (last-write-wins) | `js/sync.js` |
+| Cloudflare Worker: /auth/google, /auth/google/code, GET/PUT /state, JWT + JWKS verification | `worker/index.js` |
 | All CSS | `css/styles.css` |
 
 **Memory Match (game-memory.js) specifics:**
@@ -198,7 +208,7 @@ The HTML has ~51 `onclick="fnName()"` attributes. Module scope is not global, so
 | Hagrid    | Enthusiastic, warm, animal-obsessed (richer vocab) | 4 | `chars.hagrid` |
 | Snape     | Sarcastic, corrects everything, no mercy | 6 | `chars.snape` |
 
-System prompts are assembled at call time by `getSys(k)` in `characters.js`, which uses a single format for all providers (Groq/OpenAI/DeepSeek — all are OpenAI-compatible and Groq+DeepSeek enforce JSON at the API level via `response_format:json_object`). Each character stores a `persona` (with a `{{LV}}` placeholder) and a JSON `shape`; the shared rules — `SCORING_RULE` (anti-farming: `points:0` for non-effort but **no** mood punishment) and `CONVO_RULE` (be proactive, end with a question) — live **once** in `characters.js`. `buildSys(persona,shape)` assembles the prompt; `getSys(k)` appends the daily-challenge line **only if the challenge for that character is not yet completed** (saves tokens). Reply-suggestion chips are rendered via `renderHints()`/`#hintsR` UI from the LLM `options` field and are **persisted** in `S.currentHints` per character (saved in `sendMsg` and `genStarter`; restored on `selChar`/page reload). Static hints (`chars[k].hints`) are shown by `showHints()` as a fallback when no persisted hints exist for the character. `genStarter` seeds the user turn with a random HP scenario (`SEEDS` array in `chat.js`) so openers vary across resets.
+System prompts are assembled at call time by `getSys(k)` in `characters.js`, which uses a single format for all providers (Groq/OpenAI/DeepSeek — all are OpenAI-compatible and Groq+DeepSeek enforce JSON at the API level via `response_format:json_object`). Each character stores a `persona` (with a `{{LV}}` placeholder) and a JSON `shape`; the shared rules — `SCORING_RULE` (anti-farming: `points:0` for non-effort but **no** mood punishment) and `CONVO_RULE` (be proactive, end with a question) — live **once** in `characters.js`. `buildSys(persona,shape)` assembles the prompt; `getSys(k)` appends the daily-challenge line **only if the challenge for that character is not yet completed** (saves tokens). Reply-suggestion chips are rendered via `renderHints()`/`#hintsR` UI from the LLM `options` field and are **persisted** in `S.currentHints` per character (saved in `sendMsg` and `genStarter`; restored on `selChar`/page reload). Static hints (`chars[k].hints`) are used as a fallback when no persisted hints exist for the character. `genStarter` seeds the user turn with a random HP scenario (`SEEDS` array in `chat.js`) so openers vary across resets.
 
 ## LLM providers
 
@@ -250,7 +260,8 @@ Four games, each in its own file. All share engine state from `game-core.js`:
 
 ## Auth / credentials
 
-- `hp_creds` stores `{groq, openai, deepseek, last}` in storage
+- `hp_creds` stores `{groq, openai, deepseek, last}` in localStorage
+- `hp_auth` stores the app JWT from Google OAuth sign-in (via `kvGet`/`kvSet` in `auth.js`)
 - `prefillCreds()` runs at page load; returns `true` if autologin; `main.js` hides `.sp-key` and changes the button to "Continuar →" (calls `enterApp(true)` on click)
 - All providers' keys are loaded into `R.keys` on autologin
 - Provider default: if saved last-provider has no key, falls back to Groq
@@ -261,16 +272,49 @@ Four games, each in its own file. All share engine state from `game-core.js`:
 - Provider labels: Groq "Recomendado · Gratis", DeepSeek "Recomendado · Avanzado", OpenAI (bare)
 - `validateProviderKey()` in `settings.js` handles all 3 providers for splash key validation
 
+### Google OAuth (auth.js)
+
+- **Library:** Google Identity Services (GIS) loaded via `<script src="https://accounts.google.com/gsi/client?hl=es" async defer>` in HTML `<head>`
+- **Client ID:** `GOOGLE_CLIENT_ID` constant in `js/auth.js` — used by GIS `initialize()` and sent to Worker for token verification. Set via `wrangler secret put GOOGLE_CLIENT_ID` in production; stored in `worker/.dev.vars` for local dev.
+- **Client Secret:** `GOOGLE_CLIENT_SECRET` — set via `wrangler secret put` in production. Used only by the Worker to exchange OAuth2 authorization codes for ID tokens. Never in frontend code.
+- **Parallel architecture:** Two independent sign-in paths, both active simultaneously:
+  - **Passive (page load):** `initOneTap(onSuccess)` — fires `google.accounts.id.prompt()` on page load with `use_fedcm: false`. Zero-friction for Chrome users already signed into Google. Silent failure is handled — the button is always visible. Skipped if user is already authenticated.
+  - **Active (button):** `signInWithGoogle()` — the button `onclick` handler. Calls `_signInOAuth2Code()` → `google.accounts.oauth2.initCodeClient` (popup) → exchanges authorization code via `POST /auth/google/code` in the Worker. Works everywhere: Chrome, Incognito, mobile, Firefox, Safari.
+- **Token exchange:**
+  - One Tap path: `_exchangeCredential(credential)` → `POST /auth/google` → Worker verifies Google ID token (JWKS RS256) → issues app JWT (HS256)
+  - Button path: `_exchangeCode(code)` → `POST /auth/google/code` → Worker exchanges code at `oauth2.googleapis.com/token` → verifies ID token → issues app JWT
+- **Token:** App JWT stored in `localStorage` key `hp_auth`. 30-day expiry. Client-side `isAuthenticated()` checks expiry.
+- **Sign-out:** `signOut()` removes `hp_auth` from localStorage. `authSignOut()` is the UI-level sign-out (bound on `window`).
+- **Window bindings:** `authSignInGoogle` (splash Google button), `authSignOut` (settings sign-out button), `skipAuth` (splash "Continuar sin cuenta") — all bound in `main.js`
+
+### Sync (sync.js)
+
+- **Worker URL:** `WORKER_URL` constant in `js/auth.js` (Cloudflare Workers `*.workers.dev` subdomain)
+- **Functions:**
+  - `fetchRemoteState()` — GET /state with Bearer token. Returns parsed JSON or null (204/error/offline). 401 triggers auto sign-out.
+  - `pushState()` — PUT /state with `S` (minus `hist`). Fire-and-forget from `saveS()`, also called directly from `mergeAndSync()`.
+  - `mergeAndSync()` — Document-level last-write-wins merge. Called from `loadS()` via `await import('./sync.js')`. Freezes `localTs` BEFORE the async fetch to prevent race conditions.
+  - `syncConflict()` — returns true if the last merge overwrote local state with remote. Resets after reading (idempotent-once).
+- **Merge rules:**
+  - Remote newer (`remoteTs > localTs`) → overwrite local `S` fields (keep `hist`), `saveS()`, set conflict flag
+  - Local newer or equal → `pushState()` to cloud
+  - No remote (first-time) → `pushState()` to seed cloud
+  - Offline/error → `fetchRemoteState()` returns null, `pushState()` is attempted
+- **`_syncComplete` gate** (`js/state.js`): Set to `true` only after `mergeAndSync()` completes AND user is authenticated. Guards `pushState()` in `saveS()` — no cloud pushes before the initial sync.
+- **Online tracking:** `isOnline` module variable, updated via `online`/`offline` events
+- **Security:** `S.hist` excluded from all sync payloads. API keys never in `S`, never in `R`.`pushState()` payload.
+
 ## Persistence
 
 - Storage: `localStorage` via `storage.js` `kvGet`/`kvSet`
-- Keys: `hp_v1` (state S), `hp_creds` (API keys)
+- Keys: `hp_v1` (state S), `hp_creds` (API keys), `hp_auth` (app JWT from Google OAuth)
 - Pruning on save: vocab ≤200, mistakes ≤60, grammar ≤80, hist ≤25/char, challenges/challengeDone pruned to 14 days
 - `kvSet` now propagates errors (no silent catch). `saveS` catches them and calls the `onSaveError` callback registered in `main.js` (shows a toast). To register: `import {onSaveError} from './state.js'` then `onSaveError(cb)`.
 
 ## Known issues
 
 - **Voice input** — Chrome/Edge only (`webkitSpeechRecognition`); Safari/Firefox unsupported (shows Spanish toast instead of alert)
+- **One Tap cooldown** — Dismissing the One Tap prompt enters a browser-managed cooldown period (~10 min in Chrome). One Tap may not appear on the next page load. The "Iniciar sesión con Google" button fallback always works.
 
 ## Fixed issues (pitfall reference)
 
@@ -366,7 +410,19 @@ All prompts live in `js/characters.js`. The pipeline is implemented in `js/chat.
 node -e "const fs=require('fs');fs.writeFileSync('audio/manifest.json',JSON.stringify(fs.readdirSync('audio').filter(f=>f.toLowerCase().endsWith('.mp3')).sort(),null,2)+'\n')"
 
 # Deploy to Cloudflare Pages:
-npx wrangler pages deploy . --project-name=hogwarts-espanol
+npx wrangler pages deploy . --project-name=hogwarts-espanol --branch=main
 ```
 
 No build step. Cloudflare Pages serves ES modules fine over HTTPS.
+
+### Worker deploy
+
+```bash
+# First time: set secrets for production
+npx wrangler secret put JWT_SECRET
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+
+# Deploy the Worker (validates secrets before deploying)
+bash scripts/deploy-worker.sh
+```

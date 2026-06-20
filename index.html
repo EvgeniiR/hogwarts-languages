@@ -1,3 +1,235 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta http-equiv="refresh" content="0; url=hogwarts-espanol.html"><title>Hogwarts Español</title></head>
-<body>Redirigiendo… <a href="hogwarts-espanol.html">Haz clic aquí si no eres redirigido automáticamente</a></body></html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hogwarts Español</title>
+<meta name="theme-color" content="#07091a">
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tabler-icons.css">
+<link rel="stylesheet" href="css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="https://accounts.google.com/gsi/client?hl=es" async defer></script>
+</head>
+<body>
+<div class="wrap" id="app">
+
+<div class="fc-ov" id="fcOv">
+  <div style="font-family:'Cinzel',Georgia,serif;font-size:11px;color:var(--gold);letter-spacing:.1em;">VOCABULARIO · FLASHCARDS <button onclick="toggleFcReverse()" id="fcReverseBtn" style="font-size:11px;padding:2px 8px;border-radius:3px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:8px;">🇪🇸→🇬🇧</button></div>
+  <div style="font-size:12px;color:var(--mt);" id="fcProg">0 / 0</div>
+  <div class="fc-card" onclick="flipFc()">
+    <div class="fc-card-inner">
+      <div class="fc-face fc-face-front">
+        <div class="fc-word" id="fcWord"></div>
+        <div class="fc-hint" id="fcHint">Toca para revelar →</div>
+      </div>
+      <div class="fc-face fc-face-back">
+        <div class="fc-def" id="fcDef"></div>
+      </div>
+    </div>
+  </div>
+  <div class="fc-nav">
+    <button class="fc-btn" onclick="navFc(-1)">← Anterior</button>
+    <button class="fc-btn" onclick="navFc(1)">Siguiente →</button>
+  </div>
+  <button class="fc-close" onclick="closeFc()" aria-label="Cerrar">✕</button>
+</div>
+
+<div class="settings-ov" id="settingsOv">
+  <div class="settings-card">
+    <div style="font-family:'Cinzel',Georgia,serif;font-size:11px;color:var(--gold);letter-spacing:.1em;margin-bottom:12px;text-align:center;">AJUSTES</div>
+    <div class="settings-tabs">
+      <button class="settings-tab active" data-tab="voice" onclick="setSettingsTab('voice')">🔊 Voz</button>
+      <button class="settings-tab" data-tab="model" onclick="setSettingsTab('model')">🧠 Modelo</button>
+      <button class="settings-tab" data-tab="log" onclick="setSettingsTab('log')">📋 Log</button>
+    </div>
+    <div id="settingsContent"></div>
+    <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--dim);">
+      <button onclick="closeSettings();showSplashAuth()" style="padding:5px 16px;border-radius:4px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">🔑 Gestionar cuentas →</button>
+      <button onclick="authSignOut()" id="authSignOutBtn" style="display:none;padding:5px 16px;border-radius:4px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;margin-top:8px;">🚪 Cerrar sesión</button>
+    </div>
+  </div>
+  <button class="fc-close" onclick="closeSettings()" aria-label="Cerrar">✕</button>
+</div>
+
+<div class="settings-ov" id="achievementsOv">
+  <div class="settings-card achievements-card">
+    <div style="font-family:'Cinzel',Georgia,serif;font-size:11px;color:var(--gold);letter-spacing:.1em;margin-bottom:12px;text-align:center;">🏆 LOGROS</div>
+    <div id="achievementsContent"></div>
+  </div>
+  <button class="fc-close" onclick="closeAchievements()" aria-label="Cerrar">✕</button>
+</div>
+
+<div class="settings-ov" id="gamesOv">
+  <div class="settings-card settings-card--games">
+    <div style="font-family:'Cinzel',Georgia,serif;font-size:11px;color:var(--gold);letter-spacing:.1em;margin-bottom:12px;text-align:center;">MINIJUEGOS</div>
+    <div class="settings-tabs">
+      <button class="settings-tab active" data-tab="dictation" onclick="setGameTab('dictation')">🎧 Dictado</button>
+      <button class="settings-tab" data-tab="translation" onclick="setGameTab('translation')">✍️ Traducción</button>
+      <button class="settings-tab" data-tab="order" onclick="setGameTab('order')">📰 Orden</button>
+      <button class="settings-tab" data-tab="memory" onclick="setGameTab('memory')">🔮 Pensieve</button>
+    </div>
+    <div id="gamesContent"></div>
+  </div>
+  <button class="fc-close" onclick="closeGames()" aria-label="Cerrar">✕</button>
+</div>
+
+<div class="settings-ov" id="errExplainOv">
+  <div class="settings-card ee-card">
+    <div style="font-family:'Cinzel',Georgia,serif;font-size:11px;color:var(--gold);letter-spacing:.1em;margin-bottom:12px;text-align:center;">EXPLICACIÓN DE ERROR</div>
+    <div id="eeError"></div>
+    <div id="eeExpl"></div>
+    <div id="eeSugg"></div>
+    <div id="eeChat" class="ee-chat"></div>
+    <div class="ee-inp-row">
+      <input id="eeInp" class="ee-inp" aria-label="Pregunta sobre el error" placeholder="¿Más preguntas?" autocomplete="off"
+             onkeydown="if(event.key==='Enter')askErrFollowUp()">
+      <button class="ee-send" onclick="askErrFollowUp()"><i class="ti ti-send"></i></button>
+    </div>
+  </div>
+  <button class="fc-close" onclick="closeErrExplain()" aria-label="Cerrar">✕</button>
+</div>
+
+<div class="settings-ov" id="readingOv">
+  <div class="settings-card settings-card--games" id="readingCard"></div>
+  <button class="fc-close" onclick="closeReading()" aria-label="Cerrar">✕</button>
+</div>
+<div class="sel-reading-popup" id="selReadingPopup"><span id="selReadingTrans">…</span><button onclick="addReadingSelToVocab()" aria-label="Añadir al vocabulario" data-tip="Añadir al vocabulario">+</button></div>
+
+<div class="splash" id="splash">
+  <svg width="76" height="76" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="40" cy="40" r="36" fill="none" stroke="#c9a84c" stroke-width="1.5"/>
+    <circle cx="40" cy="40" r="28" fill="none" stroke="#5a3e14" stroke-width=".5"/>
+    <text x="40" y="30" text-anchor="middle" font-size="10" fill="#c9a84c" font-family="Cinzel,Georgia,serif">HOGWARTS</text>
+    <text x="40" y="52" text-anchor="middle" font-size="22" fill="#c9a84c">⚡</text>
+    <text x="40" y="66" text-anchor="middle" font-size="10" fill="#5a3e14" font-family="Cinzel,Georgia,serif">ESPAÑOL</text>
+  </svg>
+  <div class="sp-title">Hogwarts Español</div>
+  <div class="sp-sub">Practica español con tus personajes favoritos.<br>Tu progreso se guarda automáticamente.</div>
+  <div class="sp-auth" id="spAuth" style="display:none;">
+    <div style="margin-bottom:8px;color:var(--gold);font-family:Cinzel,Georgia,serif;font-size:12px;">Identifícate para sincronizar tu progreso</div>
+    <div id="googleBtnContainer" style="min-height:40px;display:flex;justify-content:center;align-items:center;">
+      <button id="googleSignInBtn" onclick="authSignInGoogle()" style="display:flex;align-items:center;gap:10px;padding:8px 20px;border-radius:6px;border:1px solid var(--bd);background:#fff;color:#1a1a1a;cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:13px;white-space:nowrap;">
+        <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        <span>Iniciar sesión con Google</span>
+      </button>
+    </div>
+    <div id="authMsg" style="font-size:11px;margin-top:8px;min-height:16px;text-align:center;"></div>
+    <div style="margin-top:10px;text-align:center;">
+      <a href="#" onclick="skipAuth()" style="color:var(--mt);font-size:11px;">Continuar sin cuenta →</a>
+    </div>
+  </div>
+  <div class="sp-key" style="display:none">
+    <div style="margin-bottom:8px;color:#6878a8;">Elige tu proveedor de AI</div>
+    <div class="sp-pvd-row" style="display:flex;gap:8px;justify-content:center;margin-bottom:10px;flex-wrap:wrap;">
+      <button onclick="setProvider('groq')" id="pvd_groq" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">Groq · Recomendado · Gratis</button>
+      <button onclick="setProvider('deepseek')" id="pvd_deepseek" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">DeepSeek · Recomendado · Avanzado</button>
+      <button onclick="setProvider('openai')" id="pvd_openai" style="padding:5px 14px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);color:var(--mt);cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;">OpenAI</button>
+    </div>
+    <div id="keyInputGroq">
+      <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">Gratis, sin límites de cuota, rápida. · <a href="https://console.groq.com/keys" target="_blank" style="color:var(--gold);">conseguir clave →</a></div>
+      <div id="groqKeySaved" style="display:none;margin-bottom:6px;"><span style="color:#2a8018;font-size:11px;">✓ Clave guardada</span><button onclick="splashEditKey('groq')" style="font-size:11px;padding:3px 8px;border-radius:3px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:8px;">Cambiar</button><button onclick="splashDeleteKey('groq')" style="font-size:11px;padding:3px 8px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:4px;">Eliminar</button></div>
+      <input type="password" id="groqKeyInput" placeholder="gsk_..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;font-family:monospace;">
+    </div>
+    <div id="keyInputOpenai" style="display:none;">
+      <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">GPT-4.1 Mini — rápido y preciso. · <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--gold);">conseguir clave →</a></div>
+      <div id="openaiKeySaved" style="display:none;margin-bottom:6px;"><span style="color:#2a8018;font-size:11px;">✓ Clave guardada</span><button onclick="splashEditKey('openai')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:8px;">Cambiar</button><button onclick="splashDeleteKey('openai')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:4px;">Eliminar</button></div>
+      <input type="password" id="openaiKeyInput" placeholder="sk-proj-..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;font-family:monospace;">
+    </div>
+    <div id="keyInputDeepseek" style="display:none;">
+      <div style="margin-bottom:4px;color:#6878a8;font-size:11px;">◆ Excelente relación calidad/precio. API OpenAI-compatible, JSON fiable. · <a href="https://platform.deepseek.com/api_keys" target="_blank" style="color:var(--gold);">conseguir clave →</a></div>
+      <div id="deepseekKeySaved" style="display:none;margin-bottom:6px;"><span style="color:#2a8018;font-size:11px;">✓ Clave guardada</span><button onclick="splashEditKey('deepseek')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid var(--bdg);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:8px;">Cambiar</button><button onclick="splashDeleteKey('deepseek')" style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid #c05050;background:none;color:#c05050;cursor:pointer;font-family:Cinzel,Georgia,serif;margin-left:4px;">Eliminar</button></div>
+      <input type="password" id="deepseekKeyInput" placeholder="sk-..." style="background:var(--bg2);border:1px solid var(--bd);color:var(--lt);padding:6px 10px;border-radius:4px;font-size:12px;font-family:monospace;">
+    </div>
+    <label style="display:flex;align-items:center;gap:6px;justify-content:center;margin-top:10px;font-size:11px;color:#6878a8;cursor:pointer;">    <input type="checkbox" id="rememberKey" style="cursor:pointer;width:16px;height:16px;margin:0;flex-shrink:0;">Recordar API key en este dispositivo</label>
+  </div>
+  <button id="splashBtn" class="sp-btn" onclick="enterApp()">Accio Español →</button>
+  <button id="splashBackBtn" onclick="hideSplashAuth()" style="display:none;padding:6px 16px;border-radius:4px;border:1px solid var(--bd);background:none;color:#7a5520;cursor:pointer;font-family:Cinzel,Georgia,serif;font-size:11px;margin-top:8px;">← Volver al juego</button>
+</div>
+
+<div id="mainApp" style="display:none;flex-direction:column;height:100%;">
+  <div class="hdr">
+    <div class="hdr-l">
+      <span class="hdr-title">Hogwarts Español</span>
+      <span class="hbadge" id="hbadge" style="background:#1a0400;color:#c9a84c;border-color:#8b6914;">Gryffindor</span>
+      <span class="lvlbadge" id="lvlBadge" title="Tu nivel CEFR de español">A2</span>
+      <span class="pvd-badge" id="pvdBadge" title="Proveedor de AI activo — clic para cambiar" onclick="openSettings()">Groq</span>
+    </div>
+    <div class="hdr-r">
+      <div class="streak-d"><span style="font-size:15px;">🔥</span><span class="streak-n" id="streakN">0</span><span class="streak-lbl">días</span></div>
+      <div class="daily-goal"><i class="ti ti-star" id="dailyGoalStar" style="font-size:15px;"></i><span class="pts-n" id="dailyGoalNum">0/50</span></div>
+      <button class="abtn" id="aBtn" onclick="toggleAudio()" aria-label="Sonido"><i class="ti ti-volume"></i></button>
+      <button class="abtn" id="skipBtn" onclick="skipSong()" aria-label="Siguiente canción" title="Siguiente canción"><i class="ti ti-player-skip-forward"></i></button>
+      <button class="abtn" onclick="openGames()" aria-label="Minijuegos" title="Minijuegos"><i class="ti ti-target-arrow"></i></button>
+      <button class="abtn" onclick="openReading()" aria-label="El Profeta" title="El Profeta"><i class="ti ti-book"></i></button>
+      <button class="abtn" onclick="openAchievements()" aria-label="Logros" title="Logros"><i class="ti ti-trophy"></i></button>
+      <button class="abtn" onclick="openSettings()" aria-label="Ajustes" title="Ajustes"><i class="ti ti-settings"></i></button>
+      <span class="sync-badge" id="syncBadge" style="display:none;" title="Sincronización">☁️</span>
+      <button class="abtn" id="sideBtn" onclick="toggleSide()" aria-label="Panel lateral" title="Panel lateral"><i class="ti ti-layout-sidebar-right"></i></button>
+    </div>
+  </div>
+
+  <div class="ctabs">
+    <div class="ctab active" data-ch="hermione" onclick="selChar(this)">
+      <div class="cport" id="p_hermione"></div><span class="cname">Hermione</span><div class="mdot" id="m_hermione"></div>
+    </div>
+    <div class="ctab" data-ch="dumbledore" onclick="selChar(this)">
+      <div class="cport" id="p_dumbledore"></div><span class="cname">Dumbledore</span><div class="mdot" id="m_dumbledore"></div>
+    </div>
+    <div class="ctab" data-ch="hagrid" onclick="selChar(this)">
+      <div class="cport" id="p_hagrid"></div><span class="cname">Hagrid</span><div class="mdot" id="m_hagrid"></div>
+    </div>
+    <div class="ctab" data-ch="snape" onclick="selChar(this)">
+      <div class="cport" id="p_snape"></div><span class="cname">Snape</span><div class="mdot" id="m_snape"></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="ccol">
+      <div class="chal">
+        <div class="chal-hdr">
+          <div class="chal-lbl">⭐ Desafío del día</div>
+        </div>
+        <div class="chal-txt mem-loading" id="chalTxt">Cargando tu desafío…</div>
+        <div id="chalFocus"></div>
+        <div id="chalOpener"></div>
+      </div>
+      <div class="msgs" id="msgs"></div>
+      <button class="sel-vocab-btn" id="selVocabBtn" onclick="addSelectionToVocab()">➕ Vocab</button>
+      <div class="inp-area">
+      <div class="inp-row">
+        <button class="ibtn mic" id="micB" onclick="toggleMic()" aria-label="Voz"><i class="ti ti-microphone"></i></button>
+        <textarea id="ui" aria-label="Escribe en español" placeholder="Escribe o habla en español…" rows="1" onkeydown="hKey(event)" oninput="aResize(this)"></textarea>
+        <button class="ibtn send" id="sendB" onclick="sendMsg()" disabled aria-label="Enviar"><i class="ti ti-send"></i></button>
+      </div>
+        <div class="hints" id="hintsR"></div>
+      </div>
+    </div>
+
+    <div class="side" id="sidePanel">
+      <div class="ss">
+        <div class="stitle">⚗ Puntos semanales</div>
+        <div class="hg"><div class="hg-f" id="hgF" style="width:0%"></div></div>
+        <div id="weeklyPtsLabel" style="font-size:11px;color:var(--mt);text-align:center;margin-top:4px;">0 / 200</div>
+      </div>
+      <div class="stabs">
+        <button class="stab active" id="stb_vocab" onclick="setSTab('vocab')">📖 Vocab</button>
+        <button class="stab" id="stb_grammar" onclick="setSTab('grammar')">📝 Gram.</button>
+        <button class="stab" id="stb_mistakes" onclick="setSTab('mistakes')">⚠ Err.</button>
+      </div>
+      <div class="scon" id="scon"></div>
+    </div>
+    <div class="side-scrim" onclick="toggleSide()"></div>
+  </div>
+</div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js');
+}
+</script>
+</body>
+</html>

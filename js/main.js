@@ -11,11 +11,13 @@ import { tryPlayNow, stopMusic, tryAudio, syncAudioBtn, toggleAudio, skipSong } 
 import { speak, speakFromBtn, setVoicePref, testVoice } from './tts.js';
 import { processDateChanges, updPtsUI, updStreakUI, awardPoints, pushLevelOutcome } from './progress.js';
 import { genDailyChallenges } from './challenges.js';
-import { sendMsg, selChar, selCharByName, updHeaderAll, showHints, useHint, renderMsgs, genStarter, retryLastMsg, resetConversation } from './chat.js';
+import { sendMsg, selChar, selCharByName, updHeaderAll, useHint, renderMsgs, genStarter, retryLastMsg, resetConversation } from './chat.js';
 import { renderSide, setSTab, navWeek, toggleVAdd, submitVAdd, editVocab, cancelEditVocab, saveEditVocab, deleteVocab, editMistake, cancelEditMistake, saveEditMistake, deleteMistake, openFc, closeFc, flipFc, navFc, toggleFcReverse, handleSelUp, hideSelBtn, addSelectionToVocab, addReadingSelToVocab, startSrsReview, srsReveal, srsAnswer, closeSrsReview } from './sidepanel.js';
 import { openSettings, closeSettings, setSettingsTab, renderSettings, setModelPref, setTtsOff, openAchievements, closeAchievements, renderAchievements, validateProviderKey, clearLog } from './settings.js';
 import { openErrExplain, closeErrExplain, askErrFollowUp, clickErrSuggestion } from './error-explain.js';
 import { compareModels } from './model-compare.js';
+import { getToken, isAuthenticated, signInWithGoogle, initOneTap, signOut, getUserEmail } from './auth.js';
+import { syncConflict } from './sync.js';
 import { showToast, aResize } from './helpers.js';
 
 // ── Lazy-load overlays — deferred to remove ~65KB from startup critical path ───
@@ -91,9 +93,69 @@ async function enterApp(skipValidation=false){
     if(delay)setTimeout(()=>genStarter(chars[i]),delay);
     else genStarter(chars[i]);
   }
-  setInterval(()=>{const t=new Date().toISOString().slice(0,10);if(S.lastActiveDate&&S.lastActiveDate!==t){processDateChanges();saveS();}},60000);
+  setInterval(()=>{const t=new Date().toISOString().slice(0,10);if(S.lastActiveDate&&S.lastActiveDate!==t){processDateChanges();saveS();}updateSyncBadge();},60000);
   tryAudio();
   await saveS();
+  updateAuthUI();
+  updateSyncBadge();
+}
+
+// ── Auth UI functions ─────────────────────────────────────────────────────
+async function authSignInGoogle() {
+  const btn = document.getElementById('googleSignInBtn');
+  btn.disabled = true;
+  document.getElementById('authMsg').innerHTML = '';
+  const result = await signInWithGoogle();
+  btn.disabled = false;
+  if (result.ok) {
+    document.getElementById('authMsg').innerHTML = '<span class="auth-success">✓ ¡Conectado!</span>';
+    updateAuthUI();
+  } else {
+    document.getElementById('authMsg').innerHTML = `<span class="auth-error">✗ ${result.error || 'Error al conectar'}</span>`;
+  }
+}
+
+async function authSignOut() {
+  signOut();
+  updateAuthUI();
+  showToast('Sesión cerrada','#2a5018','#7acc40');
+  // Re-show auth form on splash for next time
+  document.getElementById('spAuth').style.display = '';
+  document.getElementById('authMsg').innerHTML = '';
+}
+
+function skipAuth() {
+  document.getElementById('spAuth').style.display = 'none';
+}
+
+async function updateAuthUI() {
+  const authSection = document.getElementById('spAuth');
+  const signOutBtn = document.getElementById('authSignOutBtn');
+  const syncBadge = document.getElementById('syncBadge');
+  const authed = await isAuthenticated();
+  if (authed) {
+    if (signOutBtn) signOutBtn.style.display = '';
+    if (syncBadge) syncBadge.style.display = '';
+    if (authSection) authSection.style.display = 'none';
+  } else {
+    if (signOutBtn) signOutBtn.style.display = 'none';
+    if (syncBadge) syncBadge.style.display = 'none';
+  }
+}
+
+async function updateSyncBadge() {
+  const badge = document.getElementById('syncBadge');
+  if (!badge) return;
+  const authed = await isAuthenticated();
+  if (!authed) { badge.style.display = 'none'; return; }
+  badge.style.display = '';
+  if (syncConflict()) {
+    badge.className = 'sync-badge conflict';
+    badge.title = 'Conflicto de sincronización — tus cambios locales fueron sobrescritos';
+  } else {
+    badge.className = 'sync-badge';
+    badge.title = 'Sincronización activa';
+  }
 }
 
 // ── Splash auth management (shown from settings) ──────────────────────────
@@ -185,6 +247,24 @@ if(hasAutologin){
 } else {
   document.querySelector('.sp-key').style.display='';
 }
+// Auth visibility — show/hide auth section based on token state
+const authenticated = await isAuthenticated();
+if (authenticated) {
+  document.getElementById('spAuth').style.display = 'none';
+} else if (!hasAutologin) {
+  document.getElementById('spAuth').style.display = '';
+} else {
+  document.getElementById('spAuth').style.display = '';
+}
+updateAuthUI();
+
+// Fire One Tap passively on page load — zero-friction sign-in for Chrome
+// users already signed into Google. Silent failure is fine — button stays visible.
+// Skip if already authenticated — no point showing One Tap to a signed-in user.
+if (!authenticated) initOneTap(() => {
+  document.getElementById('spAuth').style.display = 'none';
+  updateAuthUI();
+});
 
 document.addEventListener('mouseup',handleSelUp);
 document.addEventListener('touchend',handleSelUp);
@@ -253,12 +333,13 @@ function toggleMic(){
 Object.assign(window,{
   // Splash / auth
   enterApp, setProvider,
+  authSignInGoogle, authSignOut, skipAuth,
   // Audio
   toggleAudio, skipSong,
   // Character tabs
   selChar, selCharByName,
   // Chat input
-  sendMsg, showHints, useHint, retryLastMsg, resetConversation,
+  sendMsg, useHint, retryLastMsg, resetConversation,
   // Side panel tabs
   setSTab, navWeek,
   // Vocab add form

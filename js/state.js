@@ -23,6 +23,7 @@ export let S = {
   lastChar:'hermione',
   currentHints:{},
   readingArticles:[],readingCompleted:0,readingCompletedIds:{},
+  _updatedAt:0,
   version:2
 };
 
@@ -47,9 +48,13 @@ export function pruneOldDates(obj,days){
 let _onSaveError=null;
 export function onSaveError(cb){_onSaveError=cb;}
 export const HIST_CAP = 25;
+// True after first mergeAndSync completes — gates pushState in saveS()
+// so we never push stale/empty state to cloud before the first sync.
+export let _syncComplete = false;
 
 export async function saveS(){
   try{
+    S._updatedAt = Date.now();
     const d={...S,
       hist:Object.fromEntries(Object.entries(S.hist).map(([k,v])=>[k,v.filter(m=>!m.error).slice(-HIST_CAP)])),
       grammar:S.grammar.slice(-80),mistakes:S.mistakes.slice(-60),vocab:S.vocab.slice(-200),
@@ -58,6 +63,10 @@ export async function saveS(){
     const keptIds=new Set((S.readingArticles||[]).map(a=>a.id));
     d.readingCompletedIds=Object.fromEntries(Object.entries(S.readingCompletedIds||{}).filter(([id])=>keptIds.has(id)));
     await kvSet('hp_v1',JSON.stringify(d));
+    // Push to cloud only after initial mergeAndSync has completed.
+    if (_syncComplete && typeof window !== 'undefined') {
+      try { import('./sync.js').then(m => m.pushState()).catch(() => {}); } catch (_) {}
+    }
   }catch(e){console.error('saveS failed',e);if(_onSaveError)_onSaveError(e);}
 }
 
@@ -97,6 +106,7 @@ export async function loadS(){
       if(d.readingArticles) S.readingArticles = d.readingArticles;
       if(d.readingCompleted !== undefined) S.readingCompleted = d.readingCompleted;
       if(d.readingCompletedIds) S.readingCompletedIds = d.readingCompletedIds;
+      if(d._updatedAt !== undefined) S._updatedAt = d._updatedAt;
     }
   }catch(e){console.warn('loadS falló — estado corrupto o almacenamiento inaccesible',e);}
   S.version=2;
@@ -104,4 +114,8 @@ export async function loadS(){
   S.vocab.forEach(v=>{if(!v.ts)v.ts=now;srsInit(v);});
   S.mistakes.forEach(m=>{if(!m.ts)m.ts=now;});
   S.grammar.forEach(g=>{if(!g.ts)g.ts=now;});
+  // Block on merge with remote — prevents saveS() from bumping _updatedAt mid-sync.
+  try { await import('./sync.js').then(m => m.mergeAndSync()).catch(() => {}); } catch (_) {}
+  // Only enable cloud pushes if authenticated — merge may have bailed silently.
+  try { const authed = await import('./auth.js').then(m => m.isAuthenticated()).catch(() => false); if (authed) _syncComplete = true; } catch (_) {}
 }

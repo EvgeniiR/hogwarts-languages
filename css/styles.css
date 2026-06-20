@@ -239,6 +239,18 @@ textarea#ui::placeholder{color:#8b9bb8;}
 .sp-btn:hover{background-color:#9a0000;}
 .sp-btn.loading{cursor:wait;opacity:.85;}
 .sp-btn.loading::after{content:'';display:inline-block;width:12px;height:12px;border:2px solid rgba(245,229,192,.3);border-top-color:#f5e5c0;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-left:10px;}
+/* ── Auth form on splash ─────────────────────────────────────────────── */
+.sp-auth{margin-top:4px;font-size:12px;color:var(--mt);text-align:center;max-width:360px;}
+#googleSignInBtn{transition:box-shadow .2s,transform .1s;}
+#googleSignInBtn:hover{box-shadow:0 1px 4px rgba(0,0,0,.3);}
+#googleSignInBtn:active{transform:scale(.97);}
+#googleSignInBtn:disabled{opacity:.6;cursor:wait;transform:none;box-shadow:none;}
+#authMsg .auth-success{color:#4aa020;}
+#authMsg .auth-error{color:#d04040;}
+/* ── Sync badge in header ──────────────────────────────────────────────── */
+.sync-badge{font-size:13px;opacity:0.7;cursor:default;display:inline-flex;align-items:center;padding:4px;transition:opacity .3s,color .3s;}
+.sync-badge.conflict{color:#d09030;opacity:1;}
+.sync-badge.error{color:#d04040;opacity:1;}
 /* Challenge sub-elements */
 #chalFocus{font-size:12px;color:#7a5010;margin-top:3px;font-style:italic;}
 #chalOpener{font-size:12px;color:#5a68a8;margin-top:2px;font-style:italic;cursor:pointer;transition:color .15s;}
@@ -288,8 +300,17 @@ textarea#ui::placeholder{color:#8b9bb8;}
   #sideBtn{display:inline-flex;}
   .hdr-title{display:none;}
   .streak-lbl{display:none;}
-  .hdr-r{gap:4px;}
-  .abtn{padding:4px;}
+  #aBtn{display:none;}
+  #skipBtn{display:none;}
+  .pvd-badge{display:none;}
+  .hdr-r{gap:2px;}
+  .hdr-l{gap:4px;}
+  .hdr{padding:6px 8px;}
+  .abtn{font-size:14px;padding:5px;}
+  .streak-n,.pts-n{font-size:12px;}
+  .sync-badge{font-size:13px;padding:4px 2px;}
+  .streak-d span{font-size:12px !important;}
+  #dailyGoalStar{font-size:12px !important;}
   .sp-key input{width:100%;max-width:300px;}
   #splashBtn{width:80%;}
   .sp-pvd-row{flex-wrap:wrap;}

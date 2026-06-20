@@ -6,6 +6,7 @@
 
 # Cloudflare Wrangler
 .wrangler/
+worker/.dev.vars
 
 # Audio assets (large binaries, served externally)
 audio/*.mp3
@@ -14,3 +15,6 @@ audio/*.mp3
 .opencode/
 opencode.json
 opencode-agents/
+
+# Pipeline-generated workspace
+workspace/
