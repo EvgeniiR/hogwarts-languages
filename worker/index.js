@@ -378,15 +378,33 @@ async function handlePutState(request, env) {
   }
 
   // Validate JSON
+  let incoming;
   try {
-    JSON.parse(bodyText);
+    incoming = JSON.parse(bodyText);
   } catch (_) {
     return jsonResponse({ error: 'Cuerpo JSON inválido' }, 400, origin);
   }
 
-  // Store in KV
   const email = payload.sub;
-  await env.HOGWARTS_KV.put('state:' + email, bodyText);
+  const key = 'state:' + email;
+
+  // Timestamp conflict detection: read existing state, compare _updatedAt
+  const existingJson = await env.HOGWARTS_KV.get(key);
+  if (existingJson !== null && existingJson !== undefined) {
+    try {
+      const existing = JSON.parse(existingJson);
+      const existingTs = Number(existing._updatedAt);
+      const incomingTs = Number(incoming._updatedAt);
+      if (!isNaN(existingTs) && !isNaN(incomingTs) && existingTs > incomingTs) {
+        return jsonResponse({ conflict: true, serverUpdatedAt: existingTs }, 409, origin);
+      }
+    } catch (_) {
+      // If existing state cannot be parsed, proceed with write (defensive fallback)
+    }
+  }
+
+  // Store in KV
+  await env.HOGWARTS_KV.put(key, bodyText);
 
   return jsonResponse({ ok: true }, 200, origin);
 }

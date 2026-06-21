@@ -251,6 +251,23 @@ textarea#ui::placeholder{color:#8b9bb8;}
 .sync-badge{font-size:13px;opacity:0.7;cursor:default;display:inline-flex;align-items:center;padding:4px;transition:opacity .3s,color .3s;}
 .sync-badge.conflict{color:#d09030;opacity:1;}
 .sync-badge.error{color:#d04040;opacity:1;}
+/* ── Sync choice window ──────────────────────────────────────────────── */
+.sync-choice-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:640px;margin:0 auto;padding:20px;}
+.sync-choice-title{font-family:'Cinzel',Georgia,serif;font-size:20px;color:var(--gold);letter-spacing:.06em;text-align:center;}
+.sync-choice-subtitle{font-size:13px;color:var(--mt);text-align:center;line-height:1.7;max-width:480px;font-style:italic;}
+.sync-choice-table{display:grid;grid-template-columns:1fr 1fr;gap:1px 10px;width:100%;max-width:560px;padding:14px 16px;background:rgba(18,21,64,.45);border:1px solid var(--bd);border-radius:6px;}
+.sync-choice-section{font-family:'Cinzel',Georgia,serif;font-size:12px;color:var(--gold);letter-spacing:.05em;text-align:center;padding:4px 0 8px;border-bottom:1px solid var(--bdg);margin-bottom:4px;}
+.sync-choice-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 4px;gap:8px;}
+.sync-choice-row:nth-child(odd){background:rgba(201,168,76,.03);}
+.sync-choice-row-label{font-size:11px;color:var(--mt);font-style:italic;white-space:nowrap;}
+.sync-choice-row-value{font-size:12px;color:var(--lt);text-align:right;white-space:nowrap;}
+.sync-choice-actions{display:flex;gap:14px;justify-content:center;margin-top:8px;flex-wrap:wrap;}
+.sync-choice-btn{padding:10px 26px;border-radius:4px;font-family:'Cinzel',Georgia,serif;font-size:13px;cursor:pointer;letter-spacing:.04em;border:1.5px solid var(--bdg);background:none;color:var(--gold);transition:background .15s,border-color .15s;}
+.sync-choice-btn:hover{border-color:var(--gold);background:rgba(201,168,76,.08);}
+.sync-choice-btn--local{background-color:#740001;color:#f5e5c0;border-color:var(--gold);}
+.sync-choice-btn--local:hover{background-color:#9a0000;}
+.sync-choice-btn--remote{}
+
 /* Challenge sub-elements */
 #chalFocus{font-size:12px;color:#7a5010;margin-top:3px;font-style:italic;}
 #chalOpener{font-size:12px;color:#5a68a8;margin-top:2px;font-style:italic;cursor:pointer;transition:color .15s;}
@@ -314,6 +331,12 @@ textarea#ui::placeholder{color:#8b9bb8;}
   .sp-key input{width:100%;max-width:300px;}
   #splashBtn{width:80%;}
   .sp-pvd-row{flex-wrap:wrap;}
+  .sync-choice-table{grid-template-columns:1fr;}
+  .sync-choice-wrap{padding:12px;}
+  .sync-choice-title{font-size:17px;}
+  .sync-choice-btn{padding:10px 18px;font-size:12px;}
+  .sync-choice-row-label{font-size:10px;}
+  .sync-choice-row-value{font-size:11px;}
 }
 @media(min-width:601px) and (max-width:819px){
   .side{width:148px;}

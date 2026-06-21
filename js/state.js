@@ -115,7 +115,30 @@ export async function loadS(){
   S.mistakes.forEach(m=>{if(!m.ts)m.ts=now;});
   S.grammar.forEach(g=>{if(!g.ts)g.ts=now;});
   // Block on merge with remote — prevents saveS() from bumping _updatedAt mid-sync.
-  try { await import('./sync.js').then(m => m.mergeAndSync()).catch(() => {}); } catch (_) {}
-  // Only enable cloud pushes if authenticated — merge may have bailed silently.
-  try { const authed = await import('./auth.js').then(m => m.isAuthenticated()).catch(() => false); if (authed) _syncComplete = true; } catch (_) {}
+  // _syncComplete gate: only true when mergeAndSync actually resolved
+  // (auto-resolution or user choice). If it returns {resolved:false} or
+  // throws, _syncComplete stays false and saveS() won't push to cloud.
+  try {
+    const syncM = await import('./sync.js');
+    const result = await syncM.mergeAndSync();
+    _syncComplete = !!(result && result.resolved);
+  } catch (_) { /* _syncComplete stays false */ }
+
+  // ── Online re-sync ──────────────────────────────────────────────────────
+  // If the initial mergeAndSync failed (offline / push_failed_proceed_anyway),
+  // _syncComplete stays false and saveS() never pushes.  Register a one-shot
+  // online listener that retries mergeAndSync so the user doesn't need a
+  // manual page reload.  Registered at the end of loadS() so it only fires
+  // after the initial sync attempt — the one-shot self-removal + _syncComplete
+  // guard prevent parallel runs.
+  const _onReconnect = async () => {
+    window.removeEventListener('online', _onReconnect);
+    if (_syncComplete) return;
+    try {
+      const syncM = await import('./sync.js');
+      const result = await syncM.mergeAndSync();
+      _syncComplete = !!(result && result.resolved);
+    } catch (_) { /* keep _syncComplete as-is */ }
+  };
+  window.addEventListener('online', _onReconnect);
 }

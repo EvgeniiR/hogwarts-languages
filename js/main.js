@@ -3,7 +3,7 @@
 // event listeners, and exposes every function referenced by inline HTML
 // `onclick` attributes to `window` (ES module scope is not global; this
 // block is the documented "public surface" of the app's HTML interface).
-import { S, R, loadS, saveS, onSaveError } from './state.js';
+import { S, R, loadS, saveS, _syncComplete, onSaveError } from './state.js';
 import { LEVELS } from './characters.js';
 import { SVG } from './portraits.js';
 import { prefillCreds, setProvider, saveCreds, clearCreds, removeCreds, KEY_INPUT_ID, savedKeyIndicator, splashEditKey, splashDeleteKey } from './credentials.js';
@@ -17,7 +17,7 @@ import { openSettings, closeSettings, setSettingsTab, renderSettings, setModelPr
 import { openErrExplain, closeErrExplain, askErrFollowUp, clickErrSuggestion } from './error-explain.js';
 import { compareModels } from './model-compare.js';
 import { getToken, isAuthenticated, signInWithGoogle, initOneTap, signOut, getUserEmail } from './auth.js';
-import { syncConflict } from './sync.js';
+import { consecutivePushFailures } from './sync.js';
 import { showToast, aResize } from './helpers.js';
 
 // ── Lazy-load overlays — deferred to remove ~65KB from startup critical path ───
@@ -149,9 +149,12 @@ async function updateSyncBadge() {
   const authed = await isAuthenticated();
   if (!authed) { badge.style.display = 'none'; return; }
   badge.style.display = '';
-  if (syncConflict()) {
-    badge.className = 'sync-badge conflict';
-    badge.title = 'Conflicto de sincronización — tus cambios locales fueron sobrescritos';
+  if (!_syncComplete) {
+    badge.className = 'sync-badge error';
+    badge.title = 'Sincronización pendiente — recarga la página.';
+  } else if (consecutivePushFailures >= 3) {
+    badge.className = 'sync-badge error';
+    badge.title = 'Sin conexión — los cambios se guardarán cuando vuelvas.';
   } else {
     badge.className = 'sync-badge';
     badge.title = 'Sincronización activa';
