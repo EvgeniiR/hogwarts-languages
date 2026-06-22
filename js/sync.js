@@ -5,6 +5,7 @@
 // except isOnline and lastSyncError which are live module-level variables.
 import { getToken, isAuthenticated, signOut, WORKER_URL } from './auth.js';
 import { S, saveS } from './state.js';
+import lang from './lang.js';
 
 // ── Sentinel for "no cloud state exists" (HTTP 204) ──────────────────────────
 // Must be truthy so `if (!remote)` still catches null (error/offline).
@@ -323,11 +324,11 @@ export async function mergeAndSync() {
 
       wrap.innerHTML = `
         <div class="sync-choice-wrap">
-          <div class="sync-choice-title">Error al sincronizar</div>
-          <div class="sync-choice-subtitle">No se pudo guardar en la nube.</div>
+          <div class="sync-choice-title">${lang.ui.syncErrTitle}</div>
+          <div class="sync-choice-subtitle">${lang.ui.syncErrSubtitle}</div>
           <div class="sync-choice-actions">
-            <button class="sync-choice-btn sync-choice-btn--local" id="syncChoiceRetry">Reintentar</button>
-            <button class="sync-choice-btn sync-choice-btn--remote" id="syncChoiceProceed">Continuar de todos modos</button>
+            <button class="sync-choice-btn sync-choice-btn--local" id="syncChoiceRetry">${lang.ui.syncErrRetry}</button>
+            <button class="sync-choice-btn sync-choice-btn--remote" id="syncChoiceProceed">${lang.ui.syncErrProceed}</button>
           </div>
         </div>
       `;

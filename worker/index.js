@@ -16,6 +16,20 @@ const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
 // ── JWKS cache (module-level — persists across requests within the isolate) ────
 const jwksCache = { jwks: null };
 
+/** Return true if origin is in the comma-separated ALLOWED_ORIGINS list or is localhost. */
+function isAllowedOrigin(origin, env) {
+  if (!origin) return false;
+  if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) return true;
+  const allowed = (env.ALLOWED_ORIGINS || env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim());
+  return allowed.includes(origin);
+}
+
+/** Derive the two-letter language prefix from the request origin. */
+function langPrefix(origin) {
+  if (origin && origin.includes('hogwarts-english')) return 'en';
+  return 'es';
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 /** Base64url encode (no padding, URL-safe characters). */
@@ -326,9 +340,16 @@ async function handleGetState(request, env) {
     return jsonResponse({ error: 'Token inválido o expirado' }, 401, origin);
   }
 
-  // Read state from KV
+  // Read state from KV (language-partitioned)
   const email = payload.sub;
-  const stateJson = await env.HOGWARTS_KV.get('state:' + email);
+  const lang = langPrefix(origin);
+  const key = 'state:' + lang + ':' + email;
+  let stateJson = await env.HOGWARTS_KV.get(key);
+
+  // Backward compat: Spanish users may have state under the legacy unprefixed key
+  if ((stateJson === null || stateJson === undefined) && lang === 'es') {
+    stateJson = await env.HOGWARTS_KV.get('state:' + email);
+  }
 
   if (stateJson === null || stateJson === undefined) {
     return emptyResponse(204, origin);
@@ -386,7 +407,8 @@ async function handlePutState(request, env) {
   }
 
   const email = payload.sub;
-  const key = 'state:' + email;
+  const lang = langPrefix(origin);
+  const key = 'state:' + lang + ':' + email;
 
   // Timestamp conflict detection: read existing state, compare _updatedAt
   const existingJson = await env.HOGWARTS_KV.get(key);
@@ -420,15 +442,16 @@ export default {
 
     // ── CORS preflight (OPTIONS) ────────────────────────────────────────────
     if (method === 'OPTIONS') {
-      // Allow requests from the configured origin only
-      if (origin && origin !== env.ALLOWED_ORIGIN) {
-        // In dev, also allow localhost origins
-        const isLocal = origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:');
-        if (!isLocal) {
-          return jsonResponse({ error: 'Origen no permitido' }, 403, env.ALLOWED_ORIGIN);
-        }
+      if (origin && !isAllowedOrigin(origin, env)) {
+        const firstAllowed = (env.ALLOWED_ORIGINS || env.ALLOWED_ORIGIN || '').split(',')[0].trim();
+        return jsonResponse({ error: 'Origen no permitido' }, 403, firstAllowed);
       }
-      return emptyResponse(204, origin || env.ALLOWED_ORIGIN);
+      return emptyResponse(204, origin || '');
+    }
+
+    // ── Origin check for non-preflight requests ────────────────────────────
+    if (origin && !isAllowedOrigin(origin, env)) {
+      return jsonResponse({ error: 'Origen no permitido' }, 403, '');
     }
 
     // ── Route matching ──────────────────────────────────────────────────────
@@ -450,10 +473,10 @@ export default {
       }
 
       // 404 for unknown routes
-      return jsonResponse({ error: 'Ruta no encontrada' }, 404, origin || env.ALLOWED_ORIGIN);
+      return jsonResponse({ error: 'Ruta no encontrada' }, 404, origin || '');
     } catch (e) {
       console.error('Unhandled error:', e.message);
-      return jsonResponse({ error: 'Error interno del servidor' }, 500, origin || env.ALLOWED_ORIGIN);
+      return jsonResponse({ error: 'Error interno del servidor' }, 500, origin || '');
     }
   },
 };

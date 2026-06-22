@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../worker"
 
 REQUIRED_SECRETS=(JWT_SECRET GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET)
-REQUIRED_VARS=(ALLOWED_ORIGIN)
+REQUIRED_VARS=(ALLOWED_ORIGINS)
 
 echo "🔍 Checking Worker required secrets..."
 SECRETS=$(npx wrangler secret list --format json 2>/dev/null)

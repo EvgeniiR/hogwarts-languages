@@ -1,5 +1,6 @@
 // ── HELPERS ────────────────────────────────────────────────────────────────
 // Pure, dependency-free utilities used across modules.
+import lang from './lang.js';
 
 export function esc(s){
   if(!s)return '';
@@ -21,12 +22,12 @@ export function friendlyError(err){
   const msg=((err&&err.message)||'').toLowerCase();
   const status=err&&err.status;
   if(status===429||msg.includes('resource_exhausted')||msg.includes('rate limit')||msg.includes('quota'))
-    return '⏳ Límite de la API alcanzado. Espera un momento e inténtalo de nuevo.';
+    return lang.ui.errRateLimit;
   if(status===401||status===403||msg.includes('api key')||msg.includes('unauthorized')||msg.includes('permission denied'))
-    return '🔑 Tu API key no es válida o no tiene permiso. Recarga la página para introducir otra.';
+    return lang.ui.errApiKey;
   if(err instanceof TypeError||msg.includes('failed to fetch')||msg.includes('network'))
-    return '📡 Error de conexión. Comprueba tu internet e inténtalo de nuevo.';
-  return '⚠ Hubo un error inesperado. Inténtalo de nuevo.';
+    return lang.ui.errNetwork;
+  return lang.ui.errGeneric;
 }
 
 export function normWords(s){
@@ -39,17 +40,13 @@ export function shuffleArray(arr){
   return a;
 }
 
-// Week start (Monday 00:00) as epoch ms — shared by side panel + state.
 export function extractJSON(raw){
   const s=raw.replace(/```json|```/g,'').trim();
-  // Strip trailing commas (common Gemini JSON breakage: ,} or ,])
   const clean=s.replace(/,(\s*[}\]])/g,'$1');
   const oStart=clean.indexOf('{'),oEnd=clean.lastIndexOf('}');
   const aStart=clean.indexOf('['),aEnd=clean.lastIndexOf(']');
   const hasObj=oStart!==-1&&oEnd>oStart;
   const hasArr=aStart!==-1&&aEnd>aStart;
-  // Parse whichever delimiter appears first so array-of-objects responses
-  // (e.g. daily challenges) aren't consumed by the object branch.
   if(hasArr&&(!hasObj||aStart<oStart))return JSON.parse(clean.slice(aStart,aEnd+1));
   if(hasObj)return JSON.parse(clean.slice(oStart,oEnd+1));
   throw new Error('no JSON found in response');

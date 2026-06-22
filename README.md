@@ -1,10 +1,12 @@
-# Hogwarts Español
+# Hogwarts Language Practice
 
-A Spanish-practice web app where you hold conversations with Hermione, Dumbledore, Hagrid, and Snape. It tracks the vocabulary and grammar mistakes that come up while you chat, turns them into flashcards and spaced-repetition reviews, and wraps the whole thing in daily challenges, minigames, and house points.
+A language-practice web app where you hold conversations with Hermione, Dumbledore, Hagrid, and Snape. It tracks the vocabulary and grammar mistakes that come up while you chat, turns them into flashcards and spaced-repetition reviews, and wraps the whole thing in daily challenges, minigames, and house points.
 
 The goal was a low-friction entry point for learners who want to use LLMs for practice but don't want to wrangle tools or subscriptions — bring an API key, pick a character, start talking.
 
-**Live:** https://hogwarts-espanol.pages.dev
+**Live:**
+- https://hogwarts-espanol.pages.dev — practice Spanish
+- https://hogwarts-english.pages.dev — practice English
 
 A working MVP, taken from concept to something deployed and usable day to day rather than a throwaway demo. The work was in owning it end to end: deciding what to build, what to cut, and sweating the details a prototype skips — UX, accessibility, asynchronous behavior, performance, and LLM token efficiency.
 
@@ -20,11 +22,13 @@ A working MVP, taken from concept to something deployed and usable day to day ra
 - **Ambient music**, gapless and mutable
 - **Installable PWA** with offline-capable static assets and a fully responsive layout from phone to wide desktop
 
-The UI is in Spanish on purpose — it's part of the immersion.
+The UI language matches the target language — part of the immersion.
 
 ## How it's built
 
 No framework, no build step — plain ES modules served as static files, with a few small CDN dependencies (web fonts, an icon set, and a drag-and-drop helper). Deployed to Cloudflare Pages by direct upload.
+
+Both language versions are served from the same codebase. `<html lang="es">` vs `<html lang="en">` on the HTML shell drives a runtime selector (`js/lang.js`) that exports the right config object — all UI strings, LLM prompts, TTS/STT locales, RSS feeds, and character personas live in `js/lang/es.js` and `js/lang/en.js`. Progress is fully independent per language (separate keys in the sync Worker's KV store).
 
 Built using AI coding agents (Claude Code and DeepSeek) as implementation tools, with architecture, feature planning, technical trade-offs, and review of every change directed by me. Scoped as an MVP, with no backend or build tooling added beyond what was needed to ship.
 
@@ -32,11 +36,12 @@ Built using AI coding agents (Claude Code and DeepSeek) as implementation tools,
 
 ## Architecture highlights
 
-- Provider abstraction unifying four LLM APIs behind one interface, with per-call timeouts, retries, and quota fallback
+- Provider abstraction unifying three LLM APIs behind one interface, with per-call timeouts, retries, and quota fallback
+- Runtime language selection via `js/lang.js` — one codebase, two deployments
 - Persistent client-side state with schema migrations
-- Feature-oriented ES module structure with isolated ownership (24 modules)
+- Feature-oriented ES module structure with isolated ownership
 - Installable PWA with a cache-first service worker for static assets
-- Bring-your-own-key design that avoids any backend infrastructure
+- Bring-your-own-key design that avoids any per-user backend infrastructure
 
 ## Running it locally
 
@@ -47,7 +52,7 @@ npx live-server --port=8787
 # or: python3 -m http.server 8787
 ```
 
-Then open http://localhost:8787/hogwarts-espanol.html and paste in an API key for any one of the four providers (Groq's free tier is the quickest start).
+Then open http://localhost:8787/hogwarts-espanol.html (or `/hogwarts-english.html`) and paste in an API key for any one of the providers (Groq's free tier is the quickest start).
 
 After any change to `js/`, run the smoke test:
 
@@ -61,7 +66,7 @@ It syntax-checks every module and verifies the import graph resolves. Deploy not
 
 These are conscious MVP trade-offs, not oversights:
 
-- **Progress is per-device.** Everything is in `localStorage` — no accounts, no sync, and no export/backup yet. Clearing site data resets you. (An import/export of vocab + progress is the most obvious next step.)
+- **Progress syncs via Google sign-in** using a Cloudflare Worker + KV. Without sign-in, progress is `localStorage` only — clearing site data resets you.
 - **The ambient music isn't in this repo.** The `audio/*.mp3` files are git-ignored to keep the repository light, so a fresh clone runs fine but silent. They're uploaded as part of the Cloudflare deploy.
 - **API keys are stored client-side** in `localStorage` in plaintext. That's acceptable for a personal bring-your-own-key tool on your own device; it would not be for a multi-user product.
 - **Voice input is Chrome/Edge only** (it uses `webkitSpeechRecognition`); other browsers fall back gracefully to typing.

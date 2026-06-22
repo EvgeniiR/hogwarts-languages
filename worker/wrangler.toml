@@ -14,4 +14,4 @@ preview_id = "hogwarts-kv-dev"
 # Required secrets: JWT_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 # Deploy with: bash scripts/deploy-worker.sh (validates secrets first)
 [vars]
-ALLOWED_ORIGIN = "https://hogwarts-espanol.pages.dev"
+ALLOWED_ORIGINS = "https://hogwarts-espanol.pages.dev,https://hogwarts-english.pages.dev"

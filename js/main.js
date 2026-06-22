@@ -19,6 +19,7 @@ import { compareModels } from './model-compare.js';
 import { getToken, isAuthenticated, signInWithGoogle, initOneTap, signOut, getUserEmail } from './auth.js';
 import { consecutivePushFailures } from './sync.js';
 import { showToast, aResize } from './helpers.js';
+import lang from './lang.js';
 
 // ── Lazy-load overlays — deferred to remove ~65KB from startup critical path ───
 let _readingM, _readingLoad, _gamesM, _gamesLoad;
@@ -54,14 +55,14 @@ async function enterApp(skipValidation=false){
   document.getElementById('splashKeyErr')?.remove();
   if(!skipValidation&&keyVal){
     const btn=document.getElementById('splashBtn');
-    const prev=btn.textContent;    btn.textContent='Verificando…';btn.classList.add('loading');btn.disabled=true;
+    const prev=btn.textContent;    btn.textContent=lang.ui.splashVerifying;btn.classList.add('loading');btn.disabled=true;
     const ok=await validateProviderKey(R.provider,keyVal);
     if(ok===false){
       btn.textContent=prev;btn.classList.remove('loading');btn.disabled=false;
       const errEl=document.createElement('div');
       errEl.id='splashKeyErr';
       errEl.style.cssText='font-size:11px;color:#d04040;margin-top:6px;text-align:center;';
-      errEl.innerHTML='✗ Clave inválida · <a href="#" style="color:var(--gold);" onclick="event.preventDefault();enterApp(true)">Continuar de todos modos →</a>';
+      errEl.innerHTML=`${lang.ui.splashKeyInvalid} · <a href="#" style="color:var(--gold);" onclick="event.preventDefault();enterApp(true)">${lang.ui.splashKeyContinueAnyway}</a>`;
       document.querySelector('.sp-key').appendChild(errEl);
       return;
     }
@@ -76,7 +77,7 @@ async function enterApp(skipValidation=false){
   const remember=document.getElementById('rememberKey').checked;
   if(remember&&keyVal)await saveCreds(R.provider,keyVal);
   else if(!remember)await clearCreds(R.provider);
-  const btn=document.getElementById('splashBtn');  btn.textContent='Cargando…';btn.classList.add('loading');btn.disabled=true;
+  const btn=document.getElementById('splashBtn');  btn.textContent=lang.ui.splashLoading;btn.classList.add('loading');btn.disabled=true;
   await loadS();processDateChanges();
   if(S.musicOff)stopMusic();
   syncAudioBtn();
@@ -108,17 +109,17 @@ async function authSignInGoogle() {
   const result = await signInWithGoogle();
   btn.disabled = false;
   if (result.ok) {
-    document.getElementById('authMsg').innerHTML = '<span class="auth-success">✓ ¡Conectado!</span>';
+    document.getElementById('authMsg').innerHTML = `<span class="auth-success">${lang.ui.signInSuccess}</span>`;
     updateAuthUI();
   } else {
-    document.getElementById('authMsg').innerHTML = `<span class="auth-error">✗ ${result.error || 'Error al conectar'}</span>`;
+    document.getElementById('authMsg').innerHTML = `<span class="auth-error">${lang.ui.signInError(result.error)}</span>`;
   }
 }
 
 async function authSignOut() {
   signOut();
   updateAuthUI();
-  showToast('Sesión cerrada','#2a5018','#7acc40');
+  showToast(lang.ui.toastSignedOut,'#2a5018','#7acc40');
   // Re-show auth form on splash for next time
   document.getElementById('spAuth').style.display = '';
   document.getElementById('authMsg').innerHTML = '';
@@ -171,7 +172,7 @@ function showSplashAuth(){
   document.getElementById('splashBackBtn').style.display='';
   const btn=document.getElementById('splashBtn');
   btn.classList.remove('loading');
-  btn.textContent='Guardar';
+  btn.textContent=lang.ui.splashSave;
   btn.disabled=false;
   btn.onclick = saveSplashAuth;
   // Pre-fill inputs and indicators for all providers.
@@ -195,14 +196,14 @@ function hideSplashAuth(){
   document.getElementById('splashBackBtn').style.display='none';
   const btn=document.getElementById('splashBtn');
   btn.classList.remove('loading');
-  btn.textContent='Accio Español →';
+  btn.textContent=lang.ui.splashBtn;
   btn.onclick = enterApp;
   document.getElementById('mainApp').style.display='flex';
 }
 
 async function saveSplashAuth(){
   const btn=document.getElementById('splashBtn');
-  btn.textContent='Guardando…';btn.classList.add('loading');btn.disabled=true;
+  btn.textContent=lang.ui.splashSaving;btn.classList.add('loading');btn.disabled=true;
   try{
     const keyVal=(document.getElementById(KEY_INPUT_ID[R.provider])?.value||'').trim();
     if(keyVal){
@@ -220,11 +221,11 @@ async function saveSplashAuth(){
     // Ensure last-provider stays as the currently active one (saveCreds loop overwrites it)
     if (R.keys[R.provider]) await saveCreds(R.provider, R.keys[R.provider]);
     hideSplashAuth();
-    showToast('✓ Guardado','#2a5018','#7acc40');
+    showToast(lang.ui.toastSaved,'#2a5018','#7acc40');
   }catch(e){
     btn.classList.remove('loading');btn.disabled=false;
-    btn.textContent='Guardar';
-    showToast('Error al guardar: '+e.message,'#5a0000','#f5e5c0');
+    btn.textContent=lang.ui.splashSave;
+    showToast('Error: '+e.message,'#5a0000','#f5e5c0');
   }
 }
 
@@ -245,7 +246,7 @@ setTimeout(()=>{
 if(hasAutologin){
   document.querySelector('.sp-key').style.display='none';
   const btn=document.getElementById('splashBtn');
-  btn.textContent='Continuar →';
+  btn.textContent=lang.ui.splashBtnContinue;
   btn.onclick=()=>enterApp(true);
 } else {
   document.querySelector('.sp-key').style.display='';
@@ -318,10 +319,10 @@ function toggleSide(){
 // ── Voice input (mic) ─────────────────────────────────────────────────────
 let rec=null,isRec=false;
 function toggleMic(){
-  if(!('webkitSpeechRecognition' in window)&&!('SpeechRecognition' in window)){showToast('El micrófono solo funciona en Chrome o Edge','#5a0000','#f5e5c0');return;}
+  if(!('webkitSpeechRecognition' in window)&&!('SpeechRecognition' in window)){showToast(lang.ui.micNotSupported,'#5a0000','#f5e5c0');return;}
   if(isRec){if(rec)rec.stop();return;}
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  rec=new SR();rec.lang='es-ES';rec.continuous=false;rec.interimResults=true;
+  rec=new SR();rec.lang=lang.sttLocale;rec.continuous=false;rec.interimResults=true;
   const btn=document.getElementById('micB');const ta=document.getElementById('ui');
   rec.onstart=()=>{isRec=true;btn.classList.add('rec');btn.querySelector('i').className='ti ti-microphone-off';};
   rec.onresult=(e)=>{ta.value=Array.from(e.results).map(r=>r[0].transcript).join('');window.aResize&&window.aResize(ta);};

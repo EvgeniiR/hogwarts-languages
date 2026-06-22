@@ -9,6 +9,7 @@ import { awardPoints, pushLevelOutcome } from './progress.js';
 import { renderSide } from './sidepanel.js';
 import { playCorrect, playMinor, playIncorrect } from './audio.js';
 import { round, game, GAME_DIFF, diffSelectorHtml, award, recentOrderSentences, rememberRecent, pickReviewItem } from './game-core.js';
+import lang from './lang.js';
 
 let sortableScrambled=null, sortableTarget=null;
 let orderReqId=0;
@@ -28,20 +29,23 @@ function scrambleWords(words){
 export async function genOrderGame(){
   const el=document.getElementById('gamesContent');
   round.sentence='';round.checked=false;round.orderWords=[];round.review=false;
-  el.innerHTML=diffSelectorHtml()+'<div class="mem-loading">La lechuza está preparando tu carta</div>';
-  const review=Math.random()<0.3?pickReviewItem(m=>m.source==='orden'):null;
+  el.innerHTML=diffSelectorHtml()+`<div class="mem-loading">${lang.ui.loadingOwl}</div>`;
+  const review=Math.random()<0.3?pickReviewItem(m=>m.source===lang.ui.orderSource):null;
   if(review){round.orderWords=review.right.split(/\s+/);round.review=true;renderOrderRound();return;}
   const reqId=++orderReqId;
-  const avoid=recentOrderSentences.length?` No repitas ni te parezcas a estos titulares recientes: ${recentOrderSentences.map(s=>`"${s}"`).join('; ')}.`:'';
+  const avoid=recentOrderSentences.length?` Do not repeat or resemble these recent headlines: ${recentOrderSentences.map(s=>`"${s}"`).join('; ')}.`:'';
   try{
-    const txt=await callLLM(`Eres un profesor de español generando titulares del mundo mágico para un ejercicio de ordenar palabras.`,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].orderPrompt} Tema: una noticia del mundo mágico relacionada contigo. Genera UNA frase corta en español que sea un titular. Sin signos de puntuación. Solo la frase, sin comillas ni explicaciones.${avoid}`}],60,{json:false});
+    const txt=await callLLM(
+      lang.prompts.orderSys,
+      [{role:'user',content:lang.prompts.orderUser(chars[R.cur].name,GAME_DIFF[S.gameDifficulty].orderPrompt,avoid)}],
+      60,{json:false});
     if(reqId!==orderReqId)return;
     const words=txt.trim().split(/\s+/).map(w=>w.replace(/^[¿¡"'(]+|[.,!?;:"')]+$/g,'')).filter(Boolean);
     if(words.length<3)throw new Error('too short');
     round.orderWords=words;
     rememberRecent(recentOrderSentences,txt.trim());
   }catch(e){
-    el.innerHTML=diffSelectorHtml()+`<div class="game-error">${esc(friendlyError(e))}</div><button class="fc-btn" style="width:100%;" onclick="genOrderGame()">Reintentar</button>`;
+    el.innerHTML=diffSelectorHtml()+`<div class="game-error">${esc(friendlyError(e))}</div><button class="fc-btn" style="width:100%;" onclick="genOrderGame()">${lang.ui.btnRetry}</button>`;
     return;
   }
   renderOrderRound();
@@ -52,19 +56,19 @@ export function renderOrderRound(){
   const shuffled=scrambleWords(round.orderWords);
   el.innerHTML=diffSelectorHtml()+`
     <div class="order-letter">
-      ${round.review?'<div class="edim" style="margin-bottom:6px;">🔁 Repaso de un error anterior</div>':''}
+      ${round.review?`<div class="edim" style="margin-bottom:6px;">${lang.ui.reviewBadge}</div>`:''}
       <span class="owl-stamp">🦉</span>
-      <div class="order-desc">La lechuza ha mezclado las palabras de esta noticia. Arrástralas al orden correcto.</div>
+      <div class="order-desc">${lang.ui.orderLoadingMsg}</div>
       <div class="order-scrambled" id="orderScrambled">
         ${shuffled.map(w=>`<div class="word-chip" data-word="${esc(w)}">${esc(w)}</div>`).join('')}
       </div>
-      <div class="game-order-label">⬇ Ordena aquí las palabras</div>
+      <div class="game-order-label">${lang.ui.orderAreaLabel}</div>
       <div class="order-target" id="orderTarget"></div>
     </div>
     <div class="order-actions">
-      <button aria-label="Pista, -1 punto" onclick="hintOrder()">💡 Pista (-1)</button>
-      <button aria-label="Comprobar orden" onclick="checkOrder()">✅ Comprobar</button>
-      <button aria-label="Saltar, -1 punto" onclick="skipOrder()">⏭ Saltar (-1)</button>
+      <button aria-label="${lang.ui.btnHint}" onclick="hintOrder()">${lang.ui.btnHint} (-1)</button>
+      <button aria-label="${lang.ui.btnCheck}" onclick="checkOrder()">${lang.ui.btnCheck}</button>
+      <button aria-label="${lang.ui.btnSkip}" onclick="skipOrder()">${lang.ui.btnSkip}</button>
     </div>
     <div id="orderResult"></div>`;
   setTimeout(initSortable,50);
@@ -72,7 +76,7 @@ export function renderOrderRound(){
 
 function initSortable(){
   if(typeof Sortable==='undefined'){
-    document.getElementById('gamesContent').innerHTML='<div class="edim">⚠ No se pudo cargar el componente de arrastrar. Comprueba tu conexión e intenta recargar la página.</div>';
+    document.getElementById('gamesContent').innerHTML=`<div class="edim">⚠ ${lang.ui.orderLoadError}</div>`;
     return;
   }
   destroySortable();
@@ -112,7 +116,7 @@ export function hintOrder(){
   if(!chip)return;
   if(chip){chip.classList.add('hint-glow');setTimeout(()=>chip.classList.remove('hint-glow'),2000);}
   awardPoints(-1);saveS();
-  document.getElementById('orderResult').innerHTML=`<div class="game-hint-msg">💡 Pista usada. Busca la palabra "${esc(nextWord)}"</div>`;
+  document.getElementById('orderResult').innerHTML=`<div class="game-hint-msg">${lang.ui.orderHintMsg(esc(nextWord))}</div>`;
 }
 
 export function checkOrder(){
@@ -122,7 +126,7 @@ export function checkOrder(){
   const userWords=[...tgEl.querySelectorAll('.word-chip')].map(el=>el.dataset.word);
   const correct=round.orderWords;
   if(userWords.length!==correct.length){
-    document.getElementById('orderResult').innerHTML=`<div class="game-error">Coloca todas las palabras en la zona de orden antes de comprobar.</div>`;
+    document.getElementById('orderResult').innerHTML=`<div class="game-error">${lang.ui.orderPlaceFirst}</div>`;
     return;
   }
   round.checked=true;
@@ -132,17 +136,21 @@ export function checkOrder(){
   pushLevelOutcome(tier==='correct');
   const {diff,bonus}=award(tier);
   if(tier==='correct')playCorrect();else if(tier==='minor')playMinor();else playIncorrect();
-  S.grammar.push({ch:R.cur,text:`Práctica de orden de palabras: "${correct.join(' ')}"`,ts:Date.now()});
+  S.grammar.push({ch:R.cur,text:`${lang.ui.orderPracticeNote(diff.label)}: "${correct.join(' ')}"`,ts:Date.now()});
   if(tier!=='correct'){
-    S.mistakes.push({wrong:userWords.join(' '),right:correct.join(' '),note:`Orden de palabras (${diff.label})`,ts:Date.now(),source:'orden'});
+    S.mistakes.push({wrong:userWords.join(' '),right:correct.join(' '),note:lang.ui.orderPracticeNote(diff.label),ts:Date.now(),source:lang.ui.orderSource});
   }
   renderSide();
   saveS();
   destroySortable();
   const restored=correct.join(' ');
-  const tierMsg={correct:'✓ ¡Orden correcto! +'+diff.pts+' pts',minor:'〜 Casi correcto. +'+diff.minorPts+' pts',incorrect:'✗ Orden incorrecto. -'+diff.penalty+' pts'}[tier];
-  const userLine=tier!=='correct'?`<div class="incorrect-line">Tu orden: ${userWords.join(' ')}</div>`:'';
-  document.getElementById('orderResult').innerHTML=`<div class="order-result"><div class="tier-${tier}">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div><div class="restored-sentence">${esc(restored)}</div>${userLine}</div><button class="game-next" onclick="genOrderGame()">Siguiente →</button>`;
+  const tierMsg={
+    correct:lang.ui.scoreCorrectOrder(diff.pts),
+    minor:lang.ui.scoreMinorOrder(diff.minorPts),
+    incorrect:lang.ui.scoreIncorrectOrder(diff.penalty),
+  }[tier];
+  const userLine=tier!=='correct'?`<div class="incorrect-line">${lang.ui.youLabel}: ${userWords.join(' ')}</div>`:'';
+  document.getElementById('orderResult').innerHTML=`<div class="order-result"><div class="tier-${tier}">${tierMsg}${bonus?lang.ui.scoreCombo(game.combo,bonus):''}</div><div class="restored-sentence">${esc(restored)}</div>${userLine}</div><button class="game-next" onclick="genOrderGame()">${lang.ui.btnNext}</button>`;
 }
 
 export function skipOrder(){destroySortable();game.combo=0;awardPoints(-1);saveS();genOrderGame();}

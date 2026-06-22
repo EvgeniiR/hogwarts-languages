@@ -3,28 +3,20 @@
 // statistics and returns the user's choice. Blocks until user decides.
 
 import { esc } from './helpers.js';
+import lang from './lang.js';
 
 const LEVEL_LABELS = { 0: 'A2', 1: 'B1', 2: 'B1+' };
 
-const STAT_SPECS = [
-  { key: '_updatedAt', label: 'Última modificación', fmt: 'date' },
-  { key: 'vocab', label: 'Vocabulario', fmt: 'number' },
-  { key: 'totalMsgs', label: 'Mensajes totales', fmt: 'number' },
-  { key: 'streak', label: 'Racha de días', fmt: 'number' },
-  { key: 'lifetimePts', label: 'Puntos totales', fmt: 'number' },
-  { key: 'readingCompleted', label: 'Lecturas completadas', fmt: 'number' },
-  { key: 'challengesCompleted', label: 'Desafíos completados', fmt: 'number' },
-  { key: 'level', label: 'Nivel', fmt: 'level' },
-];
+const STAT_KEYS = ['_updatedAt', 'vocab', 'totalMsgs', 'streak', 'lifetimePts', 'readingCompleted', 'challengesCompleted', 'level'];
 
-function fmtStat(key, value, format) {
-  if (format === 'date') {
-    return new Date(value).toLocaleDateString('es-ES', {
+function fmtStat(key, value) {
+  if (key === '_updatedAt') {
+    return new Date(value).toLocaleDateString(lang.dateLocale, {
       day: 'numeric', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
   }
-  if (format === 'level') {
+  if (key === 'level') {
     return LEVEL_LABELS[value] ?? String(value);
   }
   return String(value ?? 0);
@@ -32,13 +24,14 @@ function fmtStat(key, value, format) {
 
 function renderTable(localStats, remoteStats) {
   let h = '';
-  h += `<div class="sync-choice-section">Este dispositivo</div>`;
-  h += `<div class="sync-choice-section">Nube</div>`;
-  for (const s of STAT_SPECS) {
-    const lv = fmtStat(s.key, localStats[s.key], s.fmt);
-    const rv = fmtStat(s.key, remoteStats[s.key], s.fmt);
-    h += `<div class="sync-choice-row"><div class="sync-choice-row-label">${esc(s.label)}</div><div class="sync-choice-row-value">${esc(lv)}</div></div>`;
-    h += `<div class="sync-choice-row"><div class="sync-choice-row-label">${esc(s.label)}</div><div class="sync-choice-row-value">${esc(rv)}</div></div>`;
+  h += `<div class="sync-choice-section">${lang.ui.syncSectionLocal}</div>`;
+  h += `<div class="sync-choice-section">${lang.ui.syncSectionCloud}</div>`;
+  for (const key of STAT_KEYS) {
+    const label = esc(lang.ui.syncStatLabels[key] || key);
+    const lv = esc(fmtStat(key, localStats[key]));
+    const rv = esc(fmtStat(key, remoteStats[key]));
+    h += `<div class="sync-choice-row"><div class="sync-choice-row-label">${label}</div><div class="sync-choice-row-value">${lv}</div></div>`;
+    h += `<div class="sync-choice-row"><div class="sync-choice-row-label">${label}</div><div class="sync-choice-row-value">${rv}</div></div>`;
   }
   return h;
 }
@@ -59,14 +52,14 @@ export async function showChoiceWindow(localStats, remoteStats) {
   // Build the choice window
   wrap.innerHTML = `
     <div class="sync-choice-wrap">
-      <div class="sync-choice-title">¿Qué versión quieres usar?</div>
-      <div class="sync-choice-subtitle">Encontramos tu progreso en este dispositivo y en la nube.<br>Elige cuál quieres conservar.</div>
+      <div class="sync-choice-title">${lang.ui.syncTitle}</div>
+      <div class="sync-choice-subtitle">${lang.ui.syncSubtitle}</div>
       <div class="sync-choice-table">
         ${renderTable(localStats, remoteStats)}
       </div>
       <div class="sync-choice-actions">
-        <button class="sync-choice-btn sync-choice-btn--local" id="syncChoiceLocal">Usar este dispositivo</button>
-        <button class="sync-choice-btn sync-choice-btn--remote" id="syncChoiceRemote">Usar nube</button>
+        <button class="sync-choice-btn sync-choice-btn--local" id="syncChoiceLocal">${lang.ui.syncBtnLocal}</button>
+        <button class="sync-choice-btn sync-choice-btn--remote" id="syncChoiceRemote">${lang.ui.syncBtnCloud}</button>
       </div>
     </div>
   `;

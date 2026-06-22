@@ -9,11 +9,9 @@ import { esc, showToast, weekStart } from './helpers.js';
 import { checkAchievements } from './progress.js';
 import { playVocab } from './audio.js';
 import { srsGetDue, srsDueCount, srsPromote, srsDemote } from './srs.js';
+import lang from './lang.js';
 
 // ── Vocab dedup (shared with chat.js via import) ─────────────────────────────
-// BUGFIX: case-insensitive throughout — the old addVocabWord was already
-// case-insensitive but sendMsg/genStarter matched case-sensitively.
-// See also chat.js vocabExists().
 export function vocabExists(word){
   return !!S.vocab.find(x=>x.word.toLowerCase()===(word||'').toLowerCase());
 }
@@ -21,19 +19,19 @@ export function vocabExists(word){
 export function addVocabWord(word,def){
   word=(word||'').trim();def=(def||'').trim();
   if(!word)return false;
-  if(vocabExists(word)){showToast('Ya está en tu vocabulario','#9aa8d0','#1e0c04');return false;}
-  S.vocab.push({word,def:def||'(sin traducción)',ts:Date.now()});playVocab();renderSide();checkAchievements();saveS();
+  if(vocabExists(word)){showToast(lang.ui.toastVocabExists,'#9aa8d0','#1e0c04');return false;}
+  S.vocab.push({word,def:def||lang.ui.noTranslation,ts:Date.now()});playVocab();renderSide();checkAchievements();saveS();
   return true;
 }
 async function lookupDefinition(word){
   try{
-    const txt=await callLLM('Eres un diccionario español-inglés. Responde SOLO con la traducción al inglés, 1-4 palabras, sin puntuación ni explicación.',[{role:'user',content:word}],20,{json:false,temperature:0.2});
+    const txt=await callLLM(lang.prompts.lookupSys,[{role:'user',content:word}],20,{json:false,temperature:0.2});
     return txt.trim().replace(/^["']|["']$/g,'');
   }catch(e){return '';}
 }
 async function translateForReading(text){
   try{
-    const txt=await callLLM('Eres un traductor español-inglés. Traduce al inglés de forma concisa y natural, sin explicaciones.',[{role:'user',content:text}],120,{json:false,temperature:0.2});
+    const txt=await callLLM(lang.prompts.translateReadingSys,[{role:'user',content:text}],120,{json:false,temperature:0.2});
     return txt.trim().replace(/^["']|["']$/g,'');
   }catch(e){return '';}
 }
@@ -49,7 +47,7 @@ export async function submitVAdd(btn){
   const wEl=document.getElementById('vAddWord');const dEl=document.getElementById('vAddDef');
   const word=wEl.value.trim();let def=dEl.value.trim();
   if(!word)return;
-  if(!def){btn.textContent='Traduciendo…';btn.classList.add('loading-btn');btn.disabled=true;def=await lookupDefinition(word);btn.classList.remove('loading-btn');}
+  if(!def){btn.textContent=lang.ui.translatingLabel;btn.classList.add('loading-btn');btn.disabled=true;def=await lookupDefinition(word);btn.classList.remove('loading-btn');}
   vAddOpen=false;
   addVocabWord(word,def);
 }
@@ -100,25 +98,25 @@ export function handleSelUp(e){
 export async function addSelectionToVocab(){
   const word=pendingSelection;hideSelBtn();
   if(!word)return;
-  if(vocabExists(word)){showToast('Ya está en tu vocabulario','#9aa8d0','#1e0c04');window.getSelection().removeAllRanges();return;}
+  if(vocabExists(word)){showToast(lang.ui.toastVocabExists,'#9aa8d0','#1e0c04');window.getSelection().removeAllRanges();return;}
   const def=await lookupDefinition(word);
   addVocabWord(word,def);
   window.getSelection().removeAllRanges();
-  showToast(`✨ "${word}" añadida al vocabulario`,'#2a5018','#7acc40');
+  showToast(lang.ui.toastVocabAdded(word),'#2a5018','#7acc40');
 }
 export function addReadingSelToVocab(){
   const word=pendingReadingWord,def=pendingReadingDef;
   hideReadingPopup();
   if(!word)return;
   window.getSelection().removeAllRanges();
-  if(addVocabWord(word,def))showToast(`✨ "${word}" añadida al vocabulario`,'#2a5018','#7acc40');
+  if(addVocabWord(word,def))showToast(lang.ui.toastVocabAdded(word),'#2a5018','#7acc40');
 }
 
 // ── SRS Review ────────────────────────────────────────────────────────────────
 let srsReviewing = false, srsReviewCards = [], srsReviewIdx = 0;
 export function startSrsReview() {
   srsReviewCards = srsGetDue(S.vocab);
-  if (!srsReviewCards.length) { showToast('No hay palabras para repasar', '#9aa8d0', '#f0e8e0'); return; }
+  if (!srsReviewCards.length) { showToast(lang.ui.toastNoSrsWords, '#9aa8d0', '#f0e8e0'); return; }
   srsReviewIdx = 0; srsReviewing = true; renderSide();
 }
 export function srsReveal() {
@@ -153,16 +151,16 @@ function weeksWithData(){
 }
 function fmtWeekRange(ws){
   const todayWk=weekStart(Date.now());
-  if(ws===todayWk)return 'Esta semana';
-  if(ws===todayWk-7*86400000)return 'Semana pasada';
-  const fmt=d=>d.toLocaleDateString('es-ES',{day:'numeric',month:'short'});
+  if(ws===todayWk)return lang.ui.weekThis;
+  if(ws===todayWk-7*86400000)return lang.ui.weekPrev;
+  const fmt=d=>d.toLocaleDateString(lang.dateLocale,{day:'numeric',month:'short'});
   return fmt(new Date(ws))+' - '+fmt(new Date(ws+6*86400000));
 }
 function weekNavHtml(){
   const weeks=weeksWithData();
   const idx=weeks.indexOf(viewWeek);
   const hasPrev=idx>0;const hasNext=idx>=0&&idx<weeks.length-1;
-  return `<div class="wknav"><button class="wknav-btn" ${hasPrev?'':'disabled'} onclick="navWeek(-1)" aria-label="Semana anterior">‹</button><span class="wknav-lbl">${fmtWeekRange(viewWeek)}</span><button class="wknav-btn" ${hasNext?'':'disabled'} onclick="navWeek(1)" aria-label="Semana siguiente">›</button></div>`;
+  return `<div class="wknav"><button class="wknav-btn" ${hasPrev?'':'disabled'} onclick="navWeek(-1)" aria-label="${lang.ui.weekAriaPrev}">‹</button><span class="wknav-lbl">${fmtWeekRange(viewWeek)}</span><button class="wknav-btn" ${hasNext?'':'disabled'} onclick="navWeek(1)" aria-label="${lang.ui.weekAriaNext}">›</button></div>`;
 }
 export function navWeek(dir){
   const weeks=weeksWithData();
@@ -178,7 +176,7 @@ export function saveEditVocab(idx){
   const w=document.getElementById('evWord').value.trim();
   const d=document.getElementById('evDef').value.trim();
   if(!w)return;
-  S.vocab[idx]={...S.vocab[idx],word:w,def:d||'(sin traducción)'};
+  S.vocab[idx]={...S.vocab[idx],word:w,def:d||lang.ui.noTranslation};
   editingVocab=null;renderSide();saveS();
 }
 export function deleteVocab(idx){S.vocab.splice(idx,1);renderSide();saveS();}
@@ -198,12 +196,12 @@ export function deleteMistake(idx){S.mistakes.splice(idx,1);renderSide();saveS()
 let fcCards=[],fcIdx=0,fcFlipped=false,fcLastSpeak=0,fcEverFlipped=false,fcReverse=false;
 export function openFc(){
   fcEverFlipped=false;
-  if(!S.vocab.length){showToast('Habla con los personajes para acumular vocabulario','#9aa8d0','#f0e8e0');return;}
+  if(!S.vocab.length){showToast(lang.ui.noVocabFc,'#9aa8d0','#f0e8e0');return;}
   fcCards=[...S.vocab].sort(()=>Math.random()-.5);fcIdx=0;fcFlipped=false;renderFc();
   document.getElementById('fcOv').style.display='flex';
 }
 export function closeFc(){document.getElementById('fcOv').style.display='none';if(window.speechSynthesis)window.speechSynthesis.cancel();}
-export function toggleFcReverse(){fcReverse=!fcReverse;const btn=document.getElementById('fcReverseBtn');if(btn)btn.textContent=fcReverse?'🇬🇧→🇪🇸':'🇪🇸→🇬🇧';renderFc();}
+export function toggleFcReverse(){fcReverse=!fcReverse;const btn=document.getElementById('fcReverseBtn');if(btn)btn.textContent=fcReverse?lang.ui.flashcardToggleRev:lang.ui.flashcardToggleFwd;renderFc();}
 function renderFc(){
   if(!fcCards.length){closeFc();return;}
   fcFlipped=false;const card=fcCards[fcIdx];
@@ -212,14 +210,14 @@ function renderFc(){
   document.getElementById('fcProg').textContent=(fcIdx+1)+' / '+fcCards.length;
   document.getElementById('fcWord').textContent=fcReverse?card.def:card.word;
   document.getElementById('fcDef').textContent=fcReverse?card.word:card.def;
-  document.getElementById('fcHint').textContent=fcEverFlipped?'': 'Toca para revelar →';
+  document.getElementById('fcHint').textContent=fcEverFlipped?'': lang.ui.flashcardReveal;
 }
 export function flipFc(){
   fcFlipped=!fcFlipped;
   const cardEl=document.querySelector('.fc-card');
   if(cardEl)cardEl.classList.toggle('flipped',fcFlipped);
   if(fcFlipped){fcEverFlipped=true;document.getElementById('fcHint').textContent='';}
-  if(fcFlipped&&window.speechSynthesis){const now=Date.now();if(now-fcLastSpeak<800)return;fcLastSpeak=now;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(fcCards[fcIdx].word);u.lang='es-ES';u.rate=.82;u.onerror=()=>{};window.speechSynthesis.speak(u);}
+  if(fcFlipped&&window.speechSynthesis){const now=Date.now();if(now-fcLastSpeak<800)return;fcLastSpeak=now;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(fcCards[fcIdx].word);u.lang=lang.ttsLocale;u.rate=.82;u.onerror=()=>{};window.speechSynthesis.speak(u);}
 }
 export function navFc(dir){fcIdx=(fcIdx+dir+fcCards.length)%fcCards.length;renderFc();}
 
@@ -231,47 +229,47 @@ export function renderSide(){
     if (srsReviewing && srsReviewCards.length) {
       const v = srsReviewCards[srsReviewIdx];
       el.innerHTML = `<div class="srs-review">
-        <div class="srs-hdr">📅 Repasando · ${srsReviewIdx+1}/${srsReviewCards.length}</div>
+        <div class="srs-hdr">${lang.ui.srsBadge(srsReviewIdx+1+'/'+srsReviewCards.length)}</div>
         <div class="srs-word">${esc(v.word)}</div>
         <div class="srs-def" id="srsDef" style="display:none;">${esc(v.def)}</div>
         <div style="text-align:center;margin-top:10px;">
-          <button class="srs-reveal-btn" onclick="srsReveal()" id="srsRevealBtn">Mostrar →</button>
+          <button class="srs-reveal-btn" onclick="srsReveal()" id="srsRevealBtn">${lang.ui.srsRevealBtn}</button>
         </div>
         <div class="vadd-row" style="margin-top:8px;">
-          <button onclick="srsAnswer(false)" style="color:#d04040;border-color:#c05050;">✗ Otra vez</button>
-          <button onclick="srsAnswer(true)">✓ La sé</button>
+          <button onclick="srsAnswer(false)" style="color:#d04040;border-color:#c05050;">${lang.ui.srsDontKnow}</button>
+          <button onclick="srsAnswer(true)">${lang.ui.srsKnow}</button>
         </div>
         <div style="text-align:center;margin-top:8px;">
-          <span class="side-act" onclick="closeSrsReview()">Terminar</span>
+          <span class="side-act" onclick="closeSrsReview()">${lang.ui.srsEnd}</span>
         </div>
       </div>`;
       return;
     }
     const dueCount = srsDueCount(S.vocab);
-    const srsBadge = dueCount > 0 ? `<span style="background:rgba(201,168,76,.12);color:var(--gold);font-size:10px;padding:1px 6px;border-radius:99px;margin-left:4px;">${dueCount}</span><span class="side-act" onclick="startSrsReview()" style="margin-left:6px;">▶ Repasar</span>` : '';
-    const actions=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px;"><div><span class="side-act" onclick="toggleVAdd()">➕ Añadir palabra</span>${srsBadge}</div><span class="side-act" onclick="openFc()">🃏 Flashcards →</span></div>`;
-    const form=vAddOpen?`<div class="vadd"><input id="vAddWord" placeholder="Palabra en español" autocomplete="off"><input id="vAddDef" placeholder="Significado (vacío = traducir)" autocomplete="off"><div class="vadd-row"><button onclick="submitVAdd(this)">Añadir</button><button onclick="toggleVAdd(false)">Cancelar</button></div></div>`:'';
+    const srsBadge = dueCount > 0 ? `<span style="background:rgba(201,168,76,.12);color:var(--gold);font-size:10px;padding:1px 6px;border-radius:99px;margin-left:4px;">${dueCount}</span><span class="side-act" onclick="startSrsReview()" style="margin-left:6px;">${lang.ui.srsReviewBtn}</span>` : '';
+    const actions=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px;"><div><span class="side-act" onclick="toggleVAdd()">${lang.ui.addWord}</span>${srsBadge}</div><span class="side-act" onclick="openFc()">${lang.ui.flashcardsBtn}</span></div>`;
+    const form=vAddOpen?`<div class="vadd"><input id="vAddWord" placeholder="${lang.ui.wordInputPlaceholder}" autocomplete="off"><input id="vAddDef" placeholder="${lang.ui.defInputPlaceholder}" autocomplete="off"><div class="vadd-row"><button onclick="submitVAdd(this)">${lang.ui.addBtn}</button><button onclick="toggleVAdd(false)">${lang.ui.cancelBtn}</button></div></div>`:'';
     const items=S.vocab.filter(v=>inViewWeek(v.ts));
-    if(!items.length){el.innerHTML=wk+actions+form+'<div class="edim">Las palabras aparecen mientras hablas…</div>';return;}
+    if(!items.length){el.innerHTML=wk+actions+form+`<div class="edim">${lang.ui.noVocab}</div>`;return;}
     el.innerHTML=wk+actions+form+items.slice().reverse().slice(0,30).map(v=>{
       const idx=S.vocab.indexOf(v);
-      if(idx===editingVocab)return `<div class="vi vadd"><input id="evWord" value="${esc(v.word)}" autocomplete="off"><input id="evDef" value="${esc(v.def)}" autocomplete="off"><div class="vadd-row"><button onclick="saveEditVocab(${idx})">Guardar</button><button onclick="cancelEditVocab()">Cancelar</button></div></div>`;
-      return `<div class="vi"><div class="vi-row"><div class="vw">${esc(v.word)}</div><div class="vi-acts"><button class="vi-btn" onclick="editVocab(${idx})" aria-label="Editar"><i class="ti ti-pencil"></i></button><button class="vi-btn" onclick="deleteVocab(${idx})" aria-label="Eliminar"><i class="ti ti-trash"></i></button></div></div><div class="vd">${esc(v.def)}</div></div>`;
+      if(idx===editingVocab)return `<div class="vi vadd"><input id="evWord" value="${esc(v.word)}" autocomplete="off"><input id="evDef" value="${esc(v.def)}" autocomplete="off"><div class="vadd-row"><button onclick="saveEditVocab(${idx})">${lang.ui.saveBtn}</button><button onclick="cancelEditVocab()">${lang.ui.cancelBtn}</button></div></div>`;
+      return `<div class="vi"><div class="vi-row"><div class="vw">${esc(v.word)}</div><div class="vi-acts"><button class="vi-btn" onclick="editVocab(${idx})" aria-label="Edit"><i class="ti ti-pencil"></i></button><button class="vi-btn" onclick="deleteVocab(${idx})" aria-label="Delete"><i class="ti ti-trash"></i></button></div></div><div class="vd">${esc(v.def)}</div></div>`;
     }).join('');
   }else if(sTab==='grammar'){
     const items=S.grammar.filter(g=>inViewWeek(g.ts));
-    if(!items.length){el.innerHTML=wk+'<div class="edim">Las notas gramaticales aparecen aquí…</div>';return;}
+    if(!items.length){el.innerHTML=wk+`<div class="edim">${lang.ui.noGrammar}</div>`;return;}
     el.innerHTML=wk+items.slice().reverse().slice(0,40).map(g=>{
       const col=chars[g.ch]?.ac||'#c9a84c';
       return `<div class="gi"><div style="display:flex;gap:6px;align-items:flex-start;"><div style="width:2px;min-height:16px;border-radius:2px;background:${col};flex-shrink:0;margin-top:2px;"></div><div style="font-size:11px;color:var(--lt);line-height:1.5;">${esc(g.text)}</div></div></div>`;
     }).join('');
   }else{
     const items=S.mistakes.filter(m=>inViewWeek(m.ts));
-    if(!items.length){el.innerHTML=wk+'<div class="edim">Los errores aparecen aquí…</div>';return;}
+    if(!items.length){el.innerHTML=wk+`<div class="edim">${lang.ui.noMistakes}</div>`;return;}
     el.innerHTML=wk+items.slice().reverse().slice(0,20).map(m=>{
       const idx=S.mistakes.indexOf(m);
-      if(idx===editingMistake)return `<div class="mi vadd"><input id="emWrong" value="${esc(m.wrong)}" placeholder="Incorrecto" autocomplete="off"><input id="emRight" value="${esc(m.right)}" placeholder="Correcto" autocomplete="off"><input id="emNote" value="${esc(m.note||'')}" placeholder="Nota" autocomplete="off"><div class="vadd-row"><button onclick="saveEditMistake(${idx})">Guardar</button><button onclick="cancelEditMistake()">Cancelar</button></div></div>`;
-      return `<div class="mi"><div class="mi-row"><div><div class="mw">${esc(m.wrong)}</div><div class="mr">${esc(m.right)}</div><div class="mn">${esc(m.note||'')}</div></div><div class="vi-acts"><button class="vi-btn" onclick="openErrExplain(${idx})" aria-label="Explicar"><i class="ti ti-book-2"></i></button><button class="vi-btn" onclick="editMistake(${idx})" aria-label="Editar"><i class="ti ti-pencil"></i></button><button class="vi-btn" onclick="deleteMistake(${idx})" aria-label="Eliminar"><i class="ti ti-trash"></i></button></div></div></div>`;
+      if(idx===editingMistake)return `<div class="mi vadd"><input id="emWrong" value="${esc(m.wrong)}" placeholder="${lang.ui.wrongInputPlaceholder}" autocomplete="off"><input id="emRight" value="${esc(m.right)}" placeholder="${lang.ui.rightInputPlaceholder}" autocomplete="off"><input id="emNote" value="${esc(m.note||'')}" placeholder="${lang.ui.noteInputPlaceholder}" autocomplete="off"><div class="vadd-row"><button onclick="saveEditMistake(${idx})">${lang.ui.saveBtn}</button><button onclick="cancelEditMistake()">${lang.ui.cancelBtn}</button></div></div>`;
+      return `<div class="mi"><div class="mi-row"><div><div class="mw">${esc(m.wrong)}</div><div class="mr">${esc(m.right)}</div><div class="mn">${esc(m.note||'')}</div></div><div class="vi-acts"><button class="vi-btn" onclick="openErrExplain(${idx})" aria-label="Explain"><i class="ti ti-book-2"></i></button><button class="vi-btn" onclick="editMistake(${idx})" aria-label="Edit"><i class="ti ti-pencil"></i></button><button class="vi-btn" onclick="deleteMistake(${idx})" aria-label="Delete"><i class="ti ti-trash"></i></button></div></div></div>`;
     }).join('');
   }
 }

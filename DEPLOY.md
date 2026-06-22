@@ -12,7 +12,8 @@ The app uses Google OAuth for sign-in. You need a Google Cloud project with an O
 2. Create an **OAuth 2.0 Client ID** (Web application type).
 3. Add **Authorized JavaScript origins**:
    - `http://localhost:8787` (local dev)
-   - `https://hogwarts-espanol.pages.dev` (production)
+   - `https://hogwarts-espanol.pages.dev` (production — Spanish)
+   - `https://hogwarts-english.pages.dev` (production — English)
 4. Copy the **Client ID** (ends with `.apps.googleusercontent.com`) and **Client Secret** (starts with `GOCSPX-`).
 
 Update the Client ID in the frontend:
@@ -45,10 +46,16 @@ bash scripts/deploy-worker.sh
 
 This validates all required secrets are set before deploying. The worker will be available at its `*.workers.dev` subdomain. Update `WORKER_URL` in `js/auth.js` to match.
 
-### 4. Deploy the Pages site
+### 4. Deploy the Pages sites
 
+Spanish:
 ```bash
 npx wrangler pages deploy . --project-name=hogwarts-espanol --branch=main
+```
+
+English (first-time — creates the project):
+```bash
+npx wrangler pages deploy . --project-name=hogwarts-english --branch=main
 ```
 
 ## Local development
@@ -74,15 +81,18 @@ Set client-side `WORKER_URL` in `js/auth.js` to `http://localhost:8788` for loca
 bash scripts/deploy-worker.sh
 ```
 
+The worker serves both sites. `ALLOWED_ORIGINS` in `wrangler.toml` lists both domains (comma-separated). Language-prefixed KV keys (`state:es:<email>` vs `state:en:<email>`) keep progress independent.
+
 ### Pages
 
 1. If you added/removed/renamed files in `audio/`, regenerate the manifest first:
    ```
    node -e "const fs=require('fs');fs.writeFileSync('audio/manifest.json',JSON.stringify(fs.readdirSync('audio').filter(f=>f.toLowerCase().endsWith('.mp3')).sort(),null,2)+'\n')"
    ```
-2. Deploy:
+2. Deploy both sites:
    ```
    npx wrangler pages deploy . --project-name=hogwarts-espanol --branch=main
+   npx wrangler pages deploy . --project-name=hogwarts-english --branch=main
    ```
    Run from this project folder. The live URL updates within seconds.
 
@@ -94,7 +104,10 @@ bash scripts/deploy-worker.sh
    Verify which branch is production with:
    ```
    npx wrangler pages deployment list --project-name=hogwarts-espanol
+   npx wrangler pages deployment list --project-name=hogwarts-english
    ```
    (look for the row whose Environment is `Production`).
+
+**Root URL routing:** `functions/_middleware.js` redirects `/` to the correct HTML based on hostname (`hogwarts-english` → `hogwarts-english.html`, otherwise → `hogwarts-espanol.html`). This file is deployed automatically as part of the Pages bundle.
 
 First-time setup (already done once): `npx wrangler login` to authenticate with a free Cloudflare account.

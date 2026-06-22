@@ -7,6 +7,7 @@ import { game, diffSelectorHtml, award, GAME_DIFF } from './game-core.js';
 import { ParticleEngine } from './particles.js';
 import { srsPromote } from './srs.js';
 import { callLLM } from './llm.js';
+import lang from './lang.js';
 
 let cards = [];
 let flippedIndices = [];
@@ -52,10 +53,10 @@ function boardComplete() {
   const {diff,bonus}=award('correct');
   pushLevelOutcome(true);
   document.getElementById('memResult').innerHTML = `<div style="margin-top:10px;text-align:center;">
-    <div class="tier-correct" style="font-size:13px;font-weight:500;">✓ ¡Pensieve completado!</div>
-    <div style="font-size:11px;color:#7a5520;margin-top:4px;">⏱ ${seconds}s${timeBonus > 0 ? ' · +' + timeBonus + ' pts (tiempo)' : ''}</div>
-    <div style="font-size:11px;color:#7a5520;">+${diff.pts} pts${bonus ? ` · 🔥 Combo +${bonus}` : ''} · ${totalPairs} parejas</div>
-    <button class="game-next" onclick="renderMemoryLobby()">Menú →</button>
+    <div class="tier-correct" style="font-size:13px;font-weight:500;">${lang.ui.scoreMemComplete}</div>
+    <div style="font-size:11px;color:#7a5520;margin-top:4px;">⏱ ${seconds}s${timeBonus > 0 ? ' · +' + timeBonus + ' pts (time)' : ''}</div>
+    <div style="font-size:11px;color:#7a5520;">+${diff.pts} pts${bonus ? lang.ui.scoreCombo(game.combo,bonus) : ''} · ${totalPairs} pairs</div>
+    <button class="game-next" onclick="renderMemoryLobby()">${lang.ui.btnMenu}</button>
   </div>`;
   saveS();
 }
@@ -87,8 +88,8 @@ function checkPair() {
     }
     playCorrect();
     awardPoints(1);
-    const esCard = c1.type === 'es' ? c1 : c2;
-    const ve = S.vocab.find(x => x.word.toLowerCase() === esCard.text.toLowerCase());
+    const wordCard = c1.type === 'word' ? c1 : c2;
+    const ve = S.vocab.find(x => x.word.toLowerCase() === wordCard.text.toLowerCase());
     if (ve) { srsPromote(ve); saveS(); }
     flippedIndices = [];
     isProcessing = false;
@@ -137,18 +138,18 @@ export function flipMemCard(el) {
 export function renderMemoryLobby() {
   const el = document.getElementById('gamesContent');
   el.innerHTML = diffSelectorHtml() + `
-    <div class="svc-lbl" style="margin-top:2px;">Vocabulario</div>
+    <div class="svc-lbl" style="margin-top:2px;">${lang.ui.memVocabLabel}</div>
     <div class="vadd-row" style="margin-bottom:12px;">
-      <button onclick="setRandomMode(false);renderMemoryLobby()"${!randomMode?' class="diff-btn-active"':''}>📖 Mis palabras</button>
-      <button onclick="setRandomMode(true);renderMemoryLobby()"${randomMode?' class="diff-btn-active"':''}>🎲 Aleatorio</button>
+      <button onclick="setRandomMode(false);renderMemoryLobby()"${!randomMode?' class="diff-btn-active"':''}>${lang.ui.memMyWords}</button>
+      <button onclick="setRandomMode(true);renderMemoryLobby()"${randomMode?' class="diff-btn-active"':''}>${lang.ui.memRandom}</button>
     </div>
-    <button class="fc-btn" style="width:100%;padding:10px 0;" onclick="genMemory()">▶ Empezar</button>`;
+    <button class="fc-btn" style="width:100%;padding:10px 0;" onclick="genMemory()">${lang.ui.memStart}</button>`;
 }
 
 function renderMemory() {
   const el = document.getElementById('gamesContent');
   el.innerHTML = diffSelectorHtml() + `
-    <div class="pensieve-hdr">Pensieve · Recupera los recuerdos</div>
+    <div class="pensieve-hdr">${lang.ui.pensieveName}</div>
     <div class="pensieve-stats"><span id="memTimer">⏱ 0s</span><span id="memPairs">${matchedPairs}/${totalPairs}</span></div>
     <div class="pensieve-grid" id="memGrid">
       ${cards.map((c, i) => `
@@ -162,7 +163,7 @@ function renderMemory() {
     </div>
     <div class="mem-preview-bar" id="memPreviewBar" style="display:none;"><div class="mem-preview-bar-fill" id="memPreviewFill"></div></div>
     <div class="pensieve-actions" style="justify-content:center;">
-      <button onclick="skipMemory()">⏭ Revelar todo (-1)</button>
+      <button onclick="skipMemory()">${lang.ui.memRevealAll}</button>
     </div>
     <div id="memResult"></div>`;
   if (window.innerWidth >= 820) {
@@ -178,20 +179,20 @@ export async function genMemory() {
   const pairs = GAME_DIFF[S.gameDifficulty].pairs;
   let picked;
   if (randomMode) {
-    document.getElementById('gamesContent').innerHTML = diffSelectorHtml() + '<div class="mem-loading">Generando vocabulario aleatorio</div>';
+    document.getElementById('gamesContent').innerHTML = diffSelectorHtml() + `<div class="mem-loading">${lang.ui.loadingRandomVocab}</div>`;
     const llm = await llmVocab(pairs, true);
     if (reqId !== memReqId) return;
     if (llm && llm.length >= 2) {
       picked = llm;
     } else {
-      showToast('No se pudo generar. Usando vocabulario guardado.', '#7a5520');
+      showToast(lang.ui.toastGenerateFailed, '#7a5520');
       picked = smartWeightedPick(pairs);
     }
   } else {
     picked = smartWeightedPick(pairs);
     if (picked.length < pairs) {
       const needed = pairs - picked.length;
-      document.getElementById('gamesContent').innerHTML = diffSelectorHtml() + '<div class="mem-loading">Generando vocabulario nuevo</div>';
+      document.getElementById('gamesContent').innerHTML = diffSelectorHtml() + `<div class="mem-loading">${lang.ui.loadingNewVocab}</div>`;
       const extra = await llmVocab(needed);
       if (reqId !== memReqId) return;
       if (extra && extra.length) {
@@ -202,22 +203,22 @@ export async function genMemory() {
     }
   }
   if (!picked || picked.length < 2) {
-    document.getElementById('gamesContent').innerHTML = diffSelectorHtml() + '<div class="edim">Agrega más vocabulario primero (al menos 2 palabras).</div><button class="game-next" onclick="closeGames()">Ir al chat →</button>';
+    document.getElementById('gamesContent').innerHTML = diffSelectorHtml() + `<div class="edim">${lang.ui.memNotEnough}</div><button class="game-next" onclick="closeGames()">${lang.ui.memGoToChat}</button>`;
     return;
   }
   totalPairs = Math.min(picked.length, pairs);
   for (let i = 0; i < totalPairs; i++) {
     const v = picked[i];
-    cards.push({ id: i * 2, pairId: i, text: v.word, type: 'es', flipped: false, matched: false });
-    cards.push({ id: i * 2 + 1, pairId: i, text: v.def || '(sin traducción)', type: 'en', flipped: false, matched: false });
+    cards.push({ id: i * 2, pairId: i, text: v.word, type: 'word', flipped: false, matched: false });
+    cards.push({ id: i * 2 + 1, pairId: i, text: v.def || lang.ui.noTranslation, type: 'def', flipped: false, matched: false });
   }
   const wide = window.innerWidth >= 820;
-  const enCards = shuffleArray(cards.filter(c => c.type === 'en'));
-  const esCards = shuffleArray(cards.filter(c => c.type === 'es'));
+  const defCards = shuffleArray(cards.filter(c => c.type === 'def'));
+  const wordCards = shuffleArray(cards.filter(c => c.type === 'word'));
   if (wide) {
-    cards = [...enCards, ...esCards];
+    cards = [...defCards, ...wordCards];
   } else {
-    cards = enCards.flatMap((c, i) => esCards[i] ? [c, esCards[i]] : [c]);
+    cards = defCards.flatMap((c, i) => wordCards[i] ? [c, wordCards[i]] : [c]);
   }
   renderMemory();
   if (engine) { engine.stop(); engine = null; }
@@ -260,7 +261,7 @@ export function skipMemory() {
   }
   const el = document.getElementById('memResult');
   if (el) {
-    el.innerHTML = `<button class="game-next" style="margin-top:10px;" onclick="renderMemoryLobby()">Menú →</button>`;
+    el.innerHTML = `<button class="game-next" style="margin-top:10px;" onclick="renderMemoryLobby()">${lang.ui.btnMenu}</button>`;
   }
   saveS();
 }
@@ -272,13 +273,10 @@ export function cleanupMemory() {
 
 async function llmVocab(count, fresh = false) {
   if (!R.keys.groq && !R.keys.openai && !R.keys.deepseek) return null;
-  const exclude = recentVocab.size ? `\nNO uses ninguna de estas palabras: ${[...recentVocab].join(', ')}` : '';
-  const prompt = `Genera${fresh?' exactamente':''} ${count} pares de vocabulario español-inglés nivel A2/B1.
-Palabras útiles y naturales — temas cotidianos o del mundo de Harry Potter.
-Output ONLY un JSON object: {"pairs":[{"word":"tranquilo","def":"calm"},{"word":"escoba","def":"broom"}]}
-Sin markdown, sin explicación.${exclude}`;
+  const exclude = recentVocab.size ? `\nDo not use any of these words: ${[...recentVocab].join(', ')}` : '';
+  const prompt = lang.prompts.memoryPrompt(count, fresh, exclude);
   try {
-    const raw = await callLLM(`Eres un profesor de español generando pares de vocabulario para un juego de memoria de nivel ${LEVELS[S.level]}.`, [{ role: 'user', content: prompt }], fresh ? 800 : 600);
+    const raw = await callLLM(lang.prompts.memorySys(LEVELS[S.level]), [{ role: 'user', content: prompt }], fresh ? 800 : 600);
     const parsed = extractJSON(raw);
     const arr = parsed.pairs || parsed;
     if (!Array.isArray(arr)) return null;

@@ -12,15 +12,15 @@ import { speak } from './tts.js';
 import { esc, mdInline, showToast, friendlyError, extractJSON, aResize } from './helpers.js';
 import { renderChallengeUI, genDailyChallenges } from './challenges.js';
 import { renderSide, vocabExists } from './sidepanel.js';
+import lang from './lang.js';
 
-const MOOD_LABELS=['Enfadado/a','De mal humor','Neutral','Contento/a','Encantado/a'];
 export function updMood(k,v){
   v=Math.max(0,Math.min(4,v));S.moods[k]=v;
   const dot=document.getElementById('m_'+k);
   if(dot){
     dot.style.background=['#d04040','#c08020','#c9a84c','#4aa020','#20d060'][v];
-    dot.title=MOOD_LABELS[v];
-    dot.setAttribute('aria-label',MOOD_LABELS[v]);
+    dot.title=lang.moodLabels[v];
+    dot.setAttribute('aria-label',lang.moodLabels[v]);
     dot.classList.remove('mood-pulse');
     void dot.offsetWidth;
     dot.classList.add('mood-pulse');
@@ -56,13 +56,13 @@ function createMsgEl(m,i,charKey){
   const div=document.createElement('div');
   if(m.role==='user'){
     div.className='msg u';
-    div.innerHTML=`<div class="mav" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--mt);">Tú</div><div class="bbl">${esc(m.content)}</div>`;
+    div.innerHTML=`<div class="mav" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--mt);">${lang.ui.youLabel}</div><div class="bbl">${esc(m.content)}</div>`;
   }else{
     const ch=chars[charKey];div.className='msg a';
     const note=m.note?`<span class="note">${esc(m.note)}</span>`:'';
     const safe=(m.display||'').replace(/"/g,'&quot;');
-    const retry=m.error?`<div style="margin-top:6px;"><button class="retry-btn" onclick="retryLastMsg()">Reintentar →</button></div>`:'';
-    div.innerHTML=`<div class="mav" style="border-color:${ch.ac};">${SVG[charKey]}</div><div class="bbl" id="b${i}">${mdInline(esc(m.display))}<button class="spk-btn" data-txt="${safe}" onclick="speakFromBtn(this)" aria-label="Escuchar"><i class="ti ti-volume" aria-hidden="true"></i></button>${note}${retry}</div>`;
+    const retry=m.error?`<div style="margin-top:6px;"><button class="retry-btn" onclick="retryLastMsg()">${lang.ui.chatRetryBtn}</button></div>`:'';
+    div.innerHTML=`<div class="mav" style="border-color:${ch.ac};">${SVG[charKey]}</div><div class="bbl" id="b${i}">${mdInline(esc(m.display))}<button class="spk-btn" data-txt="${safe}" onclick="speakFromBtn(this)" aria-label="${lang.ui.ariaListen}"><i class="ti ti-volume" aria-hidden="true"></i></button>${note}${retry}</div>`;
   }
   return div;
 }
@@ -80,7 +80,7 @@ export function renderMsgs(){
   const msgs=S.hist[R.cur];const c=document.getElementById('msgs');
   const ch=chars[R.cur];
   if(!msgs.length){
-    c.innerHTML=`<div class="empty-ch"><div style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid var(--dim);">${SVG[R.cur]}</div><div style="color:var(--gold);font-style:italic;">${ch.name}</div><div>Di "Hola" para empezar</div><i class="ti ti-arrow-back-up" role="button" tabindex="0" aria-label="Reiniciar charla" onclick="resetConversation()" onkeydown="if(event.key==='Enter')resetConversation()" title="reiniciar charla" style="margin-top:8px;cursor:pointer;color:var(--mt);font-size:13px;opacity:.55;transition:opacity .2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.45'"></i></div>`;
+    c.innerHTML=`<div class="empty-ch"><div style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid var(--dim);">${SVG[R.cur]}</div><div style="color:var(--gold);font-style:italic;">${ch.name}</div><div>${lang.ui.emptyChat}</div><i class="ti ti-arrow-back-up" role="button" tabindex="0" aria-label="Reiniciar charla" onclick="resetConversation()" onkeydown="if(event.key==='Enter')resetConversation()" title="reiniciar charla" style="margin-top:8px;cursor:pointer;color:var(--mt);font-size:13px;opacity:.55;transition:opacity .2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.45'"></i></div>`;
     return;
   }
   c.innerHTML='';
@@ -103,7 +103,7 @@ export function retryLastMsg(){
 }
 export function renderHints(hints){
   const el=document.getElementById('hintsR');
-  el.innerHTML=hints.length?hints.map(h=>`<span class="hchip" onclick="useHint(this)">${esc(h)}</span>`).join(''):'<span class="hints-empty">Las sugerencias aparecerán aquí…</span>';
+  el.innerHTML=hints.length?hints.map(h=>`<span class="hchip" onclick="useHint(this)">${esc(h)}</span>`).join(''):`<span class="hints-empty">${lang.ui.hintsEmpty}</span>`;
 }
 export function useHint(el){
   const ta=document.getElementById('ui');  ta.value=el.textContent;aResize(ta);
@@ -159,7 +159,7 @@ export async function safeParse(raw){
       const fixed = await repairJSON(raw);
       if(fixed)return extractJSON(fixed);
     }catch(e4){}
-    return{reply:raw.replace(/\{.*\}/s,'').trim()||raw||'Parece que hubo un problema. ¿Podrías intentarlo de nuevo?',note:'',vocab:[],mistakes:[],options:[],points:0,mood:2};
+    return{reply:raw.replace(/\{.*\}/s,'').trim()||raw||lang.ui.chatFallback,note:'',vocab:[],mistakes:[],options:[],points:0,mood:2};
   }
 }
 
@@ -185,31 +185,18 @@ export function resetConversation(){
 
 // ── Conversation starters ────────────────────────────────────────────────────
 const starterLoading=new Set();
-const STARTER_SEEDS={
-  hermione:['un examen sorpresa de Pociones','un hechizo que salió mal en la biblioteca','una duda sobre un tema de Transformaciones','un problema con el giratiempo','un descubrimiento en la Sala de los Menesteres'],
-  dumbledore:['un recuerdo en el Pensadero','una profecía por descifrar','una decisión difícil sobre un alumno','el significado de un objeto misterioso','una lección sobre el amor y la magia'],
-  hagrid:['una criatura herida en el bosque','un huevo de dragón a punto de eclosionar','un nuevo animal llegado a la cabaña','algo peligroso suelto en los terrenos','una visita a la casa de Aragog'],
-  snape:['un ingrediente de pociones muy raro','un castigo que cumplir en el calabozo','una queja sobre un alumno problemático','una receta de pociones secreta','una inspección en la mazmorra']
-};
-const STARTER_FRAMING={
-  hermione:'Empieza con una pregunta académica o una observación erudita sobre:',
-  dumbledore:'Empieza con una reflexión sabia o una metáfora sobre:',
-  hagrid:'Empieza con una exclamación entusiasta sobre:',
-  snape:'Empieza con una queja sarcástica o una observación cortante sobre:'
-};
+
 export async function genStarter(k){
   if(starterLoading.has(k)||S.hist[k].length>0)return;
   starterLoading.add(k);
   if(k===R.cur){document.getElementById('msgs').innerHTML='';showTyping();}
   try{
-    const seeds=STARTER_SEEDS[k]||STARTER_SEEDS.hermione;
+    const seeds=lang.starterSeeds[k]||lang.starterSeeds.hermione;
     const seed=seeds[Math.floor(Math.random()*seeds.length)];
-    const framing=STARTER_FRAMING[k]||STARTER_FRAMING.hermione;
+    const framing=lang.starterFraming[k]||lang.starterFraming.hermione;
     const raw=await callLLM(getSys(k),[{role:'user',content:`${framing} ${seed}.`}],400);
     if(S.hist[k].length===0){
       const p=await safeParse(raw);
-      // Starter uses the Q1 `shape` (reply/points/mood/challengeDone) — no vocab/note
-      // fields. The opener's vocab is mined by Q2 on the user's first reply instead.
       S.hist[k].push({role:'assistant',content:p.reply,display:p.reply,note:''});
       if(typeof p.mood==='number')updMood(k,p.mood);
       saveS();
@@ -225,13 +212,13 @@ export async function genStarter(k){
 
 async function _genOptions(hist){
   try {
-    const name = chars[R.cur]?.name || 'Profesor';
+    const name = chars[R.cur]?.name || 'Professor';
     const recent = hist.slice(-6).map(m => {
       if (m.role === 'assistant') {
         const text = m.summary || m.content.slice(0, 80);
         return `${name}: ${text}`;
       }
-      return `Estudiante: ${m.content.slice(0, 100)}`;
+      return `${lang.ui.contextStudentLabel}: ${m.content.slice(0, 100)}`;
     }).join('\n');
     const raw = await callLLM(OPTIONS_PROMPT.replace('{{LV}}', LEVELS[S.level]), [{ role: 'user', content: recent }], 200, { temperature: 0.2 });
     const p = await safeParse(raw);
@@ -257,7 +244,7 @@ export async function sendMsg(){
   let suggestions=[];
   try{
     let hist=S.hist[R.cur].filter(m=>!m.error);
-    const name = chars[R.cur]?.name || 'Profesor';
+    const name = chars[R.cur]?.name || 'Professor';
 
     // Build a single conversation summary — no raw assistant text, no format conflicts
     const prev = hist.slice(-8, -1).filter(m => m.content && m.content.trim()); // exclude current user msg
@@ -266,16 +253,16 @@ export async function sendMsg(){
         const text = m.summary || m.content.slice(0, 80);
         return `- ${name}: ${text}`;
       }
-      return `- Usuario: ${m.content}`;
+      return `- ${lang.ui.contextStudentLabel}: ${m.content}`;
     }).join('\n');
     const contextMsg = summaryLines
-      ? `Resumen de la conversación:\n${summaryLines}\n\nÚltimo mensaje: ${txt}`
+      ? `${lang.ui.contextSummaryHeader}\n${summaryLines}\n\n${lang.ui.contextLastMsg} ${txt}`
       : txt;
 
     // Build analysis context: include previous character reply so vocab from it gets extracted too
     const prevAssistant = prev.filter(m => m.role === 'assistant').at(-1);
     const analysisContent = prevAssistant
-      ? `Personaje (${name}) dijo: "${(prevAssistant.summary || prevAssistant.content).slice(0, 300)}"\n\nEstudiante respondió: "${txt}"`
+      ? `${lang.ui.contextCharSaid(name)} "${(prevAssistant.summary || prevAssistant.content).slice(0, 300)}"\n\n${lang.ui.contextStudentReplied} "${txt}"`
       : txt;
 
     // Q1 (conversation + scoring) ‖ Q2 (vocab/mistakes/note analysis) — parallel
@@ -297,7 +284,7 @@ export async function sendMsg(){
       S.challengeDone[ck]=true;
       S.challengesCompleted=(S.challengesCompleted||0)+1;
       awardPoints(10);renderChallengeUI(R.cur);
-      showToast('🎉 ¡Desafío completado! +10 pts','#2a5018','#7acc40');
+      showToast(lang.ui.toastChallengeComplete,'#2a5018','#7acc40');
     }
     if(p.points)awardPoints(p.points);
     if(typeof p.mood==='number')updMood(R.cur,p.mood);
@@ -326,4 +313,3 @@ export async function sendMsg(){
   }catch(e){const msg=friendlyError(e);S.hist[R.cur].push({role:'assistant',content:msg,display:msg,note:'',error:true});saveS();}
   rmTyping();R.loading=false;document.getElementById('sendB').disabled=false;appendMsg(S.hist[R.cur].at(-1));renderHints(suggestions);document.getElementById('ui').focus();
 }
-

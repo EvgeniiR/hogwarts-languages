@@ -9,6 +9,7 @@
 //    (initCodeClient) that works everywhere: Chrome, Incognito, mobile,
 //    Firefox, Safari. No browser-level Google session required.
 import { kvGet, kvSet } from './storage.js';
+import lang from './lang.js';
 
 export const WORKER_URL = 'https://hogwarts-espanol-sync.evgromr1.workers.dev';
 export const GOOGLE_CLIENT_ID = '736271097412-5c63gsnmk9uf75gjar6061qkvd1t1lja.apps.googleusercontent.com';
@@ -118,10 +119,10 @@ async function _exchangeCredential(credential) {
   const res = await _post('/auth/google', { credential });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    return { ok: false, error: data.error || 'Error del servidor' };
+    return { ok: false, error: data.error || lang.ui.serverError };
   }
   const data = await res.json();
-  if (!data.token) return { ok: false, error: 'Token no recibido' };
+  if (!data.token) return { ok: false, error: lang.ui.tokenNotReceived };
   await kvSet('hp_auth', data.token);
   _token = data.token;
   return { ok: true, token: data.token };
@@ -132,10 +133,10 @@ async function _exchangeCode(code) {
   const res = await _post('/auth/google/code', { code });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    return { ok: false, error: data.error || 'Error del servidor' };
+    return { ok: false, error: data.error || lang.ui.serverError };
   }
   const data = await res.json();
-  if (!data.token) return { ok: false, error: 'Token no recibido' };
+  if (!data.token) return { ok: false, error: lang.ui.tokenNotReceived };
   await kvSet('hp_auth', data.token);
   _token = data.token;
   return { ok: true, token: data.token };

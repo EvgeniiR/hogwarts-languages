@@ -4,6 +4,7 @@
 import { S, saveS } from './state.js';
 import { LEVELS } from './characters.js';
 import { showToast } from './helpers.js';
+import lang from './lang.js';
 
 // ── Points ───────────────────────────────────────────────────────────────
 function showPtsFloat(n){
@@ -78,12 +79,10 @@ export function processDateChanges(){
     if(diff>1){
       S.streak.count=0;
     } else if(S.streak.lastDate!==S.lastActiveDate){
-      // yesterday not yet counted (user never hit 50 pts that session)
       const qualified=S.dailyEarned>=50;
       S.streak.count=qualified?(S.streak.count||0)+1:0;
       if(qualified)S.streak.lastDate=S.lastActiveDate;
     }
-    // else: streak.lastDate===lastActiveDate — already counted by _countStreakToday
     S.dailyEarned=0;
     S.lastActiveDate=today;
     updStreakUI();
@@ -91,33 +90,23 @@ export function processDateChanges(){
   if(!S.currentWeek)S.currentWeek=week;
   if(S.currentWeek!==week){
     S.weeklyPts=0;S.currentWeek=week;
-    showToast('🗓 ¡Nueva semana! Puntos semanales reiniciados. ¡Tú puedes!','#1a2a50','#6090e0');
+    showToast(lang.ui.toastNewWeek,'#1a2a50','#6090e0');
     updPtsUI();
   }
   checkAchievements();saveS();
 }
 
 // ── Achievements ────────────────────────────────────────────────────────────
-export const ACH_LABELS={
-  streak:{icon:'🔥',name:'días de racha',name1:'día de racha'},
-  msgs:{icon:'💬',name:'mensajes enviados',name1:'mensaje enviado'},
-  vocab:{icon:'📖',name:'palabras aprendidas',name1:'palabra aprendida'},
-  challenges:{icon:'⭐',name:'desafíos completados',name1:'desafío completado'},
-  reading:{icon:'📰',name:'artículos leídos',name1:'artículo leído'},
-};
+export function getAchLabels(){ return lang.achLabels; }
+export function getMilestones(){ return lang.milestones; }
 export const ACH_X={streak:10,vocab:10,challenges:10,msgs:100,reading:10};
-export const HP_MILESTONES=[
-  {pts:500,  key:'hp_firstYear',icon:'🎓',label:'Estudiante de Primer Año'},
-  {pts:1000, key:'hp_quidditch',icon:'🏆',label:'Copa de Quidditch'},
-  {pts:5000, key:'hp_merlin',  icon:'⚗', label:'Orden de Merlín, Tercera Clase'},
-  {pts:10000,key:'hp_champion',icon:'⚡',label:'Campeón de Hogwarts'},
-];
+
 export function checkLifetimeMilestones(){
   const lp=S.lifetimePts||0;
-  HP_MILESTONES.forEach(m=>{
+  lang.milestones.forEach(m=>{
     if(!S.achievements[m.key]&&lp>=m.pts){
       S.achievements[m.key]=true;
-      showToast(`🏆 ¡Logro desbloqueado! ${m.icon} ${m.label}`,'#5a0000','#f5e5c0');
+      showToast(lang.ui.toastMilestone(m.icon,m.label),'#5a0000','#f5e5c0');
       saveS();
     }
   });
@@ -142,15 +131,16 @@ export function achievementMetrics(){
 }
 export function checkAchievements(){
   const metrics=achievementMetrics();
+  const achLabels=lang.achLabels;
   let any=false;
-  Object.keys(ACH_LABELS).forEach(k=>{
+  Object.keys(achLabels).forEach(k=>{
     let reached=S.achievements[k]||0;
     let next=nextMilestone(reached,ACH_X[k]);
     while(next<=metrics[k]){
       reached=next;next=nextMilestone(reached,ACH_X[k]);
-      const {icon,name,name1}=ACH_LABELS[k];
+      const {icon,name,name1}=achLabels[k];
       const label=reached===1?name1:name;
-      showToast(`🏆 ¡Logro desbloqueado! ${icon} ${reached} ${label}`,'#5a3000','#f5e5c0');
+      showToast(lang.ui.toastAchievement(icon,reached,label),'#5a3000','#f5e5c0');
       any=true;
     }
     S.achievements[k]=reached;
@@ -174,6 +164,10 @@ function calcLevel(){
 }
 export function checkLevelUp(){
   const nl=calcLevel();
-  if(nl>S.level){S.level=nl;document.getElementById('lvlBadge').textContent=LEVELS[nl];showToast('🎉 ¡Nivel '+LEVELS[nl]+' desbloqueado!','#c9a84c','#1e0c04');return true;}
+  if(nl>S.level){S.level=nl;document.getElementById('lvlBadge').textContent=LEVELS[nl];showToast(lang.ui.toastLevelUp(LEVELS[nl]),'#c9a84c','#1e0c04');return true;}
   return false;
 }
+
+// Backward-compat exports consumed by settings.js
+export const ACH_LABELS = new Proxy({}, { get(_,k){ return lang.achLabels[k]; } });
+export const HP_MILESTONES = new Proxy([], { get(_,k){ return k==='length'?lang.milestones.length:lang.milestones[k]; } });

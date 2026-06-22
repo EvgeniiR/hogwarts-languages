@@ -1,15 +1,10 @@
 import { S, R } from './state.js';
 import { callLLM } from './llm.js';
 import { esc, friendlyError, extractJSON, mdInline } from './helpers.js';
+import lang from './lang.js';
 
 let convHistory = [];
 let currentMistake = null;
-
-const SYS = `You are a Spanish language tutor. The learner made a mistake in Spanish. Write the explanation IN SPANISH.
-Respond ONLY with a JSON object — no text before or after, no markdown, no backticks.
-{"explanation":"...","suggestions":["...","...","..."]}
-- explanation: 2-4 short paragraphs in Spanish, **bold** key grammar terms, include example sentences.
-- suggestions: 3 concise follow-up questions in Spanish the learner might ask.`;
 
 export function openErrExplain(idx) {
   currentMistake = S.mistakes[idx];
@@ -73,7 +68,7 @@ async function fetchExplanation() {
   setSugg([]);
   let raw;
   try {
-    raw = await callLLM(SYS, [{ role: 'user', content: userMsg }], 600);
+    raw = await callLLM(lang.prompts.errExplainSys, [{ role: 'user', content: userMsg }], 600);
   } catch(e) {
     setExplLoading(false);
     document.getElementById('eeExpl').innerHTML =
@@ -107,7 +102,7 @@ async function fetchAnswer(question) {
   renderChat();
   let raw;
   try {
-    raw = await callLLM(SYS, msgs, 500);
+    raw = await callLLM(lang.prompts.errExplainSys, msgs, 500);
   } catch(e) {
     convHistory.splice(loadIdx, 1);
     convHistory.push({ role: 'assistant', content: friendlyError(e) });

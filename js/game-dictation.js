@@ -6,23 +6,27 @@ import { awardPoints, pushLevelOutcome } from './progress.js';
 import { playCorrect, playMinor, playIncorrect } from './audio.js';
 import { renderSide } from './sidepanel.js';
 import { round, game, GAME_DIFF, randomTopic, rememberRecent, pickReviewItem, diffSelectorHtml, award, wordDiffHtml, wordMaskHint, recentDictSentences } from './game-core.js';
+import lang from './lang.js';
 
 let dictReqId=0;
 export async function genDictation(){
   const el=document.getElementById('gamesContent');
   round.sentence='';round.ref='';round.phrase='';round.checked=false;round.review=false;
-  el.innerHTML=diffSelectorHtml()+'<div class="mem-loading">Generando oración</div>';
+  el.innerHTML=diffSelectorHtml()+`<div class="mem-loading">${lang.ui.loadingSentence}</div>`;
   const review=Math.random()<0.3?pickReviewItem(m=>m.source==='dictado'):null;
   if(review){round.sentence=review.right;round.review=true;renderDictationRound();return;}
   const topic=randomTopic();
-  const avoid=recentDictSentences.length?` No repitas ni te parezcas a estas oraciones recientes: ${recentDictSentences.map(s=>`"${s}"`).join('; ')}.`:'';
+  const avoid=recentDictSentences.length?` Do not repeat or resemble these recent sentences: ${recentDictSentences.map(s=>`"${s}"`).join('; ')}.`:'';
   const reqId=++dictReqId;
   try{
-    const txt=await callLLM(`Eres un profesor de español generando ejercicios de dictado para un estudiante de nivel ${LEVELS[S.level]}.`,[{role:'user',content:`Eres ${chars[R.cur].name}. ${GAME_DIFF[S.gameDifficulty].prompt} Tema: ${topic}. Genera UNA oración en español sobre ese tema que dirías tú, para un ejercicio de dictado.${avoid} Refleja tu personalidad. Solo la oración, sin comillas ni explicaciones.`}],60,{json:false});
+    const txt=await callLLM(
+      lang.prompts.dictationSys(chars[R.cur].name,LEVELS[S.level]),
+      [{role:'user',content:lang.prompts.dictationUser(chars[R.cur].name,GAME_DIFF[S.gameDifficulty].prompt,topic,avoid)}],
+      60,{json:false});
     if(reqId!==dictReqId)return;
     round.sentence=txt.trim();rememberRecent(recentDictSentences,round.sentence);
   }catch(e){
-    el.innerHTML=diffSelectorHtml()+`<div class="game-error">${esc(friendlyError(e))}</div><button class="fc-btn" style="width:100%;" onclick="genDictation()">Reintentar</button>`;
+    el.innerHTML=diffSelectorHtml()+`<div class="game-error">${esc(friendlyError(e))}</div><button class="fc-btn" style="width:100%;" onclick="genDictation()">${lang.ui.btnRetry}</button>`;
     return;
   }
   renderDictationRound();
@@ -31,16 +35,16 @@ export async function genDictation(){
 export function renderDictationRound(){
   document.getElementById('gamesContent').innerHTML=diffSelectorHtml()+`
     <div class="svc-row" style="text-align:center;">
-      ${round.review?'<div class="edim">🔁 Repaso de un error anterior</div>':''}
+      ${round.review?`<div class="edim">${lang.ui.reviewBadge}</div>`:''}
       <div class="game-listen-row">
-        <button aria-label="Escuchar la oración" data-txt="${esc(round.sentence)}" onclick="speakFromBtn(this)">🔊 Escuchar</button>
-        <button aria-label="Escuchar más despacio" data-txt="${esc(round.sentence)}" data-rate="0.55" onclick="speakFromBtn(this)">🐢 Más despacio</button>
+        <button aria-label="${lang.ui.ariaListen}" data-txt="${esc(round.sentence)}" onclick="speakFromBtn(this)">${lang.ui.btnListen}</button>
+        <button aria-label="${lang.ui.ariaSlower}" data-txt="${esc(round.sentence)}" data-rate="0.55" onclick="speakFromBtn(this)">${lang.ui.btnSlower}</button>
       </div>
-      <input id="dictInput" class="game-input" placeholder="Escribe lo que escuchaste…" autocomplete="off">
+      <input id="dictInput" class="game-input" placeholder="${lang.ui.dictInputPlaceholder}" autocomplete="off">
       <div class="vadd-row">
-        <button aria-label="Pista" onclick="hintDictation()">💡 Pista</button>
-        <button aria-label="Comprobar respuesta" onclick="checkDictation()">✅ Comprobar</button>
-        <button aria-label="Saltar, -1 punto" onclick="skipDictation()">⏭ Saltar (-1)</button>
+        <button aria-label="${lang.ui.btnHint}" onclick="hintDictation()">${lang.ui.btnHint}</button>
+        <button aria-label="${lang.ui.btnCheck}" onclick="checkDictation()">${lang.ui.btnCheck}</button>
+        <button aria-label="${lang.ui.btnSkip}" onclick="skipDictation()">${lang.ui.btnSkip}</button>
       </div>
     </div>
     <div id="dictResult"></div>`;
@@ -62,10 +66,14 @@ export function checkDictation(){
   const {diff,bonus}=award(tier);
   if(tier==='correct')playCorrect();else if(tier==='minor')playMinor();else playIncorrect();
   if(tier!=='correct'){
-    S.mistakes.push({wrong:input,right:round.sentence,note:'Dictado',ts:Date.now(),source:'dictado'});
+    S.mistakes.push({wrong:input,right:round.sentence,note:'Dictation',ts:Date.now(),source:'dictado'});
     renderSide();
   }
   saveS();
-  const tierMsg={correct:'✓ ¡Correcto! +'+diff.pts+' pts',minor:'〜 Casi correcto. +'+diff.minorPts+' pts',incorrect:'✗ Incorrecto. -'+diff.penalty+' pts'}[tier];
-  document.getElementById('dictResult').innerHTML=`<div class="game-result-msg">${wordDiffHtml(a,b)}</div><div class="game-result-msg tier-${tier}">${tierMsg}${bonus?` · 🔥 ¡Combo x${game.combo}! +${bonus} pts`:''}</div><button class="game-next" onclick="genDictation()">Siguiente →</button>`;
+  const tierMsg={
+    correct:lang.ui.scoreCorrect(diff.pts),
+    minor:lang.ui.scoreMinor(diff.minorPts),
+    incorrect:lang.ui.scoreIncorrect(diff.penalty),
+  }[tier];
+  document.getElementById('dictResult').innerHTML=`<div class="game-result-msg">${wordDiffHtml(a,b)}</div><div class="game-result-msg tier-${tier}">${tierMsg}${bonus?lang.ui.scoreCombo(game.combo,bonus):''}</div><button class="game-next" onclick="genDictation()">${lang.ui.btnNext}</button>`;
 }

@@ -1,4 +1,4 @@
-# Hogwarts Español — Agent Guide
+# Hogwarts — Agent Guide
 
 > **Keep this file current.** Update AGENTS.md whenever you change any file — module contents, state shape, new exports, known issues. Stale docs cause bugs in future sessions.
 
@@ -6,9 +6,15 @@
 
 ## What this is
 
-A Spanish learning app with a Harry Potter theme. Users have conversations with Hermione, Dumbledore, Hagrid, and Snape, powered by LLM APIs. Tracks vocabulary, grammar mistakes, streaks, and house points.
+A language-learning app with a Harry Potter theme. Users have conversations with Hermione, Dumbledore, Hagrid, and Snape, powered by LLM APIs. Tracks vocabulary, grammar mistakes, streaks, and house points.
 
-Built for a specific user (~A2/B1 Spanish, ~1.5 years Duolingo). Deployed on Cloudflare Pages.
+Two deployments from one codebase:
+- **hogwarts-espanol.pages.dev** — Spanish learning (`<html lang="es">`)
+- **hogwarts-english.pages.dev** — English learning (`<html lang="en">`)
+
+Language is selected at runtime by `js/lang.js`, which reads `document.documentElement.lang` and exports either `js/lang/es.js` or `js/lang/en.js`. All UI strings, LLM prompts, TTS/STT locales, RSS feeds, and character personas live in those config files. Progress is fully independent per language (separate KV keys in the Worker).
+
+Built for a specific user (~A2/B1 Spanish). Deployed on Cloudflare Pages.
 
 ## Coding principles
 
@@ -19,21 +25,28 @@ Built for a specific user (~A2/B1 Spanish, ~1.5 years Duolingo). Deployed on Clo
 ## File layout
 
 ```
-hogwarts-espanol.html   ← HTML shell only. No JS, no CSS.
+hogwarts-espanol.html   ← Spanish HTML shell (lang="es")
+hogwarts-english.html   ← English HTML shell (lang="en")
+manifest.json           ← PWA manifest (Spanish)
+manifest-en.json        ← PWA manifest (English)
 css/styles.css          ← All styles (~430 lines, static)
-js/                     ← ES modules (28 files)
-worker/                 ← Cloudflare Worker (sync backend)
+js/                     ← ES modules
+  lang.js               ← Language selector (reads document.documentElement.lang)
+  lang/
+    es.js               ← Spanish config: strings, prompts, RSS, personas
+    en.js               ← English config: strings, prompts, RSS, personas
+  … (all other modules import lang from './lang.js')
+worker/                 ← Cloudflare Worker (sync backend, serves both sites)
   index.js              ← Worker entry: /auth/google, /auth/google/code, /state
-  wrangler.toml         ← Worker config: KV binding, ALLOWED_ORIGIN
+  wrangler.toml         ← Worker config: KV binding, ALLOWED_ORIGINS (both domains)
   .dev.vars             ← Local dev secrets (JWT_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
 scripts/                ← Deployment & verification tools
   check.sh              ← JS syntax + import graph validation
   deploy-worker.sh      ← Worker deploy guard (validates secrets before deploy)
 audio/                  ← Ambient MP3s + manifest.json
-index.html              ← App shell (was redirect to hogwarts-espanol.html)
+index.html              ← App shell (redirect to hogwarts-espanol.html)
 DEPLOY.md               ← Deploy instructions
 AGENTS.md               ← This file
-manifest.json           ← PWA manifest
 sw.js                   ← Service worker (stale-while-revalidate for static assets)
 icon-192.png            ← PWA icon 192×192
 icon-512.png            ← PWA icon 512×512
@@ -73,7 +86,7 @@ When editing a feature, load **only this file** — not the whole project.
 | Reading comprehension (El Profeta): RSS + LLM articles, quiz, recap | `js/reading.js` |
 | Google OAuth sign-in: One Tap (passive page-load) + OAuth2 popup (button), session token, sign-out | `js/auth.js` |
 | Cloud sync: fetchRemoteState, pushState, mergeAndSync (last-write-wins) | `js/sync.js` |
-| Cloudflare Worker: /auth/google, /auth/google/code, GET/PUT /state, JWT + JWKS verification | `worker/index.js` |
+| Cloudflare Worker: /auth/google, /auth/google/code, GET/PUT /state, JWT + JWKS verification, multi-origin CORS, language-prefixed KV keys | `worker/index.js` |
 | All CSS | `css/styles.css` |
 
 **Memory Match (game-memory.js) specifics:**
@@ -116,7 +129,7 @@ python3 -m http.server 8787
 # or: npx serve .
 ```
 
-Then open http://localhost:8787/hogwarts-espanol.html
+Then open http://localhost:8787/hogwarts-espanol.html (or `/hogwarts-english.html`)
 
 ## State object (`S`) — persisted
 
@@ -303,6 +316,7 @@ Four games, each in its own file. All share engine state from `game-core.js`:
 - **`_syncComplete` gate** (`js/state.js`): Set to `true` only after `mergeAndSync()` completes AND user is authenticated. Guards `pushState()` in `saveS()` — no cloud pushes before the initial sync.
 - **Online tracking:** `isOnline` module variable, updated via `online`/`offline` events
 - **Security:** `S.hist` excluded from all sync payloads. API keys never in `S`, never in `R`.`pushState()` payload.
+- **Language-partitioned KV:** Worker uses the request `Origin` header to derive a prefix (`es` or `en`). KV keys are `state:es:<email>` and `state:en:<email>`. Spanish GET falls back to legacy `state:<email>` for backward compat with users who synced before the split.
 
 ## Persistence
 
@@ -313,7 +327,7 @@ Four games, each in its own file. All share engine state from `game-core.js`:
 
 ## Known issues
 
-- **Voice input** — Chrome/Edge only (`webkitSpeechRecognition`); Safari/Firefox unsupported (shows Spanish toast instead of alert)
+- **Voice input** — Chrome/Edge only (`webkitSpeechRecognition`); Safari/Firefox unsupported (shows a toast instead of alert)
 - **One Tap cooldown** — Dismissing the One Tap prompt enters a browser-managed cooldown period (~10 min in Chrome). One Tap may not appear on the next page load. The "Iniciar sesión con Google" button fallback always works.
 
 ## Fixed issues (pitfall reference)
@@ -332,7 +346,7 @@ Four games, each in its own file. All share engine state from `game-core.js`:
 - **`window.dictSentence` global** — dictation speak buttons used `onclick="speak(dictSentence)"` with a `window` variable. Fixed: buttons now use `data-txt`/`data-rate` attributes with `speakFromBtn(this)`.
 - **Translation game race** — skip/hint buttons stayed active during async `checkTranslation` LLM call; rapid skip could corrupt scoring. Fixed: all `.vadd-row` buttons disabled at check start, re-enabled on error.
 - **Sortable CDN silent failure** — if `cdn.jsdelivr.net` unavailable, `new Sortable(...)` threw uncaught in `setTimeout`. Fixed: `initSortable` guards `typeof Sortable==='undefined'` and shows an error message.
-- **English `alert()` for mic** — unsupported-browser message was in English. Fixed: uses Spanish `showToast` instead.
+- **`alert()` for mic** — unsupported-browser message used a native alert. Fixed: uses `showToast` (localised via `lang.ui.micNotSupported`).
 - **Mobile layout** — 186px side panel cramped chat on narrow screens. Fixed (D1): responsive drawer with scrim; `#sideBtn` shows on mobile only.
 - **TTS always-on** — speech fired on every message with no mute toggle. Fixed: `S.ttsOff` flag + "Leer respuestas en voz alta" checkbox in the Voz settings tab (`settings.js` `setTtsOff`).
 
@@ -409,8 +423,9 @@ All prompts live in `js/characters.js`. The pipeline is implemented in `js/chat.
 # Only if audio files changed:
 node -e "const fs=require('fs');fs.writeFileSync('audio/manifest.json',JSON.stringify(fs.readdirSync('audio').filter(f=>f.toLowerCase().endsWith('.mp3')).sort(),null,2)+'\n')"
 
-# Deploy to Cloudflare Pages:
+# Deploy both Pages sites:
 npx wrangler pages deploy . --project-name=hogwarts-espanol --branch=main
+npx wrangler pages deploy . --project-name=hogwarts-english --branch=main
 ```
 
 No build step. Cloudflare Pages serves ES modules fine over HTTPS.

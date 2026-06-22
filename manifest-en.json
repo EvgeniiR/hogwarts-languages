@@ -1,0 +1,22 @@
+{
+  "name": "Hogwarts English",
+  "short_name": "Hogwarts EN",
+  "description": "Practice English by chatting with Harry Potter characters",
+  "start_url": "/hogwarts-english.html",
+  "display": "standalone",
+  "background_color": "#07091a",
+  "theme_color": "#c9a84c",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
