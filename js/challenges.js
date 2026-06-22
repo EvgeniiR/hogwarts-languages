@@ -57,7 +57,7 @@ export async function genDailyChallenges(){
   chalEl.style.fontStyle='';
   chalEl.innerHTML=`<span class="mem-loading">${lang.ui.chalLoading}</span>`;
   try{
-    const raw=await callLLM(lang.prompts.challengeSys,[{role:'user',content:lang.prompts.challengeUser.replace('{{LEVEL}}',LEVELS[S.level]).replace('{{DATE}}',today)}],800);
+    const raw=await callLLM(lang.prompts.challengeSys,[{role:'user',content:lang.prompts.challengeUser.replace('{{LEVEL}}',LEVELS[S.level]).replace('{{DATE}}',today)}],800,{type:'challenge'});
     const parsed=extractJSON(raw);
     const arr=parsed.challenges||parsed;
     if(Array.isArray(arr)&&arr.length>=4){

@@ -68,7 +68,7 @@ async function fetchExplanation() {
   setSugg([]);
   let raw;
   try {
-    raw = await callLLM(lang.prompts.errExplainSys, [{ role: 'user', content: userMsg }], 600);
+    raw = await callLLM(lang.prompts.errExplainSys, [{ role: 'user', content: userMsg }], 600, {type:'error'});
   } catch(e) {
     setExplLoading(false);
     document.getElementById('eeExpl').innerHTML =
@@ -102,7 +102,7 @@ async function fetchAnswer(question) {
   renderChat();
   let raw;
   try {
-    raw = await callLLM(lang.prompts.errExplainSys, msgs, 500);
+    raw = await callLLM(lang.prompts.errExplainSys, msgs, 500, {type:'error'});
   } catch(e) {
     convHistory.splice(loadIdx, 1);
     convHistory.push({ role: 'assistant', content: friendlyError(e) });

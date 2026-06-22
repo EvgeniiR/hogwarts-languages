@@ -22,7 +22,7 @@ export async function genDictation(){
     const txt=await callLLM(
       lang.prompts.dictationSys(chars[R.cur].name,LEVELS[S.level]),
       [{role:'user',content:lang.prompts.dictationUser(chars[R.cur].name,GAME_DIFF[S.gameDifficulty].prompt,topic,avoid)}],
-      60,{json:false});
+      60,{json:false,type:'dictation'});
     if(reqId!==dictReqId)return;
     round.sentence=txt.trim();rememberRecent(recentDictSentences,round.sentence);
   }catch(e){

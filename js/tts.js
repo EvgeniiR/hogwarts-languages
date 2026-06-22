@@ -5,7 +5,7 @@ import { R, S, saveS } from './state.js';
 import { chars } from './characters.js';
 import lang from './lang.js';
 
-export function langVoices(){return window.speechSynthesis.getVoices().filter(v=>v.lang.startsWith(lang.ttsLocale.slice(0,2)));}
+export const langVoices = function(){return window.speechSynthesis.getVoices().filter(v=>v.lang.startsWith(lang.ttsLocale.slice(0,2)));};
 // Keep old name as alias so settings.js import still works
 export const spanishVoices = langVoices;
 

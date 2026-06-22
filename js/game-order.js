@@ -38,7 +38,7 @@ export async function genOrderGame(){
     const txt=await callLLM(
       lang.prompts.orderSys,
       [{role:'user',content:lang.prompts.orderUser(chars[R.cur].name,GAME_DIFF[S.gameDifficulty].orderPrompt,avoid)}],
-      60,{json:false});
+      60,{json:false,type:'order'});
     if(reqId!==orderReqId)return;
     const words=txt.trim().split(/\s+/).map(w=>w.replace(/^[¿¡"'(]+|[.,!?;:"')]+$/g,'')).filter(Boolean);
     if(words.length<3)throw new Error('too short');

@@ -1,6 +1,7 @@
-const CACHE = 'hogwarts-es-v3';
+const CACHE = 'hogwarts-v4';
 const STATIC = [
   '/hogwarts-espanol.html',
+  '/hogwarts-english.html',
   '/css/styles.css',
   '/js/main.js',
   '/js/state.js',
@@ -24,11 +25,15 @@ const STATIC = [
   '/js/game-order.js',
   '/js/game-memory.js',
   '/js/particles.js',
-  '/js/settings.js',
   '/js/srs.js',
+  '/js/settings.js',
   '/js/model-compare.js',
+  '/js/lang.js',
+  '/js/lang/es.js',
+  '/js/lang/en.js',
   '/audio/manifest.json',
-  '/manifest.json'
+  '/manifest.json',
+  '/manifest-en.json'
 ];
 
 self.addEventListener('install', e => {

@@ -25,13 +25,13 @@ export function addVocabWord(word,def){
 }
 async function lookupDefinition(word){
   try{
-    const txt=await callLLM(lang.prompts.lookupSys,[{role:'user',content:word}],20,{json:false,temperature:0.2});
+    const txt=await callLLM(lang.prompts.lookupSys,[{role:'user',content:word}],20,{json:false,temperature:0.2,type:'lookup'});
     return txt.trim().replace(/^["']|["']$/g,'');
   }catch(e){return '';}
 }
 async function translateForReading(text){
   try{
-    const txt=await callLLM(lang.prompts.translateReadingSys,[{role:'user',content:text}],120,{json:false,temperature:0.2});
+    const txt=await callLLM(lang.prompts.translateReadingSys,[{role:'user',content:text}],120,{json:false,temperature:0.2,type:'side-trans'});
     return txt.trim().replace(/^["']|["']$/g,'');
   }catch(e){return '';}
 }

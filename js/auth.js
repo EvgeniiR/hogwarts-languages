@@ -63,9 +63,9 @@ export async function signInWithGoogle() {
     return await _exchangeCode(code);
   } catch (e) {
     const msg = e && e.message ? e.message : '';
-    if (msg === 'USER_CANCELLED') return { ok: false, error: 'Inicio de sesión cancelado' };
-    if (msg === 'POPUP_BLOCKED') return { ok: false, error: 'Ventana bloqueada — permite ventanas emergentes para este sitio' };
-    return { ok: false, error: 'Sin conexión' };
+    if (msg === 'USER_CANCELLED') return { ok: false, error: lang.ui.signInCancelled };
+    if (msg === 'POPUP_BLOCKED') return { ok: false, error: lang.ui.popupBlocked };
+    return { ok: false, error: lang.ui.offline };
   }
 }
 

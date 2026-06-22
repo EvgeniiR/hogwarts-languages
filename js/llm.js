@@ -32,6 +32,7 @@ export async function callLLM(systemPrompt, messages, maxTokens, opts={}){
   const entry={
     ts:Date.now(),
     provider:R.provider,
+    type:opts.type||'',
     systemPrompt:systemPrompt||'(sin prompt)',
     messages,
     maxTokens,
@@ -115,9 +116,9 @@ export async function callModelDirect(provider, model, sys, msgs, maxTokens){
 // then falls back to the main conversation provider (S.repairProvider controls this).
 export async function repairJSON(raw){
   const entry = {
-    ts:Date.now(), provider:'', systemPrompt:'(repairJSON)',
+    ts:Date.now(), provider:'', type:'repair', systemPrompt:'(repairJSON)',
     messages:[{role:'user',content:raw.slice(0,800)}],
-    maxTokens:300, effort:'repair', status:'pending'
+    maxTokens:300, status:'pending'
   };
   R.llmLog.push(entry);
   if(R.llmLog.length>50)R.llmLog.shift();

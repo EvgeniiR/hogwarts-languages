@@ -22,7 +22,7 @@ export async function genTranslation(){
     const raw=await callLLM(
       lang.prompts.translationSys(chars[R.cur].name,LEVELS[S.level]),
       [{role:'user',content:lang.prompts.translationUser(GAME_DIFF[S.gameDifficulty].prompt,topic,avoid)}],
-      150);
+      150,{type:'trans-gen'});
     if(reqId!==translReqId)return;
     const parsed=extractJSON(raw);
     round.phrase=parsed.phrase;round.ref=parsed.refTranslation||'';
@@ -69,7 +69,7 @@ export async function checkTranslation(btn){
     const raw=await callLLM(
       lang.prompts.translationEvalSys,
       [{role:'user',content:lang.prompts.translationEvalUser(round.phrase,input)}],
-      150,{temperature:0.2});
+      150,{temperature:0.2,type:'trans-check'});
     verdict={status:'incorrect',correction:round.ref||round.phrase,note:'',...extractJSON(raw)};
   }catch(e){
     document.querySelectorAll('#gamesContent .vadd-row button').forEach(b=>{b.disabled=false;});

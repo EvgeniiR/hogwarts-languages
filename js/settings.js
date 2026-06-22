@@ -2,7 +2,7 @@
 // Three tabs: Voice, Model, Log. Auth management moved to splash (via "Gestionar cuentas" button).
 import { S, R, saveS } from './state.js';
 import { esc, showToast } from './helpers.js';
-import { spanishVoices, setVoicePref, testVoice } from './tts.js';
+import { langVoices, setVoicePref, testVoice } from './tts.js';
 import { achievementMetrics, ACH_X, nextMilestone } from './progress.js';
 import lang from './lang.js';
 
@@ -19,7 +19,7 @@ export function setSettingsTab(t){
 export function renderSettings(){
   const el=document.getElementById('settingsContent');
   if(settingsTab==='voice'){
-    const voices=spanishVoices();
+    const voices=langVoices();
     const opts=g=>`<option value="">${lang.ui.settingsVoiceAuto}</option>`+voices.map(v=>`<option value="${esc(v.name)}" ${S.voicePrefs[g]===v.name?'selected':''}>${esc(v.name)}</option>`).join('');
     el.innerHTML=`
       <div class="svc-row"><div class="svc-lbl">${lang.ui.settingsVoiceAuto}</div>
@@ -82,9 +82,11 @@ function renderLogTab(el){
     if(e.responseRaw)detail.push(`[RESP] ${e.responseRaw}`);
     if(e.error)detail.push(`[ERROR] ${e.error}`);
     const detailEsc=esc(detail.join('\n\n'));
+    const typeBadge=e.type?`<span class="log-type">${e.type}</span>`:'';
     return `<div class="log-entry">
       <div class="log-summary" onclick="this.parentElement.classList.toggle('open')">
         <span class="log-time">${time}</span>
+        ${typeBadge}
         <span class="log-pvd ${e.provider}">${pvdNames[e.provider]||e.provider}</span>
         <span class="log-status">${statusIcon}${e.attempts>1?` ×${e.attempts}`:''}</span>
         <span class="log-latency">${latency}</span>

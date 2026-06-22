@@ -1,4 +1,4 @@
-// ─── Hogwarts Español — Cloudflare Worker Backend ──────────────────────────────
+// ─── Hogwarts — Cloudflare Worker Backend ──────────────────────────────
 // Handles: Google OAuth (POST /auth/google) + state sync (GET/PUT /state via KV).
 // Zero external dependencies — pure JS with Web Crypto + Cloudflare Workers APIs.
 //
@@ -12,6 +12,46 @@
 const JWT_EXPIRY = 30 * 24 * 3600; // 30 days (seconds)
 const MAX_STATE_SIZE = 500000;     // 500 KB
 const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
+
+// ── Bilingual error messages ────────────────────────────────────────────────────
+const MSG = {
+  es: {
+    invalidJson:'Cuerpo JSON inválido',
+    googleTokenRequired:'Token de Google requerido',
+    googleTokenInvalid:'Token de Google inválido o expirado',
+    googleTokenNoEmail:'Token de Google no contiene email',
+    authCodeRequired:'Código de autorización requerido',
+    serverConfigError:'Error de configuración del servidor',
+    authCodeInvalid:'Código de autorización inválido o expirado',
+    googleVerifyFailed:'No se pudo verificar la identidad con Google',
+    googleConnectError:'Error al conectar con Google',
+    tokenRequired:'Token requerido',
+    tokenInvalid:'Token inválido o expirado',
+    stateTooLarge:(max)=>`Estado demasiado grande (máx. ${max/1000} KB)`,
+    bodyReadError:'Error al leer el cuerpo de la solicitud',
+    originNotAllowed:'Origen no permitido',
+    routeNotFound:'Ruta no encontrada',
+    internalError:'Error interno del servidor',
+  },
+  en: {
+    invalidJson:'Invalid JSON body',
+    googleTokenRequired:'Google token required',
+    googleTokenInvalid:'Invalid or expired Google token',
+    googleTokenNoEmail:'Google token missing email',
+    authCodeRequired:'Authorisation code required',
+    serverConfigError:'Server configuration error',
+    authCodeInvalid:'Invalid or expired authorisation code',
+    googleVerifyFailed:'Could not verify identity with Google',
+    googleConnectError:'Error connecting to Google',
+    tokenRequired:'Token required',
+    tokenInvalid:'Invalid or expired token',
+    stateTooLarge:(max)=>`State too large (max ${max/1000} KB)`,
+    bodyReadError:'Error reading request body',
+    originNotAllowed:'Origin not allowed',
+    routeNotFound:'Route not found',
+    internalError:'Internal server error',
+  },
+};
 
 // ── JWKS cache (module-level — persists across requests within the isolate) ────
 const jwksCache = { jwks: null };
@@ -28,6 +68,12 @@ function isAllowedOrigin(origin, env) {
 function langPrefix(origin) {
   if (origin && origin.includes('hogwarts-english')) return 'en';
   return 'es';
+}
+
+/** Get a messages function for the given origin's language. */
+function t(origin) {
+  const lang = langPrefix(origin);
+  return MSG[lang] || MSG.es;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -216,24 +262,24 @@ async function handleAuthGoogle(request, env) {
   try {
     body = await request.json();
   } catch (_) {
-    return jsonResponse({ error: 'Cuerpo JSON inválido' }, 400, origin);
+    return jsonResponse({ error: t(origin).invalidJson }, 400, origin);
   }
 
   const credential = (body.credential || '').trim();
   if (!credential) {
-    return jsonResponse({ error: 'Token de Google requerido' }, 400, origin);
+    return jsonResponse({ error: t(origin).googleTokenRequired }, 400, origin);
   }
 
   // Verify Google token
   const payload = await verifyGoogleToken(credential, env.GOOGLE_CLIENT_ID);
   if (!payload) {
-    return jsonResponse({ error: 'Token de Google inválido o expirado' }, 401, origin);
+    return jsonResponse({ error: t(origin).googleTokenInvalid }, 401, origin);
   }
 
   // Extract email
   const email = payload.email;
   if (!email) {
-    return jsonResponse({ error: 'Token de Google no contiene email' }, 401, origin);
+    return jsonResponse({ error: t(origin).googleTokenNoEmail }, 401, origin);
   }
 
   // Issue app JWT
@@ -256,18 +302,18 @@ async function handleAuthGoogleCode(request, env) {
   try {
     body = await request.json();
   } catch (_) {
-    return jsonResponse({ error: 'Cuerpo JSON inválido' }, 400, origin);
+    return jsonResponse({ error: t(origin).invalidJson }, 400, origin);
   }
 
   const code = (body.code || '').trim();
   if (!code) {
-    return jsonResponse({ error: 'Código de autorización requerido' }, 400, origin);
+    return jsonResponse({ error: t(origin).authCodeRequired }, 400, origin);
   }
 
   const clientSecret = env.GOOGLE_CLIENT_SECRET;
   if (!clientSecret) {
     console.error('GOOGLE_CLIENT_SECRET not configured');
-    return jsonResponse({ error: 'Error de configuración del servidor' }, 500, origin);
+    return jsonResponse({ error: t(origin).serverConfigError }, 500, origin);
   }
 
   // Exchange authorization code for tokens via Google's token endpoint.
@@ -288,29 +334,29 @@ async function handleAuthGoogleCode(request, env) {
     if (!tokenRes.ok) {
       const errText = await tokenRes.text().catch(() => '');
       console.error('Google token exchange failed:', tokenRes.status, errText);
-      return jsonResponse({ error: 'Código de autorización inválido o expirado' }, 401, origin);
+      return jsonResponse({ error: t(origin).authCodeInvalid }, 401, origin);
     }
 
     const tokenData = await tokenRes.json();
     idToken = tokenData.id_token;
     if (!idToken) {
       console.error('Google token exchange: no id_token in response');
-      return jsonResponse({ error: 'No se pudo verificar la identidad con Google' }, 401, origin);
+      return jsonResponse({ error: t(origin).googleVerifyFailed }, 401, origin);
     }
   } catch (e) {
     console.error('Google token exchange error:', e.message);
-    return jsonResponse({ error: 'Error al conectar con Google' }, 502, origin);
+    return jsonResponse({ error: t(origin).googleConnectError }, 502, origin);
   }
 
   // Verify the ID token (reuse existing verification).
   const payload = await verifyGoogleToken(idToken, env.GOOGLE_CLIENT_ID);
   if (!payload) {
-    return jsonResponse({ error: 'Token de Google inválido o expirado' }, 401, origin);
+    return jsonResponse({ error: t(origin).googleTokenInvalid }, 401, origin);
   }
 
   const email = payload.email;
   if (!email) {
-    return jsonResponse({ error: 'Token de Google no contiene email' }, 401, origin);
+    return jsonResponse({ error: t(origin).googleTokenNoEmail }, 401, origin);
   }
 
   // Issue app JWT
@@ -332,12 +378,12 @@ async function handleGetState(request, env) {
   // Verify JWT
   const token = getBearerToken(request);
   if (!token) {
-    return jsonResponse({ error: 'Token requerido' }, 401, origin);
+    return jsonResponse({ error: t(origin).tokenRequired }, 401, origin);
   }
 
   const payload = await verifyJWT(token, env.JWT_SECRET);
   if (!payload) {
-    return jsonResponse({ error: 'Token inválido o expirado' }, 401, origin);
+    return jsonResponse({ error: t(origin).tokenInvalid }, 401, origin);
   }
 
   // Read state from KV (language-partitioned)
@@ -371,18 +417,18 @@ async function handlePutState(request, env) {
   // Verify JWT
   const token = getBearerToken(request);
   if (!token) {
-    return jsonResponse({ error: 'Token requerido' }, 401, origin);
+    return jsonResponse({ error: t(origin).tokenRequired }, 401, origin);
   }
 
   const payload = await verifyJWT(token, env.JWT_SECRET);
   if (!payload) {
-    return jsonResponse({ error: 'Token inválido o expirado' }, 401, origin);
+    return jsonResponse({ error: t(origin).tokenInvalid }, 401, origin);
   }
 
   // Check content-length before reading body
   const contentLength = request.headers.get('Content-Length');
   if (contentLength && parseInt(contentLength, 10) > MAX_STATE_SIZE) {
-    return jsonResponse({ error: 'Estado demasiado grande (máx. 500 KB)' }, 413, origin);
+    return jsonResponse({ error: t(origin).stateTooLarge(MAX_STATE_SIZE) }, 413, origin);
   }
 
   // Read body as text (limit to MAX_STATE_SIZE + buffer)
@@ -390,12 +436,12 @@ async function handlePutState(request, env) {
   try {
     bodyText = await request.text();
   } catch (_) {
-    return jsonResponse({ error: 'Error al leer el cuerpo de la solicitud' }, 400, origin);
+    return jsonResponse({ error: t(origin).bodyReadError }, 400, origin);
   }
 
   // Size check on actual body
   if (bodyText.length > MAX_STATE_SIZE) {
-    return jsonResponse({ error: 'Estado demasiado grande (máx. 500 KB)' }, 413, origin);
+    return jsonResponse({ error: t(origin).stateTooLarge(MAX_STATE_SIZE) }, 413, origin);
   }
 
   // Validate JSON
@@ -403,7 +449,7 @@ async function handlePutState(request, env) {
   try {
     incoming = JSON.parse(bodyText);
   } catch (_) {
-    return jsonResponse({ error: 'Cuerpo JSON inválido' }, 400, origin);
+    return jsonResponse({ error: t(origin).invalidJson }, 400, origin);
   }
 
   const email = payload.sub;
@@ -444,14 +490,14 @@ export default {
     if (method === 'OPTIONS') {
       if (origin && !isAllowedOrigin(origin, env)) {
         const firstAllowed = (env.ALLOWED_ORIGINS || env.ALLOWED_ORIGIN || '').split(',')[0].trim();
-        return jsonResponse({ error: 'Origen no permitido' }, 403, firstAllowed);
+        return jsonResponse({ error: t(firstAllowed).originNotAllowed }, 403, firstAllowed);
       }
       return emptyResponse(204, origin || '');
     }
 
     // ── Origin check for non-preflight requests ────────────────────────────
     if (origin && !isAllowedOrigin(origin, env)) {
-      return jsonResponse({ error: 'Origen no permitido' }, 403, '');
+      return jsonResponse({ error: t(origin).originNotAllowed }, 403, '');
     }
 
     // ── Route matching ──────────────────────────────────────────────────────
@@ -473,10 +519,10 @@ export default {
       }
 
       // 404 for unknown routes
-      return jsonResponse({ error: 'Ruta no encontrada' }, 404, origin || '');
+      return jsonResponse({ error: t(origin).routeNotFound }, 404, origin || '');
     } catch (e) {
       console.error('Unhandled error:', e.message);
-      return jsonResponse({ error: 'Error interno del servidor' }, 500, origin || '');
+      return jsonResponse({ error: t(origin).internalError }, 500, origin || '');
     }
   },
 };

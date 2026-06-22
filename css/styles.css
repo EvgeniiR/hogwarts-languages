@@ -147,6 +147,7 @@ textarea#ui::placeholder{color:#8b9bb8;}
 .log-pvd.groq{background:rgba(104,120,168,.15);color:#6878a8;}
 .log-pvd.openai{background:rgba(74,160,32,.15);color:#4aa020;}
 .log-pvd.deepseek{background:rgba(48,112,192,.15);color:#3070c0;}
+.log-type{font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(139,105,20,.12);color:#8b6914;font-family:'Cinzel',Georgia,serif;}
 .log-latency{font-size:9px;color:var(--mt);margin-left:auto;}
 .log-status{font-size:11px;}
 .log-tokens{font-size:9px;color:var(--mt);}

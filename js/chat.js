@@ -194,7 +194,7 @@ export async function genStarter(k){
     const seeds=lang.starterSeeds[k]||lang.starterSeeds.hermione;
     const seed=seeds[Math.floor(Math.random()*seeds.length)];
     const framing=lang.starterFraming[k]||lang.starterFraming.hermione;
-    const raw=await callLLM(getSys(k),[{role:'user',content:`${framing} ${seed}.`}],400);
+    const raw=await callLLM(getSys(k),[{role:'user',content:`${framing} ${seed}.`}],400,{type:'starter'});
     if(S.hist[k].length===0){
       const p=await safeParse(raw);
       S.hist[k].push({role:'assistant',content:p.reply,display:p.reply,note:''});
@@ -210,7 +210,7 @@ export async function genStarter(k){
   starterLoading.delete(k);
 }
 
-async function _genOptions(hist){
+async function _genOptions(hist, reply){
   try {
     const name = chars[R.cur]?.name || 'Professor';
     const recent = hist.slice(-6).map(m => {
@@ -220,7 +220,8 @@ async function _genOptions(hist){
       }
       return `${lang.ui.contextStudentLabel}: ${m.content.slice(0, 100)}`;
     }).join('\n');
-    const raw = await callLLM(OPTIONS_PROMPT.replace('{{LV}}', LEVELS[S.level]), [{ role: 'user', content: recent }], 200, { temperature: 0.2 });
+    const ctx = reply ? `${recent}\n${name}: ${reply.slice(0, 200)}` : recent;
+    const raw = await callLLM(OPTIONS_PROMPT.replace('{{LV}}', LEVELS[S.level]), [{ role: 'user', content: ctx }], 200, { temperature: 0.2, type:'Q3' });
     const p = await safeParse(raw);
     return p.options && p.options.length ? sanitizeOptions(p.options) : [];
   } catch (e) { return []; }
@@ -229,7 +230,7 @@ async function _genOptions(hist){
 async function _summarizeReply(reply){
   if (reply.length < 80) return '';
   try {
-    const raw = await callLLM(SUMMARY_PROMPT, [{ role: 'user', content: reply }], 80, { temperature: 0.2 });
+    const raw = await callLLM(SUMMARY_PROMPT, [{ role: 'user', content: reply }], 80, { temperature: 0.2, type:'Q2.5' });
     const p = await safeParse(raw);
     return (p.summary || '').trim();
   } catch (e) { return ''; }
@@ -267,8 +268,8 @@ export async function sendMsg(){
 
     // Q1 (conversation + scoring) ‖ Q2 (vocab/mistakes/note analysis) — parallel
     const [conRaw, anaRaw] = await Promise.all([
-      callLLM(getSys(R.cur), [{ role: 'user', content: contextMsg }], 2500),
-      callLLM(ANALYSIS_PROMPT.replace('{{LV}}', LEVELS[S.level]), [{ role: 'user', content: analysisContent }], 800, { temperature: 0.2 })
+      callLLM(getSys(R.cur), [{ role: 'user', content: contextMsg }], 2500, {type:'Q1'}),
+      callLLM(ANALYSIS_PROMPT.replace('{{LV}}', LEVELS[S.level]), [{ role: 'user', content: analysisContent }], 800, { temperature: 0.2, type:'Q2' })
     ]);
 
     // Parse conversation (Q1)
@@ -303,7 +304,7 @@ export async function sendMsg(){
     // Q2.5 (summarize reply) ‖ Q3 (suggestions) — parallel
     const [sum, opts] = await Promise.all([
       _summarizeReply(p.reply),
-      _genOptions(hist)
+      _genOptions(hist, p.reply)
     ]);
     S.hist[R.cur].at(-1).summary = sum;
     suggestions = opts;

@@ -18,7 +18,7 @@ export default {
   personas:{
     hermione:{
       hints:['¿Puedes explicarme este hechizo?','Necesito estudiar más hoy.','¿Cuál es tu libro favorito?','¿Cómo se prepara esta poción?','¿Qué es la Sala de los Menesteres?'],
-      persona:`Eres Hermione Granger de Harry Potter. SIEMPRE en español. Inteligente, precisa, amigable y entusiasta del estudio. {{LV}}\nHablas con oraciones bien estructuradas; usas "Evidentemente..." y "Según Hogwarts: Una Historia..." como coletillas. Cuando el estudiante acierta, muestras orgullo académico; cuando falla, corriges con paciencia pero sin bajar el listón. Prefieres vocabulario académico, citas de libros y precisión técnica.`,
+      persona:`Eres Hermione Granger de Harry Potter. SIEMPRE en español. Inteligente, precisa, amigable y entusiasta del estudio. {{LV}}\nHablas con oraciones bien estructuradas. Cuando el estudiante acierta, muestras orgullo académico; cuando falla, corriges con paciencia pero sin bajar el listón. Prefieres vocabulario académico, citas de libros y precisión técnica.`,
     },
     dumbledore:{
       hints:['¿Cuál es el secreto de la felicidad?','¿Qué significa ser valiente?','El amor es la magia más poderosa.','¿Puedes darme un consejo?','¿Por qué es importante la amistad?'],
@@ -26,11 +26,11 @@ export default {
     },
     hagrid:{
       hints:['¡Me encantan los animales mágicos!','¿Tienes un animal favorito?','¡Hola! ¿Cómo estás hoy?','¿Puedo visitar el bosque prohibido?','¡Los hipogrifos son increíbles!'],
-      persona:`Eres Rubeus Hagrid de Harry Potter. SIEMPRE en español. Entusiasta, cálido y apasionado por las criaturas mágicas; hablas con energía y cariño. {{LV}}\nTus frases son cortas y expresivas, salpicadas de "¡Caramba!" y "¡Es precioso/a!". Tiendes a desviar cualquier tema hacia animales mágicos. Cuando el estudiante se equivoca, le animas con ternura; nunca corriges con dureza. Vocabulario sencillo pero muy emotivo.`,
+      persona:`Eres Rubeus Hagrid de Harry Potter. SIEMPRE en español. Entusiasta, cálido y apasionado por las criaturas mágicas; hablas con energía y cariño. {{LV}}\nTus frases son cortas y expresivas, con exclamaciones cálidas y entusiastas. Tiendes a desviar cualquier tema hacia animales mágicos. Cuando el estudiante se equivoca, le animas con ternura; nunca corriges con dureza. Vocabulario sencillo pero muy emotivo.`,
     },
     snape:{
       hints:['Buenos días, profesor Snape.','No entiendo esta lección.','¿Puede repetir eso, por favor?','Intenté estudiar mucho.','¿Cuál es el ingrediente principal?'],
-      persona:`Eres Severus Snape de Harry Potter. SIEMPRE en español. Sarcástico, exigente, corriges TODO, pero sin crueldad gratuita. {{LV}}\nHablas con frases cortas y secas, pausas medidas y un desdén contenido. Usas "Evidentemente..." con ironía. Cuando el estudiante acierta, concedes un cumplido mínimo y de mala gana; cuando falla, corriges con precisión cortante. Registro formal, gramática impecable, preguntas inquisitivas.`,
+      persona:`Eres Severus Snape de Harry Potter. SIEMPRE en español. Sarcástico, exigente, corriges TODO, pero sin crueldad gratuita. {{LV}}\nHablas con frases cortas y secas, pausas medidas y un desdén contenido. Tu tono es seco e irónico. Cuando el estudiante acierta, concedes un cumplido mínimo y de mala gana; cuando falla, corriges con precisión cortante. Registro formal, gramática impecable, preguntas inquisitivas.`,
     },
   },
 
@@ -363,5 +363,21 @@ export default {
     // auth
     signInSuccess:`✓ ¡Conectado!`,
     signInError:(msg)=>`✗ ${msg||'Error al conectar'}`,
+    signInCancelled:`Inicio de sesión cancelado`,
+    popupBlocked:`Ventana bloqueada — permite ventanas emergentes para este sitio`,
+    offline:`Sin conexión`,
+    // save error
+    saveError:`⚠ Error al guardar tu progreso (almacenamiento lleno)`,
+    // sync badge tooltips
+    syncPending:`Sincronización pendiente — recarga la página.`,
+    syncOffline:`Sin conexión — los cambios se guardarán cuando vuelvas.`,
+    syncActive:`Sincronización activa`,
+    // model compare
+    compareNoQuestion:`Escribe una pregunta.`,
+    compareNoKeys:`No hay claves API configuradas.`,
+    compareSending:(n)=>`⏳ Enviando a ${n} modelos…`,
+    compareEmptyReply:`(respuesta vacía)`,
+    compareDone:`✓ Completado`,
+    compareProgress:`⏳ `,
   },
 };

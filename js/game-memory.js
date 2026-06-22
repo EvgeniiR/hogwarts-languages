@@ -276,7 +276,7 @@ async function llmVocab(count, fresh = false) {
   const exclude = recentVocab.size ? `\nDo not use any of these words: ${[...recentVocab].join(', ')}` : '';
   const prompt = lang.prompts.memoryPrompt(count, fresh, exclude);
   try {
-    const raw = await callLLM(lang.prompts.memorySys(LEVELS[S.level]), [{ role: 'user', content: prompt }], fresh ? 800 : 600);
+    const raw = await callLLM(lang.prompts.memorySys(LEVELS[S.level]), [{ role: 'user', content: prompt }], fresh ? 800 : 600, {type:'memory'});
     const parsed = extractJSON(raw);
     const arr = parsed.pairs || parsed;
     if (!Array.isArray(arr)) return null;

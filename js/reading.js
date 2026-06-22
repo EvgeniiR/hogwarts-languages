@@ -244,9 +244,9 @@ async function generateLLMArticles() {
   // before surfacing the error to the caller's retry UI.
   let parsed;
   try {
-    parsed = extractJSON(await callLLM(lang.prompts.magicSys(dc.vocab), [{ role: 'user', content: lang.prompts.magicUser(dc.words) }], dc.tokens));
+    parsed = extractJSON(await callLLM(lang.prompts.magicSys(dc.vocab), [{ role: 'user', content: lang.prompts.magicUser(dc.words) }], dc.tokens, {type:'reading'}));
   } catch (e) {
-    parsed = extractJSON(await callLLM(lang.prompts.magicSys(dc.vocab), [{ role: 'user', content: lang.prompts.magicUser(dc.words) }], dc.tokens));
+    parsed = extractJSON(await callLLM(lang.prompts.magicSys(dc.vocab), [{ role: 'user', content: lang.prompts.magicUser(dc.words) }], dc.tokens, {type:'reading'}));
   }
   const magicKey = lang.rssSources[0];
   const a = parsed.article || {};
@@ -296,7 +296,7 @@ export async function selectArticle(articleId) {
 // ── quiz generation ─────────────────────────────────────────────────────────
 async function generateQuizForArticle(article) {
   const dc = lang.readingDiffConfig[article.difficulty || S.readingDifficulty];
-  const raw = await callLLM(lang.prompts.quizSys(dc.quizInstr), [{ role: 'user', content: lang.prompts.quizUser(article.text.substring(0, 4000)) }], 1500, { temperature: 0.2 });
+  const raw = await callLLM(lang.prompts.quizSys(dc.quizInstr), [{ role: 'user', content: lang.prompts.quizUser(article.text.substring(0, 4000)) }], 1500, { temperature: 0.2, type:'quiz' });
   const parsed = extractJSON(raw);
   if (parsed.quiz && parsed.quiz.length) {
     article.quiz = parsed.quiz;
@@ -491,7 +491,7 @@ export async function submitRecap() {
   el.innerHTML = `<div class="mem-loading" style="text-align:center;padding:40px;">${lang.ui.readingRecapEvalLoading}</div><button class="reading-back-btn" onclick="selectArticle('${esc(article.id)}')">${lang.ui.readingCancelBtn}</button>`;
 
   try {
-    const raw = await callLLM(lang.prompts.recapSys, [{ role: 'user', content: lang.prompts.recapUser(article.text.substring(0, 4000), text) }], 1000, { temperature: 0.2 });
+    const raw = await callLLM(lang.prompts.recapSys, [{ role: 'user', content: lang.prompts.recapUser(article.text.substring(0, 4000), text) }], 1000, { temperature: 0.2, type:'recap' });
     if (reqId !== readingReqId) return;
     const parsed = extractJSON(raw);
     const score = Math.max(0, Math.min(1, parsed.score || 0));

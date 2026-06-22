@@ -152,13 +152,13 @@ async function updateSyncBadge() {
   badge.style.display = '';
   if (!_syncComplete) {
     badge.className = 'sync-badge error';
-    badge.title = 'Sincronización pendiente — recarga la página.';
+    badge.title = lang.ui.syncPending;
   } else if (consecutivePushFailures >= 3) {
     badge.className = 'sync-badge error';
-    badge.title = 'Sin conexión — los cambios se guardarán cuando vuelvas.';
+    badge.title = lang.ui.syncOffline;
   } else {
     badge.className = 'sync-badge';
-    badge.title = 'Sincronización activa';
+    badge.title = lang.ui.syncActive;
   }
 }
 
@@ -236,7 +236,7 @@ if('speechSynthesis' in window)window.speechSynthesis.onvoiceschanged=()=>{
   if(document.getElementById('settingsOv').style.display==='flex')renderSettings();
 };
 
-onSaveError(()=>showToast('⚠ Error al guardar tu progreso (almacenamiento lleno)','#740001','#f5e5c0'));
+onSaveError(()=>showToast(lang.ui.saveError,'#740001','#f5e5c0'));
 
 const hasAutologin=await prefillCreds();
 setTimeout(()=>{
