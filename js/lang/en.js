@@ -41,7 +41,7 @@ export default {
 
     optionsPrompt:`Generate 3 short phrases (5-15 words in simple English) that a {{LV}} level student could say next, in first person. The 3 must be different from each other: one idea to ask more about the topic, another to accept or develop the proposal, and another to change the subject. Respond ONLY with JSON, no additional text: {"options":["sug 1","sug 2","sug 3"]}`,
 
-    analysisPrompt:`You are an English teacher. Student level: {{LV}}. Analyse the exchange. Extract at most 3 NEW vocabulary words from the character's message that the student probably doesn't know (the most useful ones). Look for grammatical errors in the student's message. Only include fields with real content — empty arrays and empty strings are fine if there's nothing to report. Respond ONLY with JSON: {"note":"[brief grammatical note, only if there is a pattern to explain]","vocab":[{"word":"[new word]","def":"[meaning or Spanish translation]"}],"mistakes":[{"wrong":"[student error]","right":"[correction]","note":"[brief explanation]"}]}`,
+    analysisPrompt:`You are an English teacher. Student level: {{LV}}. Analyse the exchange. Extract at most 3 NEW vocabulary words from the character's message that the student probably doesn't know (the most useful ones). Look for grammatical errors in the student's message. Only include fields with real content — empty arrays and empty strings are fine if there's nothing to report. Respond ONLY with JSON: {"note":"[brief grammatical note, only if there is a pattern to explain]","vocab":[{"word":"[new word]","def":"[short English definition or example]"}],"mistakes":[{"wrong":"[student error]","right":"[correction]","note":"[brief explanation]"}]}`,
 
     summaryPrompt:`Condense the following message into an objective third-person sentence (maximum 20 words). Only mention the key facts: what was said, what was recommended, what was asked. If the character made a grammatical correction, include it. Respond ONLY with JSON: {"summary":"[summary]"}`,
 
@@ -52,16 +52,16 @@ export default {
     dictationSys:(name,level)=>`You are an English language teacher generating dictation exercises for a ${level} learner.`,
     dictationUser:(name,diffPrompt,topic,avoid)=>`You are ${name}. ${diffPrompt} Topic: ${topic}. Generate ONE English sentence on that topic that you would say, for a dictation exercise.${avoid} Reflect your personality. Only the sentence, no quotes or explanations.`,
 
-    translationSys:(name,level)=>`You are ${name}, generating translation exercises Spanish→English for a ${level} learner.`,
-    translationUser:(diffPrompt,topic,avoid)=>`${diffPrompt} Topic: ${topic}. Generate ONE short phrase in SPANISH on that topic for the student to translate to English.${avoid} Reflect your personality. RESPOND ONLY with this JSON: {"phrase":"Spanish phrase","refTranslation":"a correct English translation"}`,
-    translationEvalSys:`Evaluate Spanish→English translations. Respond ONLY with JSON.`,
-    translationEvalUser:(phrase,input)=>`Evaluate this Spanish→English translation:\n\nSpanish phrase: "${phrase}"\nStudent translated: "${input}"\n\nRULES:\n- "correct": completely correct translation (accept valid variants).\n- "minor": a small error but the meaning is understood.\n- "incorrect": the meaning is wrong or something important is missing.\n\nRespond ONLY with: {"status":"correct|minor|incorrect","correction":"correct English translation","note":"brief explanation in English"}`,
+    translationSys:(name,level)=>`You are ${name}, generating English vocabulary exercises for a ${level} learner. Give the student an English word and ask them to explain it.`,
+    translationUser:(diffPrompt,topic,avoid)=>`${diffPrompt} Topic: ${topic}. Pick ONE natural English word related to that topic for the student to explain in their own words.${avoid} Reflect your personality. RESPOND ONLY with JSON: {"phrase":"[target word]","refTranslation":"[a correct explanation or example sentence]"}`,
+    translationEvalSys:`Evaluate whether a student correctly explained an English word. Respond ONLY with JSON.`,
+    translationEvalUser:(phrase,input)=>`Target word: "${phrase}"\nStudent explained: "${input}"\n\nRULES:\n- "correct": meaning is right, even if worded differently.\n- "minor": mostly right with a small gap.\n- "incorrect": explanation is wrong or empty.\n\nRespond ONLY with: {"status":"correct|minor|incorrect","correction":"[a good explanation or example sentence]","note":"brief feedback in English"}`,
 
     orderSys:`You are an English language teacher generating magical world headlines for a word-order exercise.`,
     orderUser:(name,diffPrompt,avoid)=>`You are ${name}. ${diffPrompt} Topic: a news story from the magical world related to you. Generate ONE short sentence in English that is a headline. No punctuation marks. Only the sentence, no quotes or explanations.${avoid}`,
 
     memorySys:(level)=>`You are an English language teacher generating vocabulary pairs for a memory game for a ${level} level learner.`,
-    memoryPrompt:(count,fresh,exclude)=>`Generate${fresh?' exactly':''} ${count} English vocabulary pairs at A2/B1 level.\nUseful and natural English words — everyday topics or Harry Potter world. Include a Spanish translation for each word.\nOutput ONLY a JSON object: {"pairs":[{"word":"calm","def":"tranquilo"},{"word":"broom","def":"escoba"}]}\nNo markdown, no explanation.${exclude}`,
+    memoryPrompt:(count,fresh,exclude)=>`Generate${fresh?' exactly':''} ${count} English vocabulary pairs at A2/B1 level.\nUseful and natural English words — everyday topics or Harry Potter world. Include a short English definition for each word.\nOutput ONLY a JSON object: {"pairs":[{"word":"calm","def":"relaxed and not anxious"},{"word":"broom","def":"a stick used for sweeping"}]}\nNo markdown, no explanation.${exclude}`,
 
     magicSys:(vocab)=>`You are Rita Skeeter, star reporter for "The Daily Prophet". Your style: sensationalist, vivid and addictive. You write stories that hook, never encyclopedia entries. You SHOW concrete scenes, brief dialogue and specific details; you AVOID general statements or abstract summaries. You exaggerate dramatically, but do NOT invent facts that contradict Harry Potter canon: if you introduce rumours or speculation, you present them clearly as such. ${vocab}. Register: natural tabloid-magazine style with short paragraphs (3-5 sentences) for fluid reading.\nQUIZ RULES: 4 questions that evaluate comprehension of nuance and concrete details, not the obvious. Incorrect options plausible but distinguishable for an attentive reader. The "correct" field is the zero-based integer index (0, 1, 2 or 3) of the correct option.`,
     magicUser:(words)=>`Write ONE SINGLE article for "The Daily Prophet". Do not write introductions, lists or multiple stories — just one. EXACT LENGTH: ${words} words. Headline: provocative, magical tabloid style (never academic-descriptive). Narrative structure: strong opening hook → development with rising tension → memorable closing. Respect Harry Potter canon. Choose ONE theme: iconic characters, legendary spells, fascinating creatures, hidden places at Hogwarts, historical events of the magical world, memorable classes, famous potions, enchanted objects, epic duels, Ministry secrets, house histories or unsolved mysteries. Respond ONLY with JSON, no additional text: {"article":{"title":"...","text":"...","quiz":[{"q":"...","options":["A","B","C","D"],"correct":0}]}}`,
@@ -72,8 +72,8 @@ export default {
     recapSys:`You are an English teacher. You evaluate a student's reading comprehension based on their summary. Be fair but demanding. Respond ONLY with JSON.`,
     recapUser:(articleText,userText)=>`Article:\n${articleText}\n\nStudent's summary:\n${userText}\n\nEvaluate the summary. Respond ONLY with JSON: {"score":0.85,"feedback":"brief comment in English (2-3 sentences)","missedKeyPoints":["key point not mentioned"]}`,
 
-    lookupSys:`You are an English dictionary. Respond ONLY with the Spanish translation, 1-4 words, no punctuation or explanation.`,
-    translateReadingSys:`You are an English-Spanish translator. Translate to Spanish concisely and naturally, without explanations.`,
+    lookupSys:`You are an English dictionary. Respond ONLY with a short English definition, 1-5 words, no punctuation.`,
+    translateReadingSys:`You are an English language assistant. Explain the selected word or phrase in plain English, at most 6 words.`,
 
     errExplainSys:`You are an English language tutor. The learner made a mistake in English. Write the explanation IN ENGLISH.\nRespond ONLY with a JSON object — no text before or after, no markdown, no backticks.\n{"explanation":"...","suggestions":["...","...","..."]}\n- explanation: 2-4 short paragraphs in English, **bold** key grammar terms, include example sentences.\n- suggestions: 3 concise follow-up questions in English the learner might ask.`,
   },
@@ -169,12 +169,12 @@ export default {
     btnNext:`Next →`,
     btnRetry:`Retry`,
     btnMenu:`Menu →`,
-    translateLabel:`Translate to English:`,
-    translatePlaceholder:`Your translation…`,
+    translateLabel:`Explain this word:`,
+    translatePlaceholder:`Your explanation…`,
     translateHintNone:`No hint available for this phrase.`,
     translateChecking:`⏳ Checking…`,
     translateSource:`translation`,
-    translateNote:`Translation`,
+    translateNote:`Explanation`,
     orderLoadingMsg:`The owl has scrambled the words of this news story. Drag them into the correct order.`,
     orderAreaLabel:`⬇ Order the words here`,
     orderLoadError:`Could not load the drag component. Check your connection and try reloading the page.`,
@@ -198,7 +198,7 @@ export default {
     memRevealAll:`⏭ Reveal all (-1)`,
     memNotEnough:`Add more vocabulary first (at least 2 words).`,
     memGoToChat:`Go to chat →`,
-    noTranslation:`(no translation)`,
+    noTranslation:`(no definition)`,
     srsBadge:(n)=>`📅 Reviewing · ${n}`,
     srsRevealBtn:`Show →`,
     srsKnow:`✓ I know it`,
@@ -223,10 +223,10 @@ export default {
     saveBtn:`Save`,
     cancelBtn:`Cancel`,
     addBtn:`Add`,
-    translatingLabel:`Translating…`,
+    translatingLabel:`Looking up…`,
     flashcardReveal:`Tap to reveal →`,
-    flashcardToggleFwd:`🇬🇧→🇪🇸`,
-    flashcardToggleRev:`🇪🇸→🇬🇧`,
+    flashcardToggleFwd:`Word → Def`,
+    flashcardToggleRev:`Def → Word`,
     ttsTestFemale:`Hello, I'm Hermione.`,
     ttsTestMale:`Hello, this is how I sound.`,
     settingsVoiceAuto:`Auto voice`,
