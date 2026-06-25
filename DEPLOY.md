@@ -63,9 +63,9 @@ npx wrangler pages deploy . --project-name=hogwarts-english --branch=main
 ES modules require an HTTP server — they **do not load over `file://`**:
 
 ```bash
-python3 -m http.server 8787
+npx live-server --port=8787
 ```
-Open http://localhost:8787/hogwarts-espanol.html
+Open http://localhost:8787/hogwarts-espanol.html (auto-reloads on file changes)
 
 For local Worker dev:
 ```bash

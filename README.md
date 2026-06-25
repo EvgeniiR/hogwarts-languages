@@ -13,10 +13,11 @@ A working MVP, taken from concept to something deployed and usable day to day ra
 ## What it does
 
 - **Conversations with four characters**, each with a distinct persona, mood that shifts with the conversation, and an anti-farming scoring system so you can't grind points with one-word replies
-- **Bring-your-own-key** across four LLM providers — Groq and Gemini (free tiers), OpenAI, and Anthropic — with timeouts, retries, and quota fallback
+- **Bring-your-own-key** across three LLM providers — Groq (free tier), OpenAI, and DeepSeek — with timeouts, retries, and quota fallback
 - **Automatic tracking** of new vocabulary and grammar mistakes pulled from your chats
 - **Spaced repetition** (Leitner system) and **flashcards** with a reverse mode, built on top of the vocab you accumulate
 - **Four minigames** — dictation, translation, word-order (drag and drop), and a Pensieve memory-match with a Canvas particle engine
+- **Reading comprehension** (El Profeta) — AI-generated articles across 8 topic categories with three difficulty levels, a multiple-choice quiz, and a free-form recap graded by the LLM
 - **Daily challenges, streaks, levels (A2 → B1+), achievements, and house points** to keep the loop going
 - **Text-to-speech** for every reply and **voice input** for your side of the conversation
 - **Ambient music**, gapless and mutable
