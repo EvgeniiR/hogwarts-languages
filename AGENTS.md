@@ -36,8 +36,7 @@ js/                     ← ES modules
       es.js               ← Spanish config: strings, prompts, RSS, personas
       en.js               ← English config: strings, prompts, RSS, personas
     reading.js            ← Reading comprehension: LLM-generated Markdown articles from 8 topic categories, quiz, recap
-    reading-topics-es.js  ← Reading article topics (Spanish) — 8 categories × 2-3 topics each
-    reading-topics-en.js  ← Reading article topics (English) — 8 categories × 2-3 topics each
+    reading-topics.js     ← Reading article topics — 8 categories × 2-3 topics each (English, LLM translates as needed)
     … (all other modules import lang from './lang.js')
 worker/                 ← Cloudflare Worker (sync backend, serves both sites)
   index.js              ← Worker entry: /auth/google, /auth/google/code, /state
@@ -124,7 +123,7 @@ When editing a feature, load **only this file** — not the whole project.
 **Reading comprehension (reading.js) specifics:**
 - 8 category buttons → direct-to-article LLM generation (no headlines list, no RSS)
 - Categories: magical, stories, howto, nature, places, culture, opinions, news
-- Topics loaded from `js/reading-topics-{es,en}.js`, 2-3 concrete topics per category
+- Topics loaded from `js/reading-topics.js`, 2-3 concrete topics per category
 - Topic selection: random with session-level dedup (`recentTopics` Set per category)
 - Article prompt: magazine-style (Nat Geo / BBC Earth tone), returns Markdown
 - Difficulty adaptation: easy→A2, medium→B2, hard→no adaptation

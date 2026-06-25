@@ -1,5 +1,6 @@
-// ── Reading topics (English) ───────────────────────────────────────────────
+// ── Reading topics ─────────────────────────────────────────────────────────
 // Concrete magazine-style article topics for LLM generation.
+// Topics are in English — the LLM translates into the target language.
 // Imported by reading.js to guide article diversity across categories.
 export default {
   "magical": {

@@ -1,7 +1,7 @@
 // ── EL PROFETA / THE DAILY PROPHET ─────────────────────────────────────────
 // Reading comprehension overlay. Eight category buttons → LLM-generated
 // Markdown article → quiz or written-recap verified by one LLM call.
-// Topics are drawn from reading-topics-{es,en}.js with session-level dedup.
+// Topics are drawn from reading-topics.js with session-level dedup.
 import { S, saveS } from './state.js';
 import { esc, showToast, extractJSON } from './helpers.js';
 import { callLLM } from './llm.js';
@@ -29,8 +29,7 @@ let readingTopics = null;    // loaded topics module
 
 async function loadTopics() {
   if (readingTopics) return readingTopics;
-  const langAttr = document.documentElement.lang || 'es';
-  readingTopics = (await import(langAttr === 'en' ? './reading-topics-en.js' : './reading-topics-es.js')).default;
+  readingTopics = (await import('./reading-topics.js')).default;
   return readingTopics;
 }
 
